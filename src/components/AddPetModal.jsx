@@ -1,12 +1,36 @@
 // src/components/AddPetModal.jsx
 import { FiX } from 'react-icons/fi'
+import { addPet } from '../firebase/services'
+import { useState } from 'react'
 
 function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedClient }) {
+  const [isSaving, setIsSaving] = useState(false)
   if (!isOpen) return null
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSubmit(petData)
+    if (!selectedClient) {
+      alert('Please select a client first')
+      return
+    }
+    setIsSaving(true)
+    try {
+      const newPet = await addPet({
+        name: petData.name,
+        species: petData.species,
+        breed: petData.breed,
+        age: Number(petData.age),
+        weight: Number(petData.weight),
+        clientId: selectedClient.id
+      })
+      onSubmit(newPet)
+      setPetData({ name: '', species: '', breed: '', age: '', weight: '' })
+    } catch (error) {
+      console.error('Error adding pet:', error)
+      alert('Failed to add pet. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -123,9 +147,10 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={isSaving}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
             >
-              Add Pet
+              {isSaving ? 'Adding...' : 'Add Pet'}
             </button>
           </div>
         </form>

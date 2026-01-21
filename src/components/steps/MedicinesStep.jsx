@@ -1,27 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FiSearch, FiMinus, FiPlus, FiX } from 'react-icons/fi'
+import { getMedicines } from '../../firebase/services'
 
 function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesData, setMedicinesData }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedMedicines, setSelectedMedicines] = useState(medicinesData || [])
+  const [medicines, setMedicines] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Sample medicines data (will be replaced with Firebase)
-  const sampleMedicines = [
-    { id: 1, name: 'Anti-Rabies Vaccine', category: 'Vaccines', price: 350, stock: 41 },
-    { id: 2, name: '5-in-1 Vaccine', category: 'Vaccines', price: 800, stock: 28 },
-    { id: 3, name: 'Kennel Cough Vaccine', category: 'Vaccines', price: 500, stock: 25 },
-    { id: 4, name: 'Amoxicillin 250mg', category: 'Antibiotics', price: 25, stock: 150 },
-    { id: 5, name: 'Cefalexin 500mg', category: 'Antibiotics', price: 35, stock: 100 },
-    { id: 6, name: 'Vitamin B Complex', category: 'Vitamins', price: 45, stock: 80 },
-    { id: 7, name: 'Deworming Tablet', category: 'Dewormers', price: 50, stock: 120 },
-    { id: 8, name: 'Flea Treatment', category: 'Dewormers', price: 150, stock: 60 },
-  ]
+  useEffect(() => {
+    loadMedicines()
+  }, [])
 
-  const categories = ['All', 'Vaccines', 'Antibiotics', 'Vitamins', 'Dewormers']
+  const loadMedicines = async () => {
+    try {
+      const data = await getMedicines()
+      setMedicines(data)
+    } catch (error) {
+      console.error('Error loading medicines:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const filteredMedicines = sampleMedicines.filter(med => {
-    const matchesSearch = med.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const categories = ['All', 'Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
+
+  const filteredMedicines = medicines.filter(med => {
+    const matchesSearch = med.medicineName.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = activeFilter === 'All' || med.category === activeFilter
     return matchesSearch && matchesFilter
   })
@@ -52,7 +58,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
   }
 
   const getTotalPrice = () => {
-    return selectedMedicines.reduce((sum, med) => sum + (med.price * med.quantity), 0)
+    return selectedMedicines.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0)
   }
 
   const handleSubmit = () => {
@@ -100,17 +106,26 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
 
           {/* Medicine List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
-            {filteredMedicines.map(medicine => (
+            {loading ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500">Loading medicines...</p>
+              </div>
+            ) : filteredMedicines.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-500">No medicines found</p>
+              </div>
+            ) : (
+              filteredMedicines.map(medicine => (
               <div
                 key={medicine.id}
                 className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{medicine.name}</p>
-                  <p className="text-xs text-gray-500">Stock: {medicine.stock}</p>
+                  <p className="text-sm font-medium text-gray-900">{medicine.medicineName}</p>
+                  <p className="text-xs text-gray-500">Stock: {medicine.stockQuantity}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-blue-600">₱{medicine.price}</span>
+                  <span className="text-sm font-semibold text-blue-600">₱{medicine.sellingPrice || 0}</span>
                   <button
                     onClick={() => handleAddMedicine(medicine)}
                     className="w-7 h-7 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -119,7 +134,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
                   </button>
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -136,7 +151,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
               selectedMedicines.map(med => (
                 <div key={med.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-start justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-900 flex-1">{med.name}</p>
+                    <p className="text-sm font-medium text-gray-900 flex-1">{med.medicineName}</p>
                     <button
                       onClick={() => handleRemoveMedicine(med.id)}
                       className="text-gray-400 hover:text-red-600 ml-2"
@@ -161,7 +176,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
                       </button>
                     </div>
                     <span className="text-sm font-semibold text-gray-900">
-                      ₱{(med.price * med.quantity).toLocaleString()}
+                      ₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}
                     </span>
                   </div>
                 </div>

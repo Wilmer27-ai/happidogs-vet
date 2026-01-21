@@ -1,20 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FiSearch } from 'react-icons/fi'
+import { getPetsByClient } from '../../firebase/services'
 
 function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
   const [petSearchQuery, setPetSearchQuery] = useState('')
+  const [pets, setPets] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Sample pet data (will be replaced with Firebase)
-  const samplePets = [
-    { id: 1, name: 'Max', species: 'Dog', breed: 'Golden Retriever', age: '3 years', weight: '30 kg', clientId: 1 },
-    { id: 2, name: 'Bella', species: 'Cat', breed: 'Persian', age: '2 years', weight: '4 kg', clientId: 1 },
-    { id: 3, name: 'Charlie', species: 'Dog', breed: 'Labrador', age: '5 years', weight: '28 kg', clientId: 2 },
-    { id: 4, name: 'Luna', species: 'Cat', breed: 'Siamese', age: '1 year', weight: '3.5 kg', clientId: 3 },
-  ]
+  useEffect(() => {
+    if (selectedClient?.id) {
+      loadPets()
+    }
+  }, [selectedClient])
 
-  const clientPets = samplePets.filter(pet => pet.clientId === selectedClient?.id)
+  const loadPets = async () => {
+    try {
+      const data = await getPetsByClient(selectedClient.id)
+      setPets(data)
+    } catch (error) {
+      console.error('Error loading pets:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const filteredPets = clientPets.filter(pet =>
+  const filteredPets = pets.filter(pet =>
     pet.name.toLowerCase().includes(petSearchQuery.toLowerCase()) ||
     pet.species.toLowerCase().includes(petSearchQuery.toLowerCase()) ||
     pet.breed.toLowerCase().includes(petSearchQuery.toLowerCase())
@@ -80,7 +90,13 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredPets.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                    Loading pets...
+                  </td>
+                </tr>
+              ) : filteredPets.length > 0 ? (
                 filteredPets.map((pet) => (
                   <tr key={pet.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">

@@ -1,17 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FiSearch } from 'react-icons/fi'
+import { getClients } from '../../firebase/services'
 
 function ClientStep({ onSelectClient, onNext }) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // Sample client data (will be replaced with Firebase)
-  const sampleClients = [
-    { id: 1, firstName: 'Maria', lastName: 'Santos', phoneNumber: '09171234567', address: 'Manila, Philippines' },
-    { id: 2, firstName: 'Juan', lastName: 'Dela Cruz', phoneNumber: '09181234567', address: 'Quezon City, Philippines' },
-    { id: 3, firstName: 'Anna', lastName: 'Garcia', phoneNumber: '09191234567', address: 'Makati, Philippines' },
-  ]
+  useEffect(() => {
+    loadClients()
+  }, [])
 
-  const filteredClients = sampleClients.filter(client => 
+  const loadClients = async () => {
+    try {
+      const data = await getClients()
+      setClients(data)
+    } catch (error) {
+      console.error('Error loading clients:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredClients = clients.filter(client => 
     `${client.firstName} ${client.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.phoneNumber.includes(searchQuery)
   )
@@ -56,7 +67,13 @@ function ClientStep({ onSelectClient, onNext }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredClients.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                    Loading clients...
+                  </td>
+                </tr>
+              ) : filteredClients.length > 0 ? (
                 filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">

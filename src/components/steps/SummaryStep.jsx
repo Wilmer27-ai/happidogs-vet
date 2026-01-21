@@ -11,8 +11,8 @@ function SummaryStep({
   onSave 
 }) {
   const getTotalPrice = () => {
-    const medicinesTotal = medicinesData?.reduce((sum, med) => sum + (med.price * med.quantity), 0) || 0
-    const consultationFee = 300 // You can make this configurable
+    const medicinesTotal = medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0
+    const consultationFee = 300
     return medicinesTotal + consultationFee
   }
 
@@ -95,16 +95,16 @@ function SummaryStep({
               {medicinesData.map(med => (
                 <div key={med.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">{med.name}</p>
-                    <p className="text-sm text-gray-600">Quantity: {med.quantity}</p>
+                    <p className="font-medium text-gray-900">{med.medicineName || 'N/A'}</p>
+                    <p className="text-sm text-gray-600">Quantity: {med.quantity || 0}</p>
                   </div>
-                  <p className="font-semibold text-gray-900">₱{(med.price * med.quantity).toLocaleString()}</p>
+                  <p className="font-semibold text-gray-900">₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}</p>
                 </div>
               ))}
               <div className="flex items-center justify-between pt-3 border-t border-gray-200 mt-3">
                 <p className="font-medium text-gray-700">Medicines Subtotal</p>
                 <p className="font-bold text-gray-900">
-                  ₱{medicinesData.reduce((sum, med) => sum + (med.price * med.quantity), 0).toLocaleString()}
+                  ₱{medicinesData.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -142,7 +142,7 @@ function SummaryStep({
             <div className="flex items-center justify-between text-gray-700">
               <span>Medicines</span>
               <span className="font-medium">
-                ₱{(medicinesData?.reduce((sum, med) => sum + (med.price * med.quantity), 0) || 0).toLocaleString()}
+                ₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}
               </span>
             </div>
             <div className="border-t-2 border-blue-200 pt-2 mt-2">

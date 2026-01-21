@@ -1,12 +1,30 @@
 // src/components/AddClientModal.jsx
 import { FiX } from 'react-icons/fi'
+import { addClient } from '../firebase/services'
+import { useState } from 'react'
 
 function AddClientModal({ isOpen, onClose, onSubmit, clientData, setClientData }) {
+  const [isSaving, setIsSaving] = useState(false)
   if (!isOpen) return null
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSubmit(clientData)
+    setIsSaving(true)
+    try {
+      const newClient = await addClient({
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        phoneNumber: clientData.phoneNumber,
+        address: clientData.address
+      })
+      onSubmit(newClient)
+      setClientData({ firstName: '', lastName: '', phoneNumber: '', address: '' })
+    } catch (error) {
+      console.error('Error adding client:', error)
+      alert('Failed to add client. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -95,9 +113,10 @@ function AddClientModal({ isOpen, onClose, onSubmit, clientData, setClientData }
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              disabled={isSaving}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
             >
-              Add Client
+              {isSaving ? 'Adding...' : 'Add Client'}
             </button>
           </div>
         </form>

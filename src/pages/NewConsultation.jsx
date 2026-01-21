@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { FiPlus, FiCheckCircle } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import { addConsultation, addFollowUp } from '../firebase/services'
 import AddClientModal from '../components/AddClientModal'
 import AddPetModal from '../components/AddPetModal'
 import ClientStep from '../components/steps/ClientStep'
@@ -40,26 +41,73 @@ function NewConsultation() {
 
   const steps = ['Client', 'Pet', 'Details', 'Medicines', 'Follow-Up', 'Review']
 
-  const handleAddClient = (clientData) => {
-    console.log('New Client:', clientData)
+  const handleAddClient = (newClient) => {
+    setSelectedClient(newClient)
     setNewClient({ firstName: '', lastName: '', phoneNumber: '', address: '' })
     setIsAddClientModalOpen(false)
   }
 
-  const handleAddPet = (petData) => {
-    console.log('New Pet:', petData)
+  const handleAddPet = (newPet) => {
+    setSelectedPet(newPet)
     setNewPet({ name: '', species: '', breed: '', age: '', weight: '' })
     setIsAddPetModalOpen(false)
   }
 
-  const handleSaveConsultation = () => {
+  const handleSaveConsultation = async () => {
     setIsSaving(true)
-    // Simulate save delay
-    setTimeout(() => {
-      setIsSaving(false)
+    try {
+      // Validate required data
+      if (!selectedClient?.id || !selectedPet?.id) {
+        alert('Please select both client and pet')
+        setIsSaving(false)
+        return
+      }
+
+      // Save consultation
+      const consultationToSave = {
+        clientId: selectedClient.id,
+        clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+        petId: selectedPet.id,
+        petName: selectedPet.name,
+        dateTime: consultationData?.dateTime || new Date().toISOString(),
+        reason: consultationData?.reason || '',
+        diagnosis: consultationData?.diagnosis || '',
+        treatment: consultationData?.treatment || '',
+        medicines: medicinesData?.map(med => ({
+          medicineId: med.id,
+          medicineName: med.medicineName,
+          quantity: med.quantity,
+          price: med.sellingPrice
+        })) || [],
+        totalAmount: (medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0) + 300,
+        consultationFee: 300
+      }
+
+      console.log('Saving consultation:', consultationToSave)
+
+      const savedConsultation = await addConsultation(consultationToSave)
+
+      console.log('Consultation saved:', savedConsultation)
+
+      // Save follow-up if enabled
+      if (followUpData?.enabled && followUpData?.date) {
+        await addFollowUp({
+          consultationId: savedConsultation.id,
+          date: followUpData.date,
+          type: followUpData.type || 'Check-up'
+        })
+      }
+
       // Navigate to consultation history
-      navigate('/consultation-history')
-    }, 1500)
+      setTimeout(() => {
+        setIsSaving(false)
+        navigate('/consultation-history')
+      }, 1500)
+    } catch (error) {
+      console.error('Error saving consultation:', error)
+      alert(`Failed to save consultation: ${error.message}`)
+      setIsSaving(false)
+    }
   }
 
   return (
