@@ -7,12 +7,15 @@ import {
   FiDatabase, 
   FiBarChart2, 
   FiSettings, 
-  FiLogOut 
-} from 'react-icons/fi' // Changed from 'react-icons/feather'
+  FiLogOut,
+  FiMenu,
+  FiX
+} from 'react-icons/fi'
 import { useState } from 'react'
 
-function Layout() { // Also changed from App to Layout
+function Layout() {
   const location = useLocation()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
     { name: 'New Consultation', path: '/new-consultation', icon: FiPlus },
@@ -27,70 +30,99 @@ function Layout() { // Also changed from App to Layout
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-gray-900 text-white rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
+      >
+        {isMobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
+      </button>
+
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-40
+        w-72 bg-gray-900 text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         {/* Logo/Brand */}
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 3.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM2 10a8 8 0 1116 0 8 8 0 01-16 0z"/>
+        <div className="p-6 flex items-center gap-3 border-b border-gray-800">
+          <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+            <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
             </svg>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold">Happidogs</h1>
-            <p className="text-xs text-gray-400">Veterinary System</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold tracking-tight">HappiDogs</h1>
+            <p className="text-sm text-gray-400 truncate">Veterinary System</p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigation.map((item) => (
             <Link
               key={item.path}
               to={item.path}
+              onClick={() => setIsMobileMenuOpen(false)}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                transition-colors duration-150
+                group flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-medium
+                transition-all duration-200
                 ${isActive(item.path) 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:shadow-md'
                 }
               `}
             >
-              <item.icon className="w-5 h-5" />
-              <span>{item.name}</span>
+              <item.icon className={`
+                w-6 h-6 flex-shrink-0 transition-transform duration-200
+                ${isActive(item.path) ? '' : 'group-hover:scale-110'}
+              `} />
+              <span className="truncate">{item.name}</span>
             </Link>
           ))}
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="p-3 border-t border-gray-800 space-y-1">
+        <div className="p-4 border-t border-gray-800 space-y-2">
           <Link
             to="/settings"
+            onClick={() => setIsMobileMenuOpen(false)}
             className={`
-              flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-              transition-colors duration-150
+              group flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-medium
+              transition-all duration-200
               ${isActive('/settings') 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:shadow-md'
               }
             `}
           >
-            <FiSettings className="w-5 h-5" />
-            <span>Settings</span>
+            <FiSettings className={`
+              w-6 h-6 flex-shrink-0 transition-transform duration-200
+              ${isActive('/settings') ? '' : 'group-hover:scale-110 group-hover:rotate-90'}
+            `} />
+            <span className="truncate">Settings</span>
           </Link>
           <button
             onClick={() => {/* Handle logout */}}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors duration-150"
+            className="group w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-medium text-gray-300 hover:bg-red-600 hover:text-white transition-all duration-200 hover:shadow-md"
           >
-            <FiLogOut className="w-5 h-5" />
-            <span>Logout</span>
+            <FiLogOut className="w-6 h-6 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
+            <span className="truncate">Logout</span>
           </button>
         </div>
       </aside>
 
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto lg:ml-0">
         <Outlet />
       </main>
     </div>
