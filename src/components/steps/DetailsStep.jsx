@@ -25,98 +25,97 @@ function DetailsStep({ selectedClient, selectedPet, onBack, onNext, consultation
   }
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-180px)]">
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col">
+    <div className="max-w-5xl mx-auto h-[calc(100vh-120px)] flex items-center px-6">
+      <form onSubmit={handleSubmit} className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
         {/* Header */}
-        <div className="px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
+        <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-500 truncate">
-              {selectedClient?.firstName} {selectedClient?.lastName} • {selectedPet?.name}
-            </p>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Consultation Details</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {selectedClient?.firstName} {selectedClient?.lastName} - {selectedPet?.name}
+              </p>
+            </div>
             <button
               type="button"
               onClick={onBack}
-              className="ml-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
               Change
             </button>
           </div>
         </div>
 
-        {/* Form Content */}
-        <div className="flex-1 px-4 py-3 space-y-2.5">
-          {/* Date and Time */}
+        {/* Form Fields */}
+        <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Date & Time *
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Date & Time
             </label>
             <input
               type="datetime-local"
               required
               value={formData.dateTime}
               onChange={(e) => setFormData({ ...formData, dateTime: e.target.value })}
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          {/* Reason for Visit */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Reason for Visit *
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Reason for Visit
             </label>
-            <textarea
+            <input
+              type="text"
               required
               value={formData.reasonForVisit}
               onChange={(e) => setFormData({ ...formData, reasonForVisit: e.target.value })}
-              rows="2"
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Enter reason..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter reason for visit"
             />
           </div>
 
-          {/* Diagnosis */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Diagnosis *
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Diagnosis
             </label>
-            <textarea
+            <input
+              type="text"
               required
               value={formData.diagnosis}
               onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-              rows="2"
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Enter diagnosis..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter diagnosis"
             />
           </div>
 
-          {/* Treatment / Notes */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Treatment / Notes *
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Treatment Plan
             </label>
-            <textarea
+            <input
+              type="text"
               required
               value={formData.treatmentNotes}
               onChange={(e) => setFormData({ ...formData, treatmentNotes: e.target.value })}
-              rows="3"
-              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              placeholder="Enter treatment..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter treatment plan"
             />
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-2 px-4 py-3 border-t bg-gray-50 flex-shrink-0">
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-white font-medium text-sm"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-white font-medium text-sm"
           >
             Back
           </button>
           <button
             type="submit"
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm"
+            className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm"
           >
             Continue
           </button>
