@@ -56,14 +56,12 @@ function NewConsultation() {
   const handleSaveConsultation = async () => {
     setIsSaving(true)
     try {
-      // Validate required data
       if (!selectedClient?.id || !selectedPet?.id) {
         alert('Please select both client and pet')
         setIsSaving(false)
         return
       }
 
-      // Save consultation
       const consultationToSave = {
         clientId: selectedClient.id,
         clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
@@ -89,7 +87,6 @@ function NewConsultation() {
 
       console.log('Consultation saved:', savedConsultation)
 
-      // Save follow-up if enabled
       if (followUpData?.enabled && followUpData?.date) {
         await addFollowUp({
           consultationId: savedConsultation.id,
@@ -98,7 +95,6 @@ function NewConsultation() {
         })
       }
 
-      // Navigate to consultation history
       setTimeout(() => {
         setIsSaving(false)
         navigate('/consultation-history')
@@ -111,19 +107,18 @@ function NewConsultation() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-4 sm:px-8 py-4">
+      <div className="bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Consultation</h1>
-              {/* Compact Step Indicator */}
+              <h1 className="text-2xl font-bold text-gray-900">New Consultation</h1>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs sm:text-sm text-gray-500">
+                <span className="text-sm text-gray-500">
                   Step {currentStep + 1} of {steps.length}:
                 </span>
-                <span className="text-xs sm:text-sm font-medium text-blue-600">
+                <span className="text-sm font-medium text-blue-600">
                   {steps[currentStep]}
                 </span>
               </div>
@@ -131,21 +126,19 @@ function NewConsultation() {
             {currentStep === 0 && (
               <button
                 onClick={() => setIsAddClientModalOpen(true)}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
               >
-                <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Add Client</span>
-                <span className="sm:hidden">Add</span>
+                <FiPlus className="w-5 h-5" />
+                Add Client
               </button>
             )}
             {currentStep === 1 && (
               <button
                 onClick={() => setIsAddPetModalOpen(true)}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+                className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
               >
-                <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Add Pet</span>
-                <span className="sm:hidden">Add</span>
+                <FiPlus className="w-5 h-5" />
+                Add Pet
               </button>
             )}
           </div>
@@ -167,7 +160,7 @@ function NewConsultation() {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 sm:px-8 py-4 sm:py-6">
+      <div className="flex-1 px-6 py-4">
         {currentStep === 0 && (
           <ClientStep
             onSelectClient={setSelectedClient}

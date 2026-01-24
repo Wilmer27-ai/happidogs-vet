@@ -33,9 +33,9 @@ function ClientStep({ onSelectClient, onNext }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+    <div className="h-[calc(100vh-140px)] flex flex-col">
+      <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
+        <div className="p-6 border-b border-gray-200 flex-shrink-0">
           <div className="relative max-w-md">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -48,10 +48,10 @@ function ClientStep({ onSelectClient, onNext }) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="flex-1 overflow-y-auto">
           <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
+            <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+              <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Client Name
                 </th>
@@ -78,9 +78,7 @@ function ClientStep({ onSelectClient, onNext }) {
                   <tr key={client.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                          {client.firstName[0]}{client.lastName[0]}
-                        </div>
+
                         <div>
                           <p className="font-semibold text-gray-900">
                             {client.firstName} {client.lastName}
@@ -106,11 +104,8 @@ function ClientStep({ onSelectClient, onNext }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center">
-                    <div className="text-gray-400">
-                      <p className="text-sm">No clients found</p>
-                      <p className="text-xs mt-1">Try adjusting your search or add a new client</p>
-                    </div>
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                    No clients found
                   </td>
                 </tr>
               )}

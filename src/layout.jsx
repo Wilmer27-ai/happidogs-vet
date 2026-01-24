@@ -12,6 +12,7 @@ import {
   FiX
 } from 'react-icons/fi'
 import { useState } from 'react'
+import logo from './assets/happidogslogo.png'
 
 function Layout() {
   const location = useLocation()
@@ -22,6 +23,8 @@ function Layout() {
     { name: 'Consultation History', path: '/consultation-history', icon: FiFileText },
     { name: 'Clients & Pets', path: '/clients-pets', icon: FiUsers },
     { name: 'Medicines & Stocks', path: '/medicines-stocks', icon: FiPackage },
+    { name: 'Suppliers', path: '/suppliers', icon: FiPackage },
+    { name: 'Expenses', path: '/expenses', icon: FiPackage },
     { name: 'Master Data', path: '/master-data', icon: FiDatabase },
     { name: 'Reports', path: '/reports', icon: FiBarChart2 },
   ]
@@ -46,20 +49,22 @@ function Layout() {
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo/Brand */}
-        <div className="p-6 flex items-center gap-3 border-b border-gray-800">
-          <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-            <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-            </svg>
+        <div className="p-6 flex items-center gap-3 border-b border-gray-800 flex-shrink-0">
+          <div className="w-12 h-12 flex-shrink-0">
+            <img 
+              src={logo} 
+              alt="HappiDogs Logo" 
+              className="w-full h-full object-contain"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold tracking-tight">HappiDogs</h1>
-            <p className="text-sm text-gray-400 truncate">Veterinary System</p>
+            <p className="text-sm text-gray-400 truncate">Veterinary Services</p>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-hidden">
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -84,25 +89,7 @@ function Layout() {
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="p-4 border-t border-gray-800 space-y-2">
-          <Link
-            to="/settings"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={`
-              group flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-medium
-              transition-all duration-200
-              ${isActive('/settings') 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-                : 'text-gray-300 hover:bg-gray-800 hover:text-white hover:shadow-md'
-              }
-            `}
-          >
-            <FiSettings className={`
-              w-6 h-6 flex-shrink-0 transition-transform duration-200
-              ${isActive('/settings') ? '' : 'group-hover:scale-110 group-hover:rotate-90'}
-            `} />
-            <span className="truncate">Settings</span>
-          </Link>
+        <div className="p-4 border-t border-gray-800 space-y-2 flex-shrink-0">
           <button
             onClick={() => {/* Handle logout */}}
             className="group w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-medium text-gray-300 hover:bg-red-600 hover:text-white transition-all duration-200 hover:shadow-md"

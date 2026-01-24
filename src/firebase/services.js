@@ -340,3 +340,57 @@ export const deleteSupplier = async (supplierId) => {
     throw error;
   }
 };
+
+// ==================== PURCHASE ORDERS ====================
+export const addPurchaseOrder = async (purchaseOrderData) => {
+  try {
+    const docRef = await addDoc(collection(db, "purchaseOrders"), {
+      ...purchaseOrderData,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...purchaseOrderData };
+  } catch (error) {
+    console.error("Error adding purchase order:", error);
+    throw error;
+  }
+};
+
+export const getPurchaseOrders = async () => {
+  try {
+    const q = query(
+      collection(db, "purchaseOrders"),
+      orderBy("createdAt", "desc"),
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error getting purchase orders:", error);
+    throw error;
+  }
+};
+
+export const updatePurchaseOrder = async (
+  purchaseOrderId,
+  purchaseOrderData,
+) => {
+  try {
+    const docRef = doc(db, "purchaseOrders", purchaseOrderId);
+    await updateDoc(docRef, purchaseOrderData);
+    return { id: purchaseOrderId, ...purchaseOrderData };
+  } catch (error) {
+    console.error("Error updating purchase order:", error);
+    throw error;
+  }
+};
+
+export const deletePurchaseOrder = async (purchaseOrderId) => {
+  try {
+    await deleteDoc(doc(db, "purchaseOrders", purchaseOrderId));
+  } catch (error) {
+    console.error("Error deleting purchase order:", error);
+    throw error;
+  }
+};

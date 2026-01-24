@@ -1,5 +1,5 @@
 // src/components/steps/SummaryStep.jsx
-import { FiUser, FiCalendar, FiFileText, FiPackage, FiClock, FiCheck } from 'react-icons/fi'
+import { FiUser, FiFileText, FiPackage, FiClock, FiCheck } from 'react-icons/fi'
 
 function SummaryStep({ 
   selectedClient, 
@@ -17,7 +17,6 @@ function SummaryStep({
   }
 
   const handleSave = () => {
-    // This will be replaced with Firebase save
     const consultation = {
       client: selectedClient,
       pet: selectedPet,
@@ -32,8 +31,8 @@ function SummaryStep({
   }
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-180px)] overflow-y-auto pb-20">
-      <div className="space-y-4">
+    <div className="h-[calc(100vh-140px)] flex flex-col">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {/* Client & Pet Info */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -155,24 +154,19 @@ function SummaryStep({
         </div>
       </div>
 
-      {/* Bottom Fixed Actions */}
-      <div className="fixed bottom-0 left-0 lg:left-72 right-0 bg-white border-t border-gray-200 p-4 lg:p-6 z-10">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-          >
-            <FiCheck className="w-4 h-4" />
-            Save Consultation
-          </button>
-        </div>
+      <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3 flex-shrink-0">
+        <button
+          onClick={onBack}
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+        >
+          Back
+        </button>
+        <button
+          onClick={handleSave}
+          className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+        >
+          Save Consultation
+        </button>
       </div>
     </div>
   )

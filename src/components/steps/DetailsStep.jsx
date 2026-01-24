@@ -25,10 +25,10 @@ function DetailsStep({ selectedClient, selectedPet, onBack, onNext, consultation
   }
 
   return (
-    <div className="max-w-5xl mx-auto h-[calc(100vh-120px)] flex items-center px-6">
-      <form onSubmit={handleSubmit} className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="h-[calc(100vh-140px)] flex flex-col">
+      <form onSubmit={handleSubmit} className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Consultation Details</h2>
@@ -47,7 +47,7 @@ function DetailsStep({ selectedClient, selectedPet, onBack, onNext, consultation
         </div>
 
         {/* Form Fields */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="flex-1 px-6 py-5 grid grid-cols-2 gap-x-6 gap-y-4 content-start overflow-y-auto">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Date & Time
@@ -105,7 +105,7 @@ function DetailsStep({ selectedClient, selectedPet, onBack, onNext, consultation
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex gap-3">
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex gap-3 flex-shrink-0">
           <button
             type="button"
             onClick={onBack}
