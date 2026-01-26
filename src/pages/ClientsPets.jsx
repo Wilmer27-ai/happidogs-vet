@@ -7,7 +7,7 @@ function ClientsPets() {
   const [clients, setClients] = useState([])
   const [allPets, setAllPets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('clients') // 'clients' or 'pets'
+  const [activeTab, setActiveTab] = useState('clients')
   const [searchQuery, setSearchQuery] = useState('')
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [isPetModalOpen, setIsPetModalOpen] = useState(false)
@@ -29,9 +29,34 @@ function ClientsPets() {
     name: '',
     species: 'Dog',
     breed: '',
-    age: '',
-    weight: ''
+    dateOfBirth: ''
   })
+
+  // Helper function to calculate age
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'N/A'
+    const birthDate = new Date(dateOfBirth)
+    const today = new Date()
+    let years = today.getFullYear() - birthDate.getFullYear()
+    let months = today.getMonth() - birthDate.getMonth()
+    
+    if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+      years--
+      months += 12
+    }
+    
+    if (months < 0) {
+      months = 0
+    }
+    
+    if (years === 0) {
+      return `${months} month${months !== 1 ? 's' : ''}`
+    } else if (months === 0) {
+      return `${years} year${years !== 1 ? 's' : ''}`
+    } else {
+      return `${years}y ${months}m`
+    }
+  }
 
   useEffect(() => {
     loadData()
@@ -152,8 +177,6 @@ function ClientsPets() {
     try {
       const petData = {
         ...petFormData,
-        age: Number(petFormData.age),
-        weight: Number(petFormData.weight),
         clientId: editingPet ? editingPet.clientId : petFormData.clientId
       }
 
@@ -176,8 +199,7 @@ function ClientsPets() {
       name: pet.name,
       species: pet.species,
       breed: pet.breed,
-      age: pet.age,
-      weight: pet.weight,
+      dateOfBirth: pet.dateOfBirth,
       clientId: pet.clientId
     })
     setIsPetModalOpen(true)
@@ -202,8 +224,7 @@ function ClientsPets() {
       name: '',
       species: 'Dog',
       breed: '',
-      age: '',
-      weight: '',
+      dateOfBirth: '',
       clientId: ''
     })
   }
@@ -244,7 +265,7 @@ function ClientsPets() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Clients
+                Clients ({clients.length})
               </button>
               <button
                 onClick={() => setActiveTab('pets')}
@@ -254,11 +275,11 @@ function ClientsPets() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Pets
+                Pets ({allPets.length})
               </button>
             </div>
 
-            <div className="relative max-w-md w-full">
+            <div className="relative flex-1 max-w-md ml-4">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
@@ -286,7 +307,7 @@ function ClientsPets() {
                   <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Client Name
+                        Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Phone Number
@@ -307,22 +328,15 @@ function ClientsPets() {
                       filteredClients.map((client) => (
                         <tr key={client.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {client.firstName[0]}{client.lastName[0]}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {client.firstName} {client.lastName}
-                                </p>
-                              </div>
-                            </div>
+                            <p className="font-semibold text-gray-900">
+                              {client.firstName} {client.lastName}
+                            </p>
                           </td>
                           <td className="px-6 py-4 text-gray-700">{client.phoneNumber}</td>
                           <td className="px-6 py-4 text-gray-700">{client.address}</td>
                           <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {getClientPets(client.id).length} pet(s)
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {getClientPets(client.id).length} pets
                             </span>
                           </td>
                           <td className="px-6 py-4">
@@ -378,9 +392,6 @@ function ClientsPets() {
                         Age
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Weight
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Owner
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -393,17 +404,11 @@ function ClientsPets() {
                       filteredPets.map((pet) => (
                         <tr key={pet.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {pet.name[0]}
-                              </div>
-                              <p className="font-semibold text-gray-900">{pet.name}</p>
-                            </div>
+                            <p className="font-semibold text-gray-900">{pet.name}</p>
                           </td>
                           <td className="px-6 py-4 text-gray-700">{pet.species}</td>
                           <td className="px-6 py-4 text-gray-700">{pet.breed}</td>
-                          <td className="px-6 py-4 text-gray-700">{pet.age} years</td>
-                          <td className="px-6 py-4 text-gray-700">{pet.weight} kg</td>
+                          <td className="px-6 py-4 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
                           <td className="px-6 py-4 text-gray-700">{pet.clientName}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2">
@@ -434,7 +439,7 @@ function ClientsPets() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
                           No pets found
                         </td>
                       </tr>
@@ -447,106 +452,102 @@ function ClientsPets() {
         </div>
       </div>
 
-      {/* View Details Modal */}
-      {isViewModalOpen && (viewingClient || viewingPet) && (
+      {/* View Client Modal */}
+      {isViewModalOpen && viewingClient && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {viewingClient ? 'Client Details' : 'Pet Details'}
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-900">Client Details</h2>
               <button onClick={handleCloseViewModal} className="text-gray-400 hover:text-gray-600">
                 <FiX className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="p-6">
-              {viewingClient ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
-                      {viewingClient.firstName[0]}{viewingClient.lastName[0]}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">
-                        {viewingClient.firstName} {viewingClient.lastName}
-                      </h3>
-                      <p className="text-gray-600">{viewingClient.phoneNumber}</p>
-                    </div>
-                  </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">
+                  {viewingClient.firstName} {viewingClient.lastName}
+                </h3>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Phone Number</label>
-                      <p className="text-gray-900">{viewingClient.phoneNumber}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Address</label>
-                      <p className="text-gray-900">{viewingClient.address}</p>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Phone Number</label>
+                  <p className="text-gray-900">{viewingClient.phoneNumber}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Address</label>
+                  <p className="text-gray-900">{viewingClient.address}</p>
+                </div>
+              </div>
 
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Pets ({getClientPets(viewingClient.id).length})</h4>
-                    {getClientPets(viewingClient.id).length > 0 ? (
-                      <div className="space-y-3">
-                        {getClientPets(viewingClient.id).map((pet) => (
-                          <div key={pet.id} className="p-4 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {pet.name[0]}
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{pet.name}</p>
-                                <p className="text-sm text-gray-600">
-                                  {pet.species} • {pet.breed} • {pet.age} years • {pet.weight} kg
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">
+                  Pets ({getClientPets(viewingClient.id).length})
+                </h4>
+                {getClientPets(viewingClient.id).length > 0 ? (
+                  <div className="space-y-2">
+                    {getClientPets(viewingClient.id).map((pet) => (
+                      <div key={pet.id} className="p-3 bg-gray-50 rounded-lg">
+                        <p className="font-medium text-gray-900">{pet.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {pet.species} • {pet.breed} • {calculateAge(pet.dateOfBirth)}
+                        </p>
                       </div>
-                    ) : (
-                      <p className="text-gray-500 text-sm italic">No pets registered</p>
-                    )}
+                    ))}
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
-                      {viewingPet.name[0]}
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">{viewingPet.name}</h3>
-                      <p className="text-gray-600">{viewingPet.species} • {viewingPet.breed}</p>
-                    </div>
-                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm italic">No pets registered for this client</p>
+                )}
+              </div>
+            </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Species</label>
-                      <p className="text-gray-900">{viewingPet.species}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Breed</label>
-                      <p className="text-gray-900">{viewingPet.breed}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Age</label>
-                      <p className="text-gray-900">{viewingPet.age} years</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Weight</label>
-                      <p className="text-gray-900">{viewingPet.weight} kg</p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-500 mb-1">Owner</label>
-                      <p className="text-gray-900">{viewingPet.clientName}</p>
-                    </div>
-                  </div>
+            <div className="p-6 border-t border-gray-200">
+              <button
+                onClick={handleCloseViewModal}
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Pet Modal */}
+      {isViewModalOpen && viewingPet && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Pet Details</h2>
+              <button onClick={handleCloseViewModal} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">{viewingPet.name}</h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Species</label>
+                  <p className="text-gray-900">{viewingPet.species}</p>
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Breed</label>
+                  <p className="text-gray-900">{viewingPet.breed}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Age</label>
+                  <p className="text-gray-900">{calculateAge(viewingPet.dateOfBirth)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Owner</label>
+                  <p className="text-gray-900">{viewingPet.clientName}</p>
+                </div>
+              </div>
             </div>
 
             <div className="p-6 border-t border-gray-200">
@@ -564,7 +565,7 @@ function ClientsPets() {
       {/* Add/Edit Client Modal */}
       {isClientModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingClient ? 'Edit Client' : 'Add New Client'}
@@ -574,72 +575,77 @@ function ClientsPets() {
               </button>
             </div>
 
-            <form onSubmit={handleClientSubmit} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={clientFormData.firstName}
-                    onChange={(e) => setClientFormData({ ...clientFormData, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+            <form onSubmit={handleClientSubmit}>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={clientFormData.firstName}
+                      onChange={(e) => setClientFormData({ ...clientFormData, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={clientFormData.lastName}
+                      onChange={(e) => setClientFormData({ ...clientFormData, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Last name"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Last Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={clientFormData.lastName}
-                    onChange={(e) => setClientFormData({ ...clientFormData, lastName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number *
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
                     required
                     value={clientFormData.phoneNumber}
                     onChange={(e) => setClientFormData({ ...clientFormData, phoneNumber: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Phone number"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Address *
+                    Address <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     required
-                    rows="3"
                     value={clientFormData.address}
                     onChange={(e) => setClientFormData({ ...clientFormData, address: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Full address"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="p-6 border-t border-gray-200 flex gap-3">
                 <button
                   type="button"
                   onClick={handleCloseClientModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   {editingClient ? 'Update Client' : 'Add Client'}
                 </button>
@@ -652,7 +658,7 @@ function ClientsPets() {
       {/* Add/Edit Pet Modal */}
       {isPetModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingPet ? 'Edit Pet' : 'Add New Pet'}
@@ -662,116 +668,103 @@ function ClientsPets() {
               </button>
             </div>
 
-            <form onSubmit={handlePetSubmit} className="p-6">
-              <div className="space-y-4">
+            <form onSubmit={handlePetSubmit}>
+              <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Owner *
-                  </label>
-                  <select
-                    required
-                    value={petFormData.clientId}
-                    onChange={(e) => setPetFormData({ ...petFormData, clientId: e.target.value })}
-                    disabled={editingPet}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-                  >
-                    <option value="">Select a client</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.firstName} {client.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Pet Name *
+                    Pet Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={petFormData.name}
                     onChange={(e) => setPetFormData({ ...petFormData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Species *
-                  </label>
-                  <select
-                    required
-                    value={petFormData.species}
-                    onChange={(e) => setPetFormData({ ...petFormData, species: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Dog">Dog</option>
-                    <option value="Cat">Cat</option>
-                    <option value="Bird">Bird</option>
-                    <option value="Rabbit">Rabbit</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Breed *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={petFormData.breed}
-                    onChange={(e) => setPetFormData({ ...petFormData, breed: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Max"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Age (years) *
+                      Species <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="number"
+                    <select
                       required
-                      min="0"
-                      step="0.1"
-                      value={petFormData.age}
-                      onChange={(e) => setPetFormData({ ...petFormData, age: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                      value={petFormData.species}
+                      onChange={(e) => setPetFormData({ ...petFormData, species: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select</option>
+                      <option value="Dog">Dog</option>
+                      <option value="Cat">Cat</option>
+                      <option value="Bird">Bird</option>
+                      <option value="Rabbit">Rabbit</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Weight (kg) *
+                      Breed <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       required
-                      min="0"
-                      step="0.1"
-                      value={petFormData.weight}
-                      onChange={(e) => setPetFormData({ ...petFormData, weight: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={petFormData.breed}
+                      onChange={(e) => setPetFormData({ ...petFormData, breed: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., Golden Retriever"
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={petFormData.dateOfBirth}
+                    onChange={(e) => setPetFormData({ ...petFormData, dateOfBirth: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {!editingPet && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Owner <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={petFormData.clientId}
+                      onChange={(e) => setPetFormData({ ...petFormData, clientId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select owner</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.firstName} {client.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="p-6 border-t border-gray-200 flex gap-3">
                 <button
                   type="button"
                   onClick={handleClosePetModal}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   {editingPet ? 'Update Pet' : 'Add Pet'}
                 </button>

@@ -24,6 +24,31 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
     }
   }
 
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'N/A'
+    const birthDate = new Date(dateOfBirth)
+    const today = new Date()
+    let years = today.getFullYear() - birthDate.getFullYear()
+    let months = today.getMonth() - birthDate.getMonth()
+    
+    if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+      years--
+      months += 12
+    }
+    
+    if (months < 0) {
+      months = 0
+    }
+    
+    if (years === 0) {
+      return `${months} month${months !== 1 ? 's' : ''}`
+    } else if (months === 0) {
+      return `${years} year${years !== 1 ? 's' : ''}`
+    } else {
+      return `${years}y ${months}m`
+    }
+  }
+
   const filteredPets = pets.filter(pet =>
     pet.name.toLowerCase().includes(petSearchQuery.toLowerCase()) ||
     pet.species.toLowerCase().includes(petSearchQuery.toLowerCase()) ||
@@ -81,9 +106,6 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Age
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                  Weight
-                </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
                   Action
                 </th>
@@ -92,7 +114,7 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                     Loading pets...
                   </td>
                 </tr>
@@ -104,8 +126,7 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
                     </td>
                     <td className="px-6 py-4 text-gray-700">{pet.species}</td>
                     <td className="px-6 py-4 text-gray-700">{pet.breed}</td>
-                    <td className="px-6 py-4 text-gray-700">{pet.age} years</td>
-                    <td className="px-6 py-4 text-gray-700">{pet.weight} kg</td>
+                    <td className="px-6 py-4 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleSelectPet(pet)}
@@ -118,7 +139,7 @@ function PetStep({ selectedClient, onSelectPet, onBack, onNext }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                     No pets found for this client
                   </td>
                 </tr>

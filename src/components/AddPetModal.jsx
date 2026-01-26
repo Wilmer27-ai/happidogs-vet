@@ -19,12 +19,11 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
         name: petData.name,
         species: petData.species,
         breed: petData.breed,
-        age: Number(petData.age),
-        weight: Number(petData.weight),
+        dateOfBirth: petData.dateOfBirth,
         clientId: selectedClient.id
       })
       onSubmit(newPet)
-      setPetData({ name: '', species: '', breed: '', age: '', weight: '' })
+      setPetData({ name: '', species: '', breed: '', dateOfBirth: '' })
     } catch (error) {
       console.error('Error adding pet:', error)
       alert('Failed to add pet. Please try again.')
@@ -106,34 +105,17 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Age *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={petData.age}
-                  onChange={(e) => setPetData({ ...petData, age: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 2 years"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Weight *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={petData.weight}
-                  onChange={(e) => setPetData({ ...petData, weight: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., 25 kg"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date of Birth *
+              </label>
+              <input
+                type="date"
+                required
+                value={petData.dateOfBirth}
+                onChange={(e) => setPetData({ ...petData, dateOfBirth: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
 

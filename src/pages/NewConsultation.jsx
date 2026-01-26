@@ -35,8 +35,7 @@ function NewConsultation() {
     name: '',
     species: '',
     breed: '',
-    age: '',
-    weight: ''
+    dateOfBirth: ''
   })
 
   const steps = ['Client', 'Pet', 'Details', 'Medicines', 'Follow-Up', 'Review']
@@ -49,7 +48,7 @@ function NewConsultation() {
 
   const handleAddPet = (newPet) => {
     setSelectedPet(newPet)
-    setNewPet({ name: '', species: '', breed: '', age: '', weight: '' })
+    setNewPet({ name: '', species: '', breed: '', dateOfBirth: '' })
     setIsAddPetModalOpen(false)
   }
 
