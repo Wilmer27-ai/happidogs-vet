@@ -9,7 +9,6 @@ import ClientStep from '../components/steps/ClientStep'
 import PetStep from '../components/steps/PetStep'
 import DetailsStep from '../components/steps/DetailsStep'
 import MedicinesStep from '../components/steps/MedicinesStep'
-import FollowUpStep from '../components/steps/FollowUpStep'
 import SummaryStep from '../components/steps/SummaryStep'
 
 function NewConsultation() {
@@ -21,7 +20,6 @@ function NewConsultation() {
   const [selectedPet, setSelectedPet] = useState(null)
   const [consultationData, setConsultationData] = useState(null)
   const [medicinesData, setMedicinesData] = useState([])
-  const [followUpData, setFollowUpData] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   
   const [newClient, setNewClient] = useState({
@@ -38,7 +36,7 @@ function NewConsultation() {
     dateOfBirth: ''
   })
 
-  const steps = ['Client', 'Pet', 'Details', 'Medicines', 'Follow-Up', 'Review']
+  const steps = ['Client', 'Pet', 'Details', 'Medicines', 'Review']
 
   const handleAddClient = (newClient) => {
     setSelectedClient(newClient)
@@ -85,14 +83,6 @@ function NewConsultation() {
       const savedConsultation = await addConsultation(consultationToSave)
 
       console.log('Consultation saved:', savedConsultation)
-
-      if (followUpData?.enabled && followUpData?.date) {
-        await addFollowUp({
-          consultationId: savedConsultation.id,
-          date: followUpData.date,
-          type: followUpData.type || 'Check-up'
-        })
-      }
 
       setTimeout(() => {
         setIsSaving(false)
@@ -199,22 +189,12 @@ function NewConsultation() {
         )}
 
         {currentStep === 4 && (
-          <FollowUpStep
-            followUpData={followUpData}
-            setFollowUpData={setFollowUpData}
-            onBack={() => setCurrentStep(3)}
-            onNext={() => setCurrentStep(5)}
-          />
-        )}
-
-        {currentStep === 5 && (
           <SummaryStep
             selectedClient={selectedClient}
             selectedPet={selectedPet}
             consultationData={consultationData}
             medicinesData={medicinesData}
-            followUpData={followUpData}
-            onBack={() => setCurrentStep(4)}
+            onBack={() => setCurrentStep(3)}
             onSave={handleSaveConsultation}
           />
         )}

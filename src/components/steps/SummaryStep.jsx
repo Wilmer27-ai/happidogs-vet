@@ -57,30 +57,47 @@ function SummaryStep({
           </div>
         </div>
 
-        {/* Consultation Details */}
+        {/* Activities Performed */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FiFileText className="w-5 h-5 text-blue-600" />
-            Consultation Details
+            Activities Performed
           </h3>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500">Date & Time</p>
-              <p className="font-medium text-gray-900">{consultationData?.dateTime}</p>
+          {consultationData && consultationData.length > 0 ? (
+            <div className="space-y-3">
+              {consultationData.map((activity, index) => (
+                <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-gray-900">{activity.activityType}</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(activity.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
+                    </p>
+                  </div>
+                  {activity.weight && <p className="text-sm text-gray-600">Weight: {activity.weight}kg</p>}
+                  {activity.temperature && <p className="text-sm text-gray-600">Temperature: {activity.temperature}°C</p>}
+                  {activity.diagnosis && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">Diagnosis:</p>
+                      <p className="text-sm text-gray-900">{activity.diagnosis}</p>
+                    </div>
+                  )}
+                  {activity.treatment && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">Treatment:</p>
+                      <p className="text-sm text-gray-900">{activity.treatment}</p>
+                    </div>
+                  )}
+                  {activity.followUpDate && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      Follow-up: {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Reason for Visit</p>
-              <p className="font-medium text-gray-900">{consultationData?.reason || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Diagnosis</p>
-              <p className="font-medium text-gray-900">{consultationData?.diagnosis || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Treatment Plan</p>
-              <p className="font-medium text-gray-900">{consultationData?.treatment || 'N/A'}</p>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-gray-500">No activities selected</p>
+          )}
         </div>
 
         {/* Medicines */}
@@ -109,25 +126,6 @@ function SummaryStep({
             </div>
           ) : (
             <p className="text-sm text-gray-500">No medicines administered</p>
-          )}
-        </div>
-
-        {/* Follow-Up */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FiClock className="w-5 h-5 text-blue-600" />
-            Follow-Up Schedule
-          </h3>
-          {followUpData?.enabled ? (
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <div>
-                <p className="font-medium text-gray-900">{followUpData.type}</p>
-                <p className="text-sm text-gray-600">{followUpData.date}</p>
-              </div>
-              <FiCheck className="w-5 h-5 text-blue-600" />
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No follow-up scheduled</p>
           )}
         </div>
 

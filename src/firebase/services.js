@@ -394,3 +394,57 @@ export const deletePurchaseOrder = async (purchaseOrderId) => {
     throw error;
   }
 };
+
+// ==================== PET ACTIVITIES ====================
+export const addPetActivity = async (activityData) => {
+  try {
+    const docRef = await addDoc(collection(db, "petActivities"), {
+      ...activityData,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...activityData };
+  } catch (error) {
+    console.error("Error adding pet activity:", error);
+    throw error;
+  }
+};
+
+export const getPetActivities = async (petId) => {
+  try {
+    const q = query(
+      collection(db, "petActivities"),
+      where("petId", "==", petId),
+    );
+    const querySnapshot = await getDocs(q);
+    const activities = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    // Sort by date in descending order (newest first) on the client side
+    return activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (error) {
+    console.error("Error getting pet activities:", error);
+    throw error;
+  }
+};
+
+export const updatePetActivity = async (activityId, activityData) => {
+  try {
+    const docRef = doc(db, "petActivities", activityId);
+    await updateDoc(docRef, activityData);
+    return { id: activityId, ...activityData };
+  } catch (error) {
+    console.error("Error updating pet activity:", error);
+    throw error;
+  }
+};
+
+export const deletePetActivity = async (activityId) => {
+  try {
+    await deleteDoc(doc(db, "petActivities", activityId));
+  } catch (error) {
+    console.error("Error deleting pet activity:", error);
+    throw error;
+  }
+};
