@@ -4,7 +4,7 @@ import { getPetActivities, addPetActivity, getClients, getPetsByClient } from '.
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
 
-function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet, onNext, consultationData, setConsultationData }) {
+function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectClient, onSelectPets, onNext, consultationData, setConsultationData }) {
   // Client and Pet data
   const [clients, setClients] = useState([])
   const [pets, setPets] = useState([])
@@ -38,9 +38,12 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
   const [selectedActivities, setSelectedActivities] = useState([])
   const [loading, setLoading] = useState(false)
   
-  // Multiple pet selection
-  const [selectedPets, setSelectedPets] = useState([])
+  // Multiple pet selection - initialize from props
+  const [selectedPets, setSelectedPets] = useState(propSelectedPets || [])
   
+  // Mobile view toggle
+  const [showForm, setShowForm] = useState(true)
+
   const getCurrentDate = () => {
     const today = new Date()
     const year = today.getFullYear()
@@ -71,7 +74,6 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
     } else {
       setPets([])
       setSelectedPets([])
-      onSelectPet(null)
     }
   }, [selectedClient])
 
@@ -82,6 +84,13 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
     } else {
       setActivities([])
       setSelectedActivities([])
+    }
+  }, [selectedPets])
+
+  // Sync selectedPets with parent
+  useEffect(() => {
+    if (onSelectPets) {
+      onSelectPets(selectedPets)
     }
   }, [selectedPets])
 
@@ -222,6 +231,7 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
       })
 
       await loadActivities()
+      setShowForm(false) // Switch to table view on mobile after adding
       alert(`Activity added successfully to ${selectedPets.length} pet(s)!`)
     } catch (error) {
       console.error('Error adding activity:', error)
@@ -254,7 +264,7 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
   }
 
   return (
-    <div className="h-screen flex bg-white">
+    <div className="h-screen flex flex-col lg:flex-row bg-white">
       {/* Click outside to close dropdowns */}
       {(showClientDropdown || showPetDropdown) && (
         <div
@@ -266,334 +276,359 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
         />
       )}
 
+      {/* Mobile Toggle Buttons */}
+      <div className="lg:hidden flex border-b border-gray-300 bg-white flex-shrink-0">
+        <button
+          onClick={() => setShowForm(true)}
+          className={`flex-1 py-3 text-sm font-semibold ${
+            showForm ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          Form
+        </button>
+        <button
+          onClick={() => setShowForm(false)}
+          className={`flex-1 py-3 text-sm font-semibold ${
+            !showForm ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+          }`}
+        >
+          Activities
+        </button>
+      </div>
+
       {/* Left Panel - Patient Info & Form */}
-      <div className="w-64 border-r border-gray-300 bg-gray-50 p-4 space-y-3 overflow-y-auto">
-        <h2 className="text-[10px] font-bold text-gray-700 uppercase mb-4">Pet Consultation Form</h2>
+      <div className={`${showForm ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 xl:w-96 border-r border-gray-300 bg-gray-50 flex-col`}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <h2 className="text-[10px] font-bold text-gray-700 uppercase mb-4">Pet Consultation Form</h2>
 
-        {/* Owner Name */}
-        <div>
-          <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Owner Name</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={clientSearchQuery}
-              onChange={(e) => {
-                setClientSearchQuery(e.target.value)
-                setShowClientDropdown(true)
-                if (!e.target.value) {
-                  onSelectClient(null)
-                }
-              }}
-              onFocus={() => setShowClientDropdown(true)}
-              placeholder="Search client..."
-              className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-            />
-            {showClientDropdown && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-60 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddClientModalOpen(true)
-                    setShowClientDropdown(false)
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium"
-                >
-                  <FiPlus className="w-4 h-4" />
-                  Add New Client
-                </button>
-                {filteredClients.length > 0 ? (
-                  filteredClients.map(client => (
-                    <button
-                      key={client.id}
-                      type="button"
-                      onClick={() => handleClientSelect(client)}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100"
-                    >
-                      <div className="font-medium">{client.firstName} {client.lastName}</div>
-                      <div className="text-xs text-gray-500">{client.phoneNumber}</div>
-                    </button>
-                  ))
-                ) : clientSearchQuery ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">No clients found</div>
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-500">Type to search...</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Pet Selection */}
-        <div>
-          <label className="text-[10px] font-bold text-gray-700 uppercase mb-1 block">Select Pets ({selectedPets.length})</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={petSearchQuery}
-              onChange={(e) => {
-                setPetSearchQuery(e.target.value)
-                setShowPetDropdown(true)
-              }}
-              onFocus={() => setShowPetDropdown(true)}
-              disabled={!selectedClient}
-              placeholder="Search and select pets..."
-              className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            {showPetDropdown && selectedClient && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-60 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddPetModalOpen(true)
-                    setShowPetDropdown(false)
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium"
-                >
-                  <FiPlus className="w-4 h-4" />
-                  Add New Pet
-                </button>
-                {filteredPets.length > 0 ? (
-                  filteredPets.map(pet => (
-                    <button
-                      key={pet.id}
-                      type="button"
-                      onClick={() => togglePetSelection(pet)}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 flex items-center gap-2 ${
-                        selectedPets.some(p => p.id === pet.id) ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedPets.some(p => p.id === pet.id)}
-                        onChange={() => {}}
-                        className="w-4 h-4"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">{pet.name}</div>
-                        <div className="text-xs text-gray-500">{pet.species} - {pet.breed}</div>
-                      </div>
-                    </button>
-                  ))
-                ) : petSearchQuery ? (
-                  <div className="px-3 py-2 text-sm text-gray-500">No pets found</div>
-                ) : (
-                  <div className="px-3 py-2 text-sm text-gray-500">Type to search...</div>
-                )}
-              </div>
-            )}
-          </div>
-          
-          {/* Selected Pets Display */}
-          {selectedPets.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {selectedPets.map(pet => (
-                <div key={pet.id} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded text-xs">
-                  <span className="font-medium">{pet.name}</span>
+          {/* Owner Name */}
+          <div>
+            <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Owner Name</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={clientSearchQuery}
+                onChange={(e) => {
+                  setClientSearchQuery(e.target.value)
+                  setShowClientDropdown(true)
+                  if (!e.target.value) {
+                    onSelectClient(null)
+                  }
+                }}
+                onFocus={() => setShowClientDropdown(true)}
+                placeholder="Search client..."
+                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+              />
+              {showClientDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-60 overflow-y-auto">
                   <button
                     type="button"
-                    onClick={() => togglePetSelection(pet)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={() => {
+                      setIsAddClientModalOpen(true)
+                      setShowClientDropdown(false)
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium"
                   >
-                    ×
+                    <FiPlus className="w-4 h-4" />
+                    Add New Client
                   </button>
+                  {filteredClients.length > 0 ? (
+                    filteredClients.map(client => (
+                      <button
+                        key={client.id}
+                        type="button"
+                        onClick={() => handleClientSelect(client)}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100"
+                      >
+                        <div className="font-medium">{client.firstName} {client.lastName}</div>
+                        <div className="text-xs text-gray-500">{client.phoneNumber}</div>
+                      </button>
+                    ))
+                  ) : clientSearchQuery ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No clients found</div>
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">Type to search...</div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
+          </div>
+
+          {/* Pet Selection */}
+          <div>
+            <label className="text-[10px] font-bold text-gray-700 uppercase mb-1 block">Select Pets ({selectedPets.length})</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={petSearchQuery}
+                onChange={(e) => {
+                  setPetSearchQuery(e.target.value)
+                  setShowPetDropdown(true)
+                }}
+                onFocus={() => setShowPetDropdown(true)}
+                disabled={!selectedClient}
+                placeholder="Search and select pets..."
+                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              {showPetDropdown && selectedClient && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-60 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddPetModalOpen(true)
+                      setShowPetDropdown(false)
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium"
+                  >
+                    <FiPlus className="w-4 h-4" />
+                    Add New Pet
+                  </button>
+                  {filteredPets.length > 0 ? (
+                    filteredPets.map(pet => (
+                      <button
+                        key={pet.id}
+                        type="button"
+                        onClick={() => togglePetSelection(pet)}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 flex items-center gap-2 ${
+                          selectedPets.some(p => p.id === pet.id) ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPets.some(p => p.id === pet.id)}
+                          onChange={() => {}}
+                          className="w-4 h-4"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium">{pet.name}</div>
+                          <div className="text-xs text-gray-500">{pet.species} - {pet.breed}</div>
+                        </div>
+                      </button>
+                    ))
+                  ) : petSearchQuery ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No pets found</div>
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">Type to search...</div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Selected Pets Display */}
+            {selectedPets.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {selectedPets.map(pet => (
+                  <div key={pet.id} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded text-xs">
+                    <span className="font-medium">{pet.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => togglePetSelection(pet)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedClient && selectedPets.length > 0 && (
+            <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-gray-300">
+              {/* Activity Type */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Activity Type</label>
+                <select
+                  value={formData.activityType}
+                  onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+                  required
+                >
+                  <option value="Consultation">Consultation</option>
+                  <option value="Vaccination">Vaccination</option>
+                  <option value="Deworming">Deworming</option>
+                </select>
+              </div>
+
+              {/* Date */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Date</label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+                  required
+                />
+              </div>
+
+              {/* Weight */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Weight (kg)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+                  placeholder="0.0"
+                />
+              </div>
+
+              {/* Temperature */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Temperature (°C)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formData.temperature}
+                  onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+                  placeholder="0.0"
+                />
+              </div>
+
+              {/* Diagnosis - Only for Consultation */}
+              {formData.activityType === 'Consultation' && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Diagnosis</label>
+                  <textarea
+                    value={formData.diagnosis}
+                    onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                    rows="2"
+                    className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none resize-none"
+                    placeholder="Enter diagnosis..."
+                  />
+                </div>
+              )}
+
+              {/* Treatment - Only for Consultation */}
+              {formData.activityType === 'Consultation' && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Treatment</label>
+                  <textarea
+                    value={formData.treatment}
+                    onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
+                    rows="2"
+                    className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none resize-none"
+                    placeholder="Enter treatment..."
+                  />
+                </div>
+              )}
+
+              {/* Follow-up Date */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Follow-up Date</label>
+                <input
+                  type="date"
+                  value={formData.followUpDate}
+                  onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full px-4 py-2 bg-green-600 text-white text-sm font-medium hover:bg-green-700 rounded-lg"
+              >
+                Add Activity to {selectedPets.length} Pet(s)
+              </button>
+            </form>
           )}
         </div>
-
-        {selectedClient && selectedPets.length > 0 && (
-          <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-gray-300">
-            {/* Activity Type */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Activity Type</label>
-              <select
-                value={formData.activityType}
-                onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-                required
-              >
-                <option value="Consultation">Consultation</option>
-                <option value="Vaccination">Vaccination</option>
-                <option value="Deworming">Deworming</option>
-              </select>
-            </div>
-
-            {/* Date */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Date</label>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-                required
-              />
-            </div>
-
-            {/* Weight */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Weight (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-                placeholder="0.0"
-              />
-            </div>
-
-            {/* Temperature */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Temperature (°C)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={formData.temperature}
-                onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-                placeholder="0.0"
-              />
-            </div>
-
-            {/* Diagnosis - Only for Consultation */}
-            {formData.activityType === 'Consultation' && (
-              <div>
-                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Diagnosis</label>
-                <textarea
-                  value={formData.diagnosis}
-                  onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                  rows="2"
-                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none resize-none"
-                  placeholder="Enter diagnosis..."
-                />
-              </div>
-            )}
-
-            {/* Treatment - Only for Consultation */}
-            {formData.activityType === 'Consultation' && (
-              <div>
-                <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Treatment</label>
-                <textarea
-                  value={formData.treatment}
-                  onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
-                  rows="2"
-                  className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none resize-none"
-                  placeholder="Enter treatment..."
-                />
-              </div>
-            )}
-
-            {/* Follow-up Date */}
-            <div>
-              <label className="text-[10px] font-bold text-gray-700 uppercase mb-4">Follow-up Date</label>
-              <input
-                type="date"
-                value={formData.followUpDate}
-                onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-200 border-0 text-sm outline-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-green-600 text-white text-sm font-medium hover:bg-green-700 rounded-lg"
-            >
-              Add Activity to {selectedPets.length} Pet(s)
-            </button>
-          </form>
-        )}
       </div>
 
       {/* Right Panel - Progress Table */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${!showForm ? 'flex' : 'hidden'} lg:flex flex-1 flex-col`}>
         {selectedClient && selectedPets.length > 0 ? (
           <>
             <div className="flex-1 overflow-auto">
               {loading ? (
                 <div className="p-8 text-center text-sm text-gray-500">Loading...</div>
               ) : (
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0">
-                    <tr className="bg-gray-800 text-white">
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase w-8"></th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase w-32">Pet</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase w-24">Date</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase w-32">Activity</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase">Details</th>
-                      <th className="border border-gray-300 px-3 py-2 text-left text-xs font-bold uppercase w-24">Follow-up</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activities.length > 0 ? (
-                      activities.map((activity, index) => (
-                        <tr key={activity.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
-                          <td className="border border-gray-300 px-3 py-2 text-center align-top">
-                            <input
-                              type="checkbox"
-                              checked={selectedActivities.includes(activity.id)}
-                              onChange={() => toggleActivitySelection(activity.id)}
-                              className="w-4 h-4"
-                            />
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 align-top">
-                            <div className="text-xs font-medium">{activity.petName}</div>
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 align-top">
-                            <div className="text-xs">
-                              {new Date(activity.date).toLocaleDateString('en-US', { 
-                                month: '2-digit', 
-                                day: '2-digit', 
-                                year: '2-digit' 
-                              })}
-                            </div>
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 align-top">
-                            <div className="text-xs font-bold">{activity.activityType}</div>
-                            {activity.weight && (
-                              <div className="text-xs text-gray-600">Wt: {activity.weight}kg</div>
-                            )}
-                            {activity.temperature && (
-                              <div className="text-xs text-gray-600">Temp: {activity.temperature}°C</div>
-                            )}
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 align-top">
-                            {activity.diagnosis && (
-                              <div className="text-xs mb-1">{activity.diagnosis}</div>
-                            )}
-                            {activity.treatment && (
-                              <div className="text-xs">{activity.treatment}</div>
-                            )}
-                          </td>
-                          <td className="border border-gray-300 px-3 py-2 align-top">
-                            <div className="text-xs">
-                              {activity.followUpDate ? (
-                                new Date(activity.followUpDate).toLocaleDateString('en-US', {
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  year: '2-digit'
-                                })
-                              ) : (
-                                <span className="text-gray-400">-</span>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0">
+                      <tr className="bg-gray-800 text-white">
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase w-8"></th>
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase">Pet</th>
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase">Date</th>
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase">Activity</th>
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase hidden md:table-cell">Details</th>
+                        <th className="border border-gray-300 px-2 md:px-3 py-2 text-left text-xs font-bold uppercase hidden sm:table-cell">Follow-up</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activities.length > 0 ? (
+                        activities.map((activity, index) => (
+                          <tr key={activity.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 text-center align-top">
+                              <input
+                                type="checkbox"
+                                checked={selectedActivities.includes(activity.id)}
+                                onChange={() => toggleActivitySelection(activity.id)}
+                                className="w-4 h-4"
+                              />
+                            </td>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 align-top">
+                              <div className="text-xs font-medium">{activity.petName}</div>
+                            </td>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 align-top">
+                              <div className="text-xs whitespace-nowrap">
+                                {new Date(activity.date).toLocaleDateString('en-US', { 
+                                  month: '2-digit', 
+                                  day: '2-digit', 
+                                  year: '2-digit' 
+                                })}
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 align-top">
+                              <div className="text-xs font-bold">{activity.activityType}</div>
+                              {activity.weight && (
+                                <div className="text-xs text-gray-600">Wt: {activity.weight}kg</div>
                               )}
-                            </div>
+                              {activity.temperature && (
+                                <div className="text-xs text-gray-600">Temp: {activity.temperature}°C</div>
+                              )}
+                            </td>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 align-top hidden md:table-cell">
+                              {activity.diagnosis && (
+                                <div className="text-xs mb-1">{activity.diagnosis}</div>
+                              )}
+                              {activity.treatment && (
+                                <div className="text-xs">{activity.treatment}</div>
+                              )}
+                            </td>
+                            <td className="border border-gray-300 px-2 md:px-3 py-2 align-top hidden sm:table-cell">
+                              <div className="text-xs whitespace-nowrap">
+                                {activity.followUpDate ? (
+                                  new Date(activity.followUpDate).toLocaleDateString('en-US', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    year: '2-digit'
+                                  })
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="border border-gray-300 px-3 py-8 text-center text-sm text-gray-500">
+                            No activities recorded
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="border border-gray-300 px-3 py-8 text-center text-sm text-gray-500">
-                          No activities recorded
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
-            <div className="border-t border-gray-300 p-4 bg-gray-50">
+            {/* Fixed Continue Button */}
+            <div className="border-t border-gray-300 p-4 bg-gray-50 flex-shrink-0">
               <button
                 onClick={handleContinue}
                 disabled={selectedActivities.length === 0}
@@ -604,8 +639,8 @@ function DetailsStep({ selectedClient, selectedPet, onSelectClient, onSelectPet,
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-gray-400 text-sm">Select owner and pet(s) to continue</p>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <p className="text-gray-400 text-sm text-center">Select owner and pet(s) to continue</p>
           </div>
         )}
       </div>

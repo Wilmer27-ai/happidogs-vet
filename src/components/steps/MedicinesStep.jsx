@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { FiSearch, FiMinus, FiPlus, FiX } from 'react-icons/fi'
 import { getMedicines } from '../../firebase/services'
 
-function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesData, setMedicinesData }) {
+function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicinesData, setMedicinesData }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedMedicines, setSelectedMedicines] = useState(medicinesData || [])
@@ -67,15 +67,31 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col">
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
+    <div className="h-screen flex flex-col bg-white">
+      {/* Selected Pets Info Header */}
+      {selectedPets && selectedPets.length > 0 && (
+        <div className="bg-blue-50 border-b border-blue-200 px-6 md:px-8 py-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-blue-900">
+              {selectedClient?.firstName} {selectedClient?.lastName}
+            </span>
+            <span className="text-sm text-blue-700">•</span>
+            <span className="text-sm text-blue-700">
+              {selectedPets.length} pet(s): {selectedPets.map(p => p.name).join(', ')}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-0 min-h-0">
         {/* Left Side - Medicine List */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-          <div className="p-4 border-b flex-shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Select medicines administered</h3>
+        <div className="lg:col-span-2 border-r border-gray-200 flex flex-col">
+          <div className="p-6 md:p-8 border-b flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Select medicines administered</h3>
             
             {/* Search */}
-            <div className="relative mb-3">
+            <div className="relative mb-4">
               <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
@@ -87,7 +103,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-2">
               {categories.map(cat => (
                 <button
                   key={cat}
@@ -105,7 +121,7 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
           </div>
 
           {/* Medicine List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto px-6 md:px-8 py-4 space-y-2">
             {loading ? (
               <div className="text-center py-8">
                 <p className="text-sm text-gray-500">Loading medicines...</p>
@@ -139,17 +155,17 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
         </div>
 
         {/* Right Side - Selected Medicines */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-          <div className="p-4 border-b flex-shrink-0">
+        <div className="flex flex-col bg-gray-50">
+          <div className="p-6 md:p-8 border-b border-gray-200 flex-shrink-0">
             <h3 className="text-sm font-semibold text-gray-900">
               Selected ({selectedMedicines.length})
             </h3>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-6 md:px-8 py-4 space-y-3">
             {selectedMedicines.length > 0 ? (
               selectedMedicines.map(med => (
-                <div key={med.id} className="p-3 border border-gray-200 rounded-lg">
+                <div key={med.id} className="p-3 bg-white border border-gray-200 rounded-lg">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{med.medicineName}</p>
@@ -191,47 +207,29 @@ function MedicinesStep({ selectedClient, selectedPet, onBack, onNext, medicinesD
             )}
           </div>
 
-          {selectedMedicines.length > 0 && (
-            <div className="p-4 border-t bg-gray-50 flex-shrink-0">
+          {/* Footer with Total and Buttons */}
+          <div className="p-6 md:p-8 border-t border-gray-200 bg-white flex-shrink-0">
+            {selectedMedicines.length > 0 && (
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-gray-700">Total</span>
                 <span className="text-lg font-bold text-gray-900">₱{getTotalPrice().toLocaleString()}</span>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={onBack}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-                >
-                  Next
-                </button>
-              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={onBack}
+                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+              >
+                {selectedMedicines.length > 0 ? 'Next' : 'Skip'}
+              </button>
             </div>
-          )}
-
-          {selectedMedicines.length === 0 && (
-            <div className="p-4 border-t bg-gray-50 flex-shrink-0">
-              <div className="flex gap-2">
-                <button
-                  onClick={onBack}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-                >
-                  Skip
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

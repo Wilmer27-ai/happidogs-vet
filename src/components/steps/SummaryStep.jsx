@@ -1,28 +1,26 @@
 // src/components/steps/SummaryStep.jsx
-import { FiUser, FiFileText, FiPackage, FiClock, FiCheck } from 'react-icons/fi'
+import { FiUser, FiActivity, FiPackage, FiDollarSign } from 'react-icons/fi'
 
 function SummaryStep({ 
   selectedClient, 
-  selectedPet, 
+  selectedPets,
   consultationData, 
   medicinesData, 
-  followUpData,
   onBack, 
   onSave 
 }) {
   const getTotalPrice = () => {
     const medicinesTotal = medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0
-    const consultationFee = 300
+    const consultationFee = 300 * (selectedPets?.length || 1)
     return medicinesTotal + consultationFee
   }
 
   const handleSave = () => {
     const consultation = {
       client: selectedClient,
-      pet: selectedPet,
+      pets: selectedPets,
       details: consultationData,
       medicines: medicinesData,
-      followUp: followUpData,
       totalPrice: getTotalPrice(),
       date: new Date().toISOString()
     }
@@ -31,140 +29,162 @@ function SummaryStep({
   }
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {/* Client & Pet Info */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FiUser className="w-5 h-5 text-blue-600" />
-            Client & Pet Information
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="h-screen flex flex-col bg-white">
+     
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto px-6 md:px-8 py-6">
+        <div className="space-y-6">
+          {/* Client & Pets Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Client */}
             <div>
-              <p className="text-sm text-gray-500">Client</p>
-              <p className="font-medium text-gray-900">
+              <h3 className="text-xs font-bold text-gray-600 uppercase mb-2">Client</h3>
+              <p className="text-lg font-semibold text-gray-900">
                 {selectedClient?.firstName} {selectedClient?.lastName}
               </p>
-              <p className="text-sm text-gray-600">{selectedClient?.phoneNumber}</p>
+
             </div>
+
+            {/* Pets */}
             <div>
-              <p className="text-sm text-gray-500">Pet</p>
-              <p className="font-medium text-gray-900">{selectedPet?.name}</p>
-              <p className="text-sm text-gray-600">
-                {selectedPet?.species} • {selectedPet?.breed} • {selectedPet?.age} years
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Activities Performed */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FiFileText className="w-5 h-5 text-blue-600" />
-            Activities Performed
-          </h3>
-          {consultationData && consultationData.length > 0 ? (
-            <div className="space-y-3">
-              {consultationData.map((activity, index) => (
-                <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{activity.activityType}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(activity.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
-                    </p>
+              <h3 className="text-xs font-bold text-gray-600 uppercase mb-2">
+                Pet{selectedPets?.length > 1 ? 's' : ''} ({selectedPets?.length || 0})
+              </h3>
+              <div className="space-y-1">
+                {selectedPets?.map((pet, index) => (
+                  <div key={index}>
+                    <p className="text-sm font-medium text-gray-900">{pet.name}</p>
+                    <p className="text-xs text-gray-500">{pet.species} • {pet.breed}</p>
                   </div>
-                  {activity.weight && <p className="text-sm text-gray-600">Weight: {activity.weight}kg</p>}
-                  {activity.temperature && <p className="text-sm text-gray-600">Temperature: {activity.temperature}°C</p>}
-                  {activity.diagnosis && (
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">Diagnosis:</p>
-                      <p className="text-sm text-gray-900">{activity.diagnosis}</p>
-                    </div>
-                  )}
-                  {activity.treatment && (
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">Treatment:</p>
-                      <p className="text-sm text-gray-900">{activity.treatment}</p>
-                    </div>
-                  )}
-                  {activity.followUpDate && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      Follow-up: {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' })}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No activities selected</p>
-          )}
-        </div>
-
-        {/* Medicines */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FiPackage className="w-5 h-5 text-blue-600" />
-            Medicines Administered
-          </h3>
-          {medicinesData && medicinesData.length > 0 ? (
-            <div className="space-y-2">
-              {medicinesData.map(med => (
-                <div key={med.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{med.medicineName || 'N/A'}</p>
-                    <p className="text-sm text-gray-600">Quantity: {med.quantity || 0}</p>
-                  </div>
-                  <p className="font-semibold text-gray-900">₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}</p>
-                </div>
-              ))}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-200 mt-3">
-                <p className="font-medium text-gray-700">Medicines Subtotal</p>
-                <p className="font-bold text-gray-900">
-                  ₱{medicinesData.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0).toLocaleString()}
-                </p>
+                ))}
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-gray-500">No medicines administered</p>
-          )}
-        </div>
+          </div>
 
-        {/* Total */}
-        <div className="bg-blue-50 rounded-lg border-2 border-blue-200 p-6">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-gray-700">
-              <span>Consultation Fee</span>
-              <span className="font-medium">₱300</span>
+          {/* Activities Table */}
+          {consultationData && consultationData.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-gray-600 uppercase mb-3">Activities</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 border-b-2 border-gray-300">
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase py-3 px-4">Pet</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase py-3 px-4">Date</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase py-3 px-4">Activity</th>
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase py-3 px-4">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {consultationData.map((activity, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">{activity.petName}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600">
+                          {new Date(activity.date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm font-semibold text-gray-900">{activity.activityType}</div>
+                          {(activity.weight || activity.temperature) && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {activity.weight && <span>Wt: {activity.weight}kg</span>}
+                              {activity.weight && activity.temperature && <span> | </span>}
+                              {activity.temperature && <span>Temp: {activity.temperature}°C</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-600">
+                          {activity.diagnosis && <div className="mb-1">{activity.diagnosis}</div>}
+                          {activity.treatment && <div className="text-gray-500">{activity.treatment}</div>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-gray-700">
-              <span>Medicines</span>
-              <span className="font-medium">
-                ₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}
-              </span>
+          )}
+
+          {/* Medicines Table */}
+          {medicinesData && medicinesData.length > 0 && (
+            <div>
+              <h3 className="text-xs font-bold text-gray-600 uppercase mb-3">Medicines</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 border-b-2 border-gray-300">
+                      <th className="text-left text-xs font-bold text-gray-700 uppercase py-3 px-4">Medicine</th>
+                      <th className="text-center text-xs font-bold text-gray-700 uppercase py-3 px-4">Qty</th>
+                      <th className="text-right text-xs font-bold text-gray-700 uppercase py-3 px-4">Price</th>
+                      <th className="text-right text-xs font-bold text-gray-700 uppercase py-3 px-4">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {medicinesData.map(med => (
+                      <tr key={med.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">{med.medicineName}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 text-center">{med.quantity}</td>
+                        <td className="py-3 px-4 text-sm text-gray-600 text-right">₱{(med.sellingPrice || 0).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-sm font-semibold text-gray-900 text-right">
+                          ₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="border-t-2 border-blue-200 pt-2 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-bold text-gray-900">Total Amount</span>
-                <span className="text-2xl font-bold text-blue-600">₱{getTotalPrice().toLocaleString()}</span>
+          )}
+
+          {/* Payment Summary */}
+          <div className="border-t-2 border-gray-300 pt-6">
+            <h3 className="text-xs font-bold text-gray-600 uppercase mb-4">Payment Summary</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2">
+                <span className="text-sm text-gray-600">
+                  Consultation Fee ({selectedPets?.length || 0} pet{selectedPets?.length > 1 ? 's' : ''})
+                </span>
+                <span className="text-sm font-semibold text-gray-900">
+                  ₱{(300 * (selectedPets?.length || 1)).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                <span className="text-sm text-gray-600">Medicines Total</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  ₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-4 bg-blue-50 px-6 py-4 -mx-6 md:-mx-8">
+                <span className="text-lg md:text-xl font-bold text-gray-900">TOTAL</span>
+                <span className="text-2xl md:text-3xl font-bold text-blue-600">
+                  ₱{getTotalPrice().toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3 flex-shrink-0">
-        <button
-          onClick={onBack}
-          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
-        >
-          Back
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
-        >
-          Save Consultation
-        </button>
+      {/* Footer Actions */}
+      <div className="bg-white border-t border-gray-300 px-6 md:px-8 py-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={onBack}
+            className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold text-sm"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm"
+          >
+            Save Consultation
+          </button>
+        </div>
       </div>
     </div>
   )

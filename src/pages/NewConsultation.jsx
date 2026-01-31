@@ -11,7 +11,7 @@ function NewConsultation() {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedClient, setSelectedClient] = useState(null)
-  const [selectedPet, setSelectedPet] = useState(null)
+  const [selectedPets, setSelectedPets] = useState([])
   const [consultationData, setConsultationData] = useState(null)
   const [medicinesData, setMedicinesData] = useState([])
   const [isSaving, setIsSaving] = useState(false)
@@ -19,31 +19,35 @@ function NewConsultation() {
   const handleSaveConsultation = async () => {
     setIsSaving(true)
     try {
-      if (!selectedClient?.id || !selectedPet?.id) {
-        alert('Please select a client and pet')
+      if (!selectedClient?.id || selectedPets.length === 0) {
+        alert('Please select a client and at least one pet')
         return
       }
 
-      const consultationToSave = {
-        clientId: selectedClient.id,
-        clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-        petId: selectedPet.id,
-        petName: selectedPet.name,
-        dateTime: consultationData?.dateTime || new Date().toISOString(),
-        reason: consultationData?.reason || '',
-        diagnosis: consultationData?.diagnosis || '',
-        treatment: consultationData?.treatment || '',
-        medicines: medicinesData?.map(med => ({
-          medicineId: med.id,
-          medicineName: med.medicineName,
-          quantity: med.quantity,
-          price: med.sellingPrice
-        })) || [],
-        totalAmount: (medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0) + 300,
-        consultationFee: 300
-      }
+      // Save consultation for each pet
+      const consultationPromises = selectedPets.map(pet => {
+        const consultationToSave = {
+          clientId: selectedClient.id,
+          clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+          petId: pet.id,
+          petName: pet.name,
+          dateTime: consultationData?.[0]?.date || new Date().toISOString(),
+          reason: '',
+          diagnosis: consultationData?.[0]?.diagnosis || '',
+          treatment: consultationData?.[0]?.treatment || '',
+          medicines: medicinesData?.map(med => ({
+            medicineId: med.id,
+            medicineName: med.medicineName,
+            quantity: med.quantity,
+            price: med.sellingPrice
+          })) || [],
+          totalAmount: (medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0) / selectedPets.length + 300,
+          consultationFee: 300
+        }
+        return addConsultation(consultationToSave)
+      })
 
-      const savedConsultation = await addConsultation(consultationToSave)
+      await Promise.all(consultationPromises)
 
       setTimeout(() => {
         setIsSaving(false)
@@ -62,9 +66,9 @@ function NewConsultation() {
         {currentStep === 0 && (
           <DetailsStep
             selectedClient={selectedClient}
-            selectedPet={selectedPet}
+            selectedPets={selectedPets}
             onSelectClient={setSelectedClient}
-            onSelectPet={setSelectedPet}
+            onSelectPets={setSelectedPets}
             consultationData={consultationData}
             setConsultationData={setConsultationData}
             onNext={() => setCurrentStep(1)}
@@ -74,7 +78,7 @@ function NewConsultation() {
         {currentStep === 1 && (
           <MedicinesStep
             selectedClient={selectedClient}
-            selectedPet={selectedPet}
+            selectedPets={selectedPets}
             medicinesData={medicinesData}
             setMedicinesData={setMedicinesData}
             onBack={() => setCurrentStep(0)}
@@ -85,7 +89,7 @@ function NewConsultation() {
         {currentStep === 2 && (
           <SummaryStep
             selectedClient={selectedClient}
-            selectedPet={selectedPet}
+            selectedPets={selectedPets}
             consultationData={consultationData}
             medicinesData={medicinesData}
             onBack={() => setCurrentStep(1)}

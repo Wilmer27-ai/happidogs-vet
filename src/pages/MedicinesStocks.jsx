@@ -135,41 +135,38 @@ function MedicinesStocks() {
               />
             </div>
 
-            {/* Category Filters */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {/* Filters Row */}
+            <div className="flex items-center gap-3">
               <FiFilter className="w-4 h-4 text-gray-500 flex-shrink-0" />
-              <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Category:</span>
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
-                    activeCategory === cat
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+              
+              {/* Category Dropdown */}
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Category:</label>
+                <select
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
                 >
-                  {cat}
-                </button>
-              ))}
-            </div>
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Stock Status Filters */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-600 font-medium">Status:</span>
-              {['All', 'Low Stock', 'Out of Stock', 'Expiring Soon'].map(filter => (
-                <button
-                  key={filter}
-                  onClick={() => setStockFilter(filter)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    stockFilter === filter
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+              {/* Status Dropdown */}
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Status:</label>
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
                 >
-                  {filter}
-                </button>
-              ))}
+                  <option value="All">All</option>
+                  <option value="Low Stock">Low Stock</option>
+                  <option value="Out of Stock">Out of Stock</option>
+                  <option value="Expiring Soon">Expiring Soon</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -200,7 +197,7 @@ function MedicinesStocks() {
           ) : (
             <div className="flex-1 overflow-y-auto">
               <table className="w-full">
-                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Medicine Name

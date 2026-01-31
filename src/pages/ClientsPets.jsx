@@ -1,12 +1,15 @@
 // ClientsPets.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiEye } from 'react-icons/fi'
+import { collection, query, orderBy, limit, startAfter, getDocs, where } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { getClients, addClient, updateClient, deleteClient, getPetsByClient, addPet, updatePet, deletePet } from '../firebase/services'
 
 function ClientsPets() {
   const [clients, setClients] = useState([])
   const [allPets, setAllPets] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('clients')
   const [searchQuery, setSearchQuery] = useState('')
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
@@ -18,6 +21,15 @@ function ClientsPets() {
   const [editingPet, setEditingPet] = useState(null)
   const [selectedClientForPet, setSelectedClientForPet] = useState(null)
   
+  // Pagination state
+  const [lastClientDoc, setLastClientDoc] = useState(null)
+  const [lastPetDoc, setLastPetDoc] = useState(null)
+  const [hasMoreClients, setHasMoreClients] = useState(true)
+  const [hasMorePets, setHasMorePets] = useState(true)
+  const observerTarget = useRef(null)
+
+  const ITEMS_PER_PAGE = 20
+
   const [clientFormData, setClientFormData] = useState({
     firstName: '',
     lastName: '',
@@ -59,28 +71,144 @@ function ClientsPets() {
   }
 
   useEffect(() => {
-    loadData()
+    loadInitialData()
   }, [])
 
-  const loadData = async () => {
-    try {
-      const clientsData = await getClients()
-      setClients(clientsData)
-      
-      // Load all pets
-      const petsArray = []
-      for (const client of clientsData) {
-        const clientPets = await getPetsByClient(client.id)
-        petsArray.push(...clientPets.map(pet => ({
-          ...pet,
-          clientName: `${client.firstName} ${client.lastName}`
-        })))
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !loading && !loadingMore && !searchQuery) {
+          if (activeTab === 'clients' && hasMoreClients) {
+            loadMoreClients()
+          } else if (activeTab === 'pets' && hasMorePets) {
+            loadMorePets()
+          }
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current)
       }
-      setAllPets(petsArray)
+    }
+  }, [hasMoreClients, hasMorePets, loading, loadingMore, searchQuery, activeTab])
+
+  const loadInitialData = async () => {
+    setLoading(true)
+    try {
+      // Load first batch of clients
+      const clientsRef = collection(db, 'clients')
+      const clientsQuery = query(clientsRef, orderBy('firstName'), limit(ITEMS_PER_PAGE))
+      const clientsSnapshot = await getDocs(clientsQuery)
+
+      const clientsData = clientsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setClients(clientsData)
+      setLastClientDoc(clientsSnapshot.docs[clientsSnapshot.docs.length - 1])
+      setHasMoreClients(clientsSnapshot.docs.length === ITEMS_PER_PAGE)
+
+      // Load first batch of pets
+      const petsRef = collection(db, 'pets')
+      const petsQuery = query(petsRef, orderBy('name'), limit(ITEMS_PER_PAGE))
+      const petsSnapshot = await getDocs(petsQuery)
+
+      const petsData = petsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      // Enrich pets with client names
+      const enrichedPets = petsData.map(pet => {
+        const client = clientsData.find(c => c.id === pet.clientId)
+        return {
+          ...pet,
+          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown'
+        }
+      })
+
+      setAllPets(enrichedPets)
+      setLastPetDoc(petsSnapshot.docs[petsSnapshot.docs.length - 1])
+      setHasMorePets(petsSnapshot.docs.length === ITEMS_PER_PAGE)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMoreClients = async () => {
+    if (!lastClientDoc || loadingMore) return
+
+    setLoadingMore(true)
+    try {
+      const clientsRef = collection(db, 'clients')
+      const q = query(
+        clientsRef,
+        orderBy('firstName'),
+        startAfter(lastClientDoc),
+        limit(ITEMS_PER_PAGE)
+      )
+      const snapshot = await getDocs(q)
+
+      const newClients = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      setClients(prev => [...prev, ...newClients])
+      setLastClientDoc(snapshot.docs[snapshot.docs.length - 1])
+      setHasMoreClients(snapshot.docs.length === ITEMS_PER_PAGE)
+    } catch (error) {
+      console.error('Error loading more clients:', error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMorePets = async () => {
+    if (!lastPetDoc || loadingMore) return
+
+    setLoadingMore(true)
+    try {
+      const petsRef = collection(db, 'pets')
+      const q = query(
+        petsRef,
+        orderBy('name'),
+        startAfter(lastPetDoc),
+        limit(ITEMS_PER_PAGE)
+      )
+      const snapshot = await getDocs(q)
+
+      const newPets = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+
+      // Enrich new pets with client names
+      const enrichedPets = newPets.map(pet => {
+        const client = clients.find(c => c.id === pet.clientId)
+        return {
+          ...pet,
+          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown'
+        }
+      })
+
+      setAllPets(prev => [...prev, ...enrichedPets])
+      setLastPetDoc(snapshot.docs[snapshot.docs.length - 1])
+      setHasMorePets(snapshot.docs.length === ITEMS_PER_PAGE)
+    } catch (error) {
+      console.error('Error loading more pets:', error)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -116,7 +244,14 @@ function ClientsPets() {
       } else {
         await addClient(clientFormData)
       }
-      loadData()
+      // Reload data
+      setClients([])
+      setAllPets([])
+      setLastClientDoc(null)
+      setLastPetDoc(null)
+      setHasMoreClients(true)
+      setHasMorePets(true)
+      await loadInitialData()
       handleCloseClientModal()
     } catch (error) {
       console.error('Error saving client:', error)
@@ -143,7 +278,14 @@ function ClientsPets() {
           await deletePet(pet.id)
         }
         await deleteClient(id)
-        loadData()
+        // Reload data
+        setClients([])
+        setAllPets([])
+        setLastClientDoc(null)
+        setLastPetDoc(null)
+        setHasMoreClients(true)
+        setHasMorePets(true)
+        await loadInitialData()
       } catch (error) {
         console.error('Error deleting client:', error)
         alert('Failed to delete client.')
@@ -185,7 +327,14 @@ function ClientsPets() {
       } else {
         await addPet(petData)
       }
-      loadData()
+      // Reload data
+      setClients([])
+      setAllPets([])
+      setLastClientDoc(null)
+      setLastPetDoc(null)
+      setHasMoreClients(true)
+      setHasMorePets(true)
+      await loadInitialData()
       handleClosePetModal()
     } catch (error) {
       console.error('Error saving pet:', error)
@@ -209,7 +358,14 @@ function ClientsPets() {
     if (confirm('Are you sure you want to delete this pet?')) {
       try {
         await deletePet(id)
-        loadData()
+        // Reload data
+        setClients([])
+        setAllPets([])
+        setLastClientDoc(null)
+        setLastPetDoc(null)
+        setHasMoreClients(true)
+        setHasMorePets(true)
+        await loadInitialData()
       } catch (error) {
         console.error('Error deleting pet:', error)
         alert('Failed to delete pet.')
@@ -265,7 +421,7 @@ function ClientsPets() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Clients ({clients.length})
+                Clients ({clients.length}{!searchQuery && hasMoreClients ? '+' : ''})
               </button>
               <button
                 onClick={() => setActiveTab('pets')}
@@ -275,7 +431,7 @@ function ClientsPets() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Pets ({allPets.length})
+                Pets ({allPets.length}{!searchQuery && hasMorePets ? '+' : ''})
               </button>
             </div>
 
@@ -294,17 +450,17 @@ function ClientsPets() {
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 px-6 py-4 overflow-hidden">
-        <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
+      <div className="flex-1 px-6 py-4 overflow-hidden flex flex-col">
+        <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
               <p className="text-gray-500">Loading...</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-auto">
               {activeTab === 'clients' ? (
                 <table className="w-full">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Name
@@ -325,47 +481,57 @@ function ClientsPets() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredClients.length > 0 ? (
-                      filteredClients.map((client) => (
-                        <tr key={client.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-gray-900">
-                              {client.firstName} {client.lastName}
-                            </p>
-                          </td>
-                          <td className="px-6 py-4 text-gray-700">{client.phoneNumber}</td>
-                          <td className="px-6 py-4 text-gray-700">{client.address}</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {getClientPets(client.id).length} pets
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleViewClient(client)}
-                                className="text-gray-600 hover:text-gray-900 p-2"
-                                title="View Details"
-                              >
-                                <FiEye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEditClient(client)}
-                                className="text-blue-600 hover:text-blue-700 p-2"
-                                title="Edit"
-                              >
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClient(client.id)}
-                                className="text-red-600 hover:text-red-700 p-2"
-                                title="Delete"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                      <>
+                        {filteredClients.map((client) => (
+                          <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-gray-900">
+                                {client.firstName} {client.lastName}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 text-gray-700">{client.phoneNumber}</td>
+                            <td className="px-6 py-4 text-gray-700">{client.address}</td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {getClientPets(client.id).length} pets
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleViewClient(client)}
+                                  className="text-gray-600 hover:text-gray-900 p-2"
+                                  title="View Details"
+                                >
+                                  <FiEye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditClient(client)}
+                                  className="text-blue-600 hover:text-blue-700 p-2"
+                                  title="Edit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClient(client.id)}
+                                  className="text-red-600 hover:text-red-700 p-2"
+                                  title="Delete"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Loading indicator and observer target */}
+                        {!searchQuery && hasMoreClients && (
+                          <tr ref={observerTarget}>
+                            <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                              {loadingMore ? 'Loading more...' : ''}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ) : (
                       <tr>
                         <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
@@ -377,7 +543,7 @@ function ClientsPets() {
                 </table>
               ) : (
                 <table className="w-full">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200">
+                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                         Pet Name
@@ -401,42 +567,52 @@ function ClientsPets() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredPets.length > 0 ? (
-                      filteredPets.map((pet) => (
-                        <tr key={pet.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <p className="font-semibold text-gray-900">{pet.name}</p>
-                          </td>
-                          <td className="px-6 py-4 text-gray-700">{pet.species}</td>
-                          <td className="px-6 py-4 text-gray-700">{pet.breed}</td>
-                          <td className="px-6 py-4 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
-                          <td className="px-6 py-4 text-gray-700">{pet.clientName}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => handleViewPet(pet)}
-                                className="text-gray-600 hover:text-gray-900 p-2"
-                                title="View Details"
-                              >
-                                <FiEye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleEditPet(pet)}
-                                className="text-blue-600 hover:text-blue-700 p-2"
-                                title="Edit"
-                              >
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeletePet(pet.id)}
-                                className="text-red-600 hover:text-red-700 p-2"
-                                title="Delete"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                      <>
+                        {filteredPets.map((pet) => (
+                          <tr key={pet.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <p className="font-semibold text-gray-900">{pet.name}</p>
+                            </td>
+                            <td className="px-6 py-4 text-gray-700">{pet.species}</td>
+                            <td className="px-6 py-4 text-gray-700">{pet.breed}</td>
+                            <td className="px-6 py-4 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
+                            <td className="px-6 py-4 text-gray-700">{pet.clientName}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleViewPet(pet)}
+                                  className="text-gray-600 hover:text-gray-900 p-2"
+                                  title="View Details"
+                                >
+                                  <FiEye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditPet(pet)}
+                                  className="text-blue-600 hover:text-blue-700 p-2"
+                                  title="Edit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePet(pet.id)}
+                                  className="text-red-600 hover:text-red-700 p-2"
+                                  title="Delete"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Loading indicator and observer target */}
+                        {!searchQuery && hasMorePets && (
+                          <tr ref={observerTarget}>
+                            <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
+                              {loadingMore ? 'Loading more...' : ''}
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ) : (
                       <tr>
                         <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
