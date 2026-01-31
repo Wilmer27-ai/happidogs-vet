@@ -250,12 +250,26 @@ function MedicinesStocks() {
                         </td>
                         <td className="px-4 py-3 text-gray-700">{item.category}</td>
                         <td className="px-4 py-3">
-                          <span className={`font-semibold ${
-                            item.stockQuantity === 0 ? 'text-red-600' :
-                            item.stockQuantity <= 10 ? 'text-yellow-600' : 'text-gray-900'
-                          }`}>
-                            {item.stockQuantity} {item.unit}
-                          </span>
+                          {item.type === 'store' && item.packageSize && item.sellingUnit ? (
+                            <div>
+                              <span className={`font-semibold ${
+                                item.stockQuantity === 0 ? 'text-red-600' :
+                                item.stockQuantity <= 10 ? 'text-yellow-600' : 'text-gray-900'
+                              }`}>
+                                {(item.stockQuantity * item.packageSize).toFixed(2)} {item.sellingUnit}
+                              </span>
+                              <p className="text-xs text-gray-500">
+                                ({item.stockQuantity} {item.unit})
+                              </p>
+                            </div>
+                          ) : (
+                            <span className={`font-semibold ${
+                              item.stockQuantity === 0 ? 'text-red-600' :
+                              item.stockQuantity <= 10 ? 'text-yellow-600' : 'text-gray-900'
+                            }`}>
+                              {item.stockQuantity} {item.unit}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
                           {item.supplierName ? (

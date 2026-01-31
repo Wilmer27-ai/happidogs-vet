@@ -27,6 +27,21 @@ function CreatePurchaseOrder() {
     expirationDate: ''
   })
 
+  const [itemFormData, setItemFormData] = useState({
+    itemType: 'medicine',
+    itemName: '',
+    category: '',
+    brand: '',
+    description: '',
+    quantity: '',
+    unit: 'pcs',
+    packageSize: '', // NEW: Size of one package (e.g., 25 for 25kg sack)
+    sellingUnit: '', // NEW: Unit for selling (e.g., 'kg', 'g')
+    purchasePrice: '',
+    sellingPrice: '',
+    expirationDate: ''
+  })
+
   const medicineCategories = ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
   const storeCategories = ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other']
 
@@ -153,6 +168,8 @@ function CreatePurchaseOrder() {
             description: item.description || '',
             stockQuantity: item.quantity,
             unit: item.unit,
+            packageSize: item.packageSize ? parseFloat(item.packageSize) : null,
+            sellingUnit: item.sellingUnit || null,
             purchasePrice: item.purchasePrice,
             sellingPrice: item.sellingPrice,
             supplierId: selectedSupplier.id,
@@ -349,6 +366,39 @@ function CreatePurchaseOrder() {
                           className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="Description"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Package Size
+                          <span className="text-gray-500 ml-1">(Optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={itemFormData.packageSize}
+                          onChange={(e) => setItemFormData({ ...itemFormData, packageSize: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="e.g., 25"
+                        />
+                        <p className="text-xs text-gray-500 mt-0.5">Size per package (e.g., 25kg/sack)</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Selling Unit
+                          <span className="text-gray-500 ml-1">(Optional)</span>
+                        </label>
+                        <select
+                          value={itemFormData.sellingUnit}
+                          onChange={(e) => setItemFormData({ ...itemFormData, sellingUnit: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Same as package unit</option>
+                          <option value="kg">per Kilogram (kg)</option>
+                          <option value="g">per Gram (g)</option>
+                          <option value="lbs">per Pound (lbs)</option>
+                          <option value="oz">per Ounce (oz)</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-0.5">Unit for selling to customers</p>
                       </div>
                     </>
                   )}

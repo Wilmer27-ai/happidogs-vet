@@ -3,13 +3,17 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import Layout from './layout.jsx'
+import { AuthProvider } from './pages/AuthContext'
+import ProtectedRoute from './pages/ProtectedRoute'
 
 // Import pages
+import Login from './pages/Login'
 import NewConsultation from './pages/NewConsultation'
 import ConsultationHistory from './pages/ConsultationHistory'
 import ClientsPets from './pages/ClientsPets'
 import MedicinesStocks from './pages/MedicinesStocks'
 import PetStore from './pages/Petstore'
+import SalesHistory from './pages/SalesHistory'
 import Expenses from './pages/Expenses' 
 import Suppliers from './pages/Suppliers.jsx'
 import CreatePurchaseOrder from './pages/CreatePurchaseOrder.jsx'
@@ -20,8 +24,16 @@ import PetActivityHistory from './pages/PetActivityHistory'
 
 const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <Login />
+  },
+  {
     path: '/',
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: '/',
@@ -46,6 +58,10 @@ const router = createBrowserRouter([
       {
         path: '/pet-store',
         element: <PetStore />
+      },
+      {
+        path: '/sales-history',
+        element: <SalesHistory />
       },
       {
         path: '/suppliers',
@@ -77,6 +93,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>
 )

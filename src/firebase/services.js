@@ -539,3 +539,19 @@ export const getSales = async () => {
     throw error;
   }
 };
+
+// ==================== HELPER FUNCTIONS ====================
+// Helper function to calculate available selling units
+export const calculateAvailableUnits = (item) => {
+  if (!item.packageSize || !item.sellingUnit) {
+    return item.stockQuantity; // Fallback to regular quantity
+  }
+
+  // Example: 10 sacks × 25kg per sack = 250kg available to sell
+  return item.stockQuantity * item.packageSize;
+};
+
+// Helper function to calculate packages needed
+export const calculatePackagesNeeded = (sellingQuantity, packageSize) => {
+  return Math.ceil(sellingQuantity / packageSize);
+};
