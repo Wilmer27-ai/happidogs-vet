@@ -56,6 +56,9 @@ export const getClient = async (clientId) => {
   }
 };
 
+// Alias for consistency
+export const getClientById = getClient;
+
 export const updateClient = async (clientId, clientData) => {
   try {
     const docRef = doc(db, "clients", clientId);
@@ -113,6 +116,20 @@ export const getPetsByClient = async (clientId) => {
     }));
   } catch (error) {
     console.error("Error getting pets by client:", error);
+    throw error;
+  }
+};
+
+export const getPetById = async (petId) => {
+  try {
+    const docRef = doc(db, "pets", petId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error getting pet:", error);
     throw error;
   }
 };

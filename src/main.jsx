@@ -13,6 +13,7 @@ import Expenses from './pages/Expenses'
 import Suppliers from './pages/Suppliers.jsx'
 import MasterData from './pages/MasterData'
 import Reports from './pages/Reports'
+import PetActivityHistory from './pages/PetActivityHistory'
 
 
 const router = createBrowserRouter([
@@ -51,6 +52,10 @@ const router = createBrowserRouter([
       {
         path: '/reports',
         element: <Reports />
+      },
+      {
+        path: '/pet-activity',
+        element: <PetActivityHistory />
       },
       {
         index: true,
