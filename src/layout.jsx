@@ -9,7 +9,8 @@ import {
   FiSettings, 
   FiLogOut,
   FiMenu,
-  FiX
+  FiX,
+  FiShoppingBag
 } from 'react-icons/fi'
 import { useState } from 'react'
 import logo from './assets/happidogslogo.png'
@@ -23,6 +24,7 @@ function Layout() {
     { name: 'Consultation History', path: '/consultation-history', icon: FiFileText },
     { name: 'Clients & Pets', path: '/clients-pets', icon: FiUsers },
     { name: 'Medicines & Stocks', path: '/medicines-stocks', icon: FiPackage },
+    { name: 'POS', path: '/pet-store', icon: FiShoppingBag },
     { name: 'Suppliers', path: '/suppliers', icon: FiPackage },
     { name: 'Expenses', path: '/expenses', icon: FiPackage },
     { name: 'Master Data', path: '/master-data', icon: FiDatabase },
@@ -64,7 +66,7 @@ function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-hidden">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navigation.map((item) => (
             <Link
               key={item.path}
@@ -102,14 +104,14 @@ function Layout() {
 
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div
+        <div 
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto lg:ml-0">
+      <main className="flex-1 overflow-hidden">
         <Outlet />
       </main>
     </div>

@@ -1,34 +1,23 @@
 // ClientsPets.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiEye } from 'react-icons/fi'
-import { collection, query, orderBy, limit, startAfter, getDocs, where } from 'firebase/firestore'
-import { db } from '../firebase/config'
-import { getClients, addClient, updateClient, deleteClient, getPetsByClient, addPet, updatePet, deletePet } from '../firebase/services'
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiUser, FiHeart } from 'react-icons/fi'
+import { getClients, addClient, updateClient, deleteClient, addPet, updatePet, deletePet, getPets } from '../firebase/services'
 
 function ClientsPets() {
   const [clients, setClients] = useState([])
   const [allPets, setAllPets] = useState([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('clients')
   const [searchQuery, setSearchQuery] = useState('')
   const [isClientModalOpen, setIsClientModalOpen] = useState(false)
   const [isPetModalOpen, setIsPetModalOpen] = useState(false)
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-  const [viewingClient, setViewingClient] = useState(null)
-  const [viewingPet, setViewingPet] = useState(null)
   const [editingClient, setEditingClient] = useState(null)
   const [editingPet, setEditingPet] = useState(null)
-  const [selectedClientForPet, setSelectedClientForPet] = useState(null)
   
-  // Pagination state
-  const [lastClientDoc, setLastClientDoc] = useState(null)
-  const [lastPetDoc, setLastPetDoc] = useState(null)
-  const [hasMoreClients, setHasMoreClients] = useState(true)
-  const [hasMorePets, setHasMorePets] = useState(true)
+  // Lazy loading states
+  const [displayCountClients, setDisplayCountClients] = useState(20)
+  const [displayCountPets, setDisplayCountPets] = useState(20)
   const observerTarget = useRef(null)
-
-  const ITEMS_PER_PAGE = 20
 
   const [clientFormData, setClientFormData] = useState({
     firstName: '',
@@ -41,7 +30,8 @@ function ClientsPets() {
     name: '',
     species: 'Dog',
     breed: '',
-    dateOfBirth: ''
+    dateOfBirth: '',
+    clientId: ''
   })
 
   // Helper function to calculate age
@@ -71,61 +61,19 @@ function ClientsPets() {
   }
 
   useEffect(() => {
-    loadInitialData()
+    loadData()
   }, [])
 
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && !searchQuery) {
-          if (activeTab === 'clients' && hasMoreClients) {
-            loadMoreClients()
-          } else if (activeTab === 'pets' && hasMorePets) {
-            loadMorePets()
-          }
-        }
-      },
-      { threshold: 0.1 }
-    )
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current)
-    }
-
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current)
-      }
-    }
-  }, [hasMoreClients, hasMorePets, loading, loadingMore, searchQuery, activeTab])
-
-  const loadInitialData = async () => {
+  const loadData = async () => {
     setLoading(true)
     try {
-      // Load first batch of clients
-      const clientsRef = collection(db, 'clients')
-      const clientsQuery = query(clientsRef, orderBy('firstName'), limit(ITEMS_PER_PAGE))
-      const clientsSnapshot = await getDocs(clientsQuery)
-
-      const clientsData = clientsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+      const [clientsData, petsData] = await Promise.all([
+        getClients(),
+        getPets()
+      ])
+      
       setClients(clientsData)
-      setLastClientDoc(clientsSnapshot.docs[clientsSnapshot.docs.length - 1])
-      setHasMoreClients(clientsSnapshot.docs.length === ITEMS_PER_PAGE)
-
-      // Load first batch of pets
-      const petsRef = collection(db, 'pets')
-      const petsQuery = query(petsRef, orderBy('name'), limit(ITEMS_PER_PAGE))
-      const petsSnapshot = await getDocs(petsQuery)
-
-      const petsData = petsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-
+      
       // Enrich pets with client names
       const enrichedPets = petsData.map(pet => {
         const client = clientsData.find(c => c.id === pet.clientId)
@@ -134,81 +82,12 @@ function ClientsPets() {
           clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown'
         }
       })
-
+      
       setAllPets(enrichedPets)
-      setLastPetDoc(petsSnapshot.docs[petsSnapshot.docs.length - 1])
-      setHasMorePets(petsSnapshot.docs.length === ITEMS_PER_PAGE)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadMoreClients = async () => {
-    if (!lastClientDoc || loadingMore) return
-
-    setLoadingMore(true)
-    try {
-      const clientsRef = collection(db, 'clients')
-      const q = query(
-        clientsRef,
-        orderBy('firstName'),
-        startAfter(lastClientDoc),
-        limit(ITEMS_PER_PAGE)
-      )
-      const snapshot = await getDocs(q)
-
-      const newClients = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-
-      setClients(prev => [...prev, ...newClients])
-      setLastClientDoc(snapshot.docs[snapshot.docs.length - 1])
-      setHasMoreClients(snapshot.docs.length === ITEMS_PER_PAGE)
-    } catch (error) {
-      console.error('Error loading more clients:', error)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  const loadMorePets = async () => {
-    if (!lastPetDoc || loadingMore) return
-
-    setLoadingMore(true)
-    try {
-      const petsRef = collection(db, 'pets')
-      const q = query(
-        petsRef,
-        orderBy('name'),
-        startAfter(lastPetDoc),
-        limit(ITEMS_PER_PAGE)
-      )
-      const snapshot = await getDocs(q)
-
-      const newPets = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-
-      // Enrich new pets with client names
-      const enrichedPets = newPets.map(pet => {
-        const client = clients.find(c => c.id === pet.clientId)
-        return {
-          ...pet,
-          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown'
-        }
-      })
-
-      setAllPets(prev => [...prev, ...enrichedPets])
-      setLastPetDoc(snapshot.docs[snapshot.docs.length - 1])
-      setHasMorePets(snapshot.docs.length === ITEMS_PER_PAGE)
-    } catch (error) {
-      console.error('Error loading more pets:', error)
-    } finally {
-      setLoadingMore(false)
     }
   }
 
@@ -230,12 +109,45 @@ function ClientsPets() {
     pet.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Client handlers
-  const handleViewClient = (client) => {
-    setViewingClient(client)
-    setIsViewModalOpen(true)
-  }
+  // Displayed items with lazy loading
+  const displayedClients = filteredClients.slice(0, displayCountClients)
+  const displayedPets = filteredPets.slice(0, displayCountPets)
+  const hasMoreClients = displayCountClients < filteredClients.length
+  const hasMorePets = displayCountPets < filteredPets.length
 
+  // Intersection Observer for lazy loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting) {
+          if (activeTab === 'clients' && hasMoreClients) {
+            setDisplayCountClients(prev => prev + 20)
+          } else if (activeTab === 'pets' && hasMorePets) {
+            setDisplayCountPets(prev => prev + 20)
+          }
+        }
+      },
+      { threshold: 1 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current)
+      }
+    }
+  }, [hasMoreClients, hasMorePets, activeTab])
+
+  // Reset display count when filters change
+  useEffect(() => {
+    setDisplayCountClients(20)
+    setDisplayCountPets(20)
+  }, [searchQuery, activeTab])
+
+  // Client handlers
   const handleClientSubmit = async (e) => {
     e.preventDefault()
     try {
@@ -244,14 +156,7 @@ function ClientsPets() {
       } else {
         await addClient(clientFormData)
       }
-      // Reload data
-      setClients([])
-      setAllPets([])
-      setLastClientDoc(null)
-      setLastPetDoc(null)
-      setHasMoreClients(true)
-      setHasMorePets(true)
-      await loadInitialData()
+      await loadData()
       handleCloseClientModal()
     } catch (error) {
       console.error('Error saving client:', error)
@@ -278,14 +183,7 @@ function ClientsPets() {
           await deletePet(pet.id)
         }
         await deleteClient(id)
-        // Reload data
-        setClients([])
-        setAllPets([])
-        setLastClientDoc(null)
-        setLastPetDoc(null)
-        setHasMoreClients(true)
-        setHasMorePets(true)
-        await loadInitialData()
+        await loadData()
       } catch (error) {
         console.error('Error deleting client:', error)
         alert('Failed to delete client.')
@@ -305,36 +203,15 @@ function ClientsPets() {
   }
 
   // Pet handlers
-  const handleViewPet = (pet) => {
-    setViewingPet(pet)
-    setIsViewModalOpen(true)
-  }
-
-  const handleOpenAddPet = () => {
-    setIsPetModalOpen(true)
-  }
-
   const handlePetSubmit = async (e) => {
     e.preventDefault()
     try {
-      const petData = {
-        ...petFormData,
-        clientId: editingPet ? editingPet.clientId : petFormData.clientId
-      }
-
       if (editingPet) {
-        await updatePet(editingPet.id, petData)
+        await updatePet(editingPet.id, petFormData)
       } else {
-        await addPet(petData)
+        await addPet(petFormData)
       }
-      // Reload data
-      setClients([])
-      setAllPets([])
-      setLastClientDoc(null)
-      setLastPetDoc(null)
-      setHasMoreClients(true)
-      setHasMorePets(true)
-      await loadInitialData()
+      await loadData()
       handleClosePetModal()
     } catch (error) {
       console.error('Error saving pet:', error)
@@ -358,14 +235,7 @@ function ClientsPets() {
     if (confirm('Are you sure you want to delete this pet?')) {
       try {
         await deletePet(id)
-        // Reload data
-        setClients([])
-        setAllPets([])
-        setLastClientDoc(null)
-        setLastPetDoc(null)
-        setHasMoreClients(true)
-        setHasMorePets(true)
-        await loadInitialData()
+        await loadData()
       } catch (error) {
         console.error('Error deleting pet:', error)
         alert('Failed to delete pet.')
@@ -385,358 +255,202 @@ function ClientsPets() {
     })
   }
 
-  const handleCloseViewModal = () => {
-    setIsViewModalOpen(false)
-    setViewingClient(null)
-    setViewingPet(null)
-  }
-
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 flex-shrink-0">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Clients & Pets</h1>
-              <p className="text-gray-500 mt-1">Manage your clients and their pets</p>
-            </div>
+      <div className="bg-white border-b px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Clients & Pets</h1>
+
+      
+
+        {/* Tab Toggle & Search */}
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
             <button
-              onClick={activeTab === 'clients' ? () => setIsClientModalOpen(true) : handleOpenAddPet}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+              onClick={() => setActiveTab('clients')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'clients'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              <FiPlus className="w-5 h-5" />
-              {activeTab === 'clients' ? 'Add Client' : 'Add Pet'}
+              Clients
+            </button>
+            <button
+              onClick={() => setActiveTab('pets')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                activeTab === 'pets'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Pets
             </button>
           </div>
 
-          {/* Tab Toggle & Search */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setActiveTab('clients')}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                  activeTab === 'clients'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Clients ({clients.length}{!searchQuery && hasMoreClients ? '+' : ''})
-              </button>
-              <button
-                onClick={() => setActiveTab('pets')}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                  activeTab === 'pets'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Pets ({allPets.length}{!searchQuery && hasMorePets ? '+' : ''})
-              </button>
-            </div>
-
-            <div className="relative flex-1 max-w-md ml-4">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder={activeTab === 'clients' ? 'Search clients...' : 'Search pets...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder={activeTab === 'clients' ? 'Search clients...' : 'Search pets...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
+
+          <button
+            onClick={activeTab === 'clients' ? () => setIsClientModalOpen(true) : () => setIsPetModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+          >
+            <FiPlus className="w-4 h-4" />
+            {activeTab === 'clients' ? 'Add Client' : 'Add Pet'}
+          </button>
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="flex-1 px-6 py-4 overflow-hidden flex flex-col">
-        <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-          {loading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-500">Loading...</p>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-auto">
+      {/* Table Container with Fixed Height */}
+      <div className="flex-1 px-6 py-4 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col overflow-hidden">
+            <div className="overflow-auto flex-1">
               {activeTab === 'clients' ? (
-                <table className="w-full">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Phone Number
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Address
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Pets
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Actions
-                      </th>
+                      <th className="px-4 py-2 text-left text-xs">Name</th>
+                      <th className="px-4 py-2 text-left text-xs">Phone</th>
+                      <th className="px-4 py-2 text-left text-xs">Address</th>
+                      <th className="px-4 py-2 text-left text-xs">Pets</th>
+                      <th className="px-4 py-2 text-right text-xs">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredClients.length > 0 ? (
-                      <>
-                        {filteredClients.map((client) => (
-                          <tr key={client.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <p className="font-semibold text-gray-900">
-                                {client.firstName} {client.lastName}
-                              </p>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700">{client.phoneNumber}</td>
-                            <td className="px-6 py-4 text-gray-700">{client.address}</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {getClientPets(client.id).length} pets
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleViewClient(client)}
-                                  className="text-gray-600 hover:text-gray-900 p-2"
-                                  title="View Details"
-                                >
-                                  <FiEye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleEditClient(client)}
-                                  className="text-blue-600 hover:text-blue-700 p-2"
-                                  title="Edit"
-                                >
-                                  <FiEdit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClient(client.id)}
-                                  className="text-red-600 hover:text-red-700 p-2"
-                                  title="Delete"
-                                >
-                                  <FiTrash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {/* Loading indicator and observer target */}
-                        {!searchQuery && hasMoreClients && (
-                          <tr ref={observerTarget}>
-                            <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                              {loadingMore ? 'Loading more...' : ''}
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                    {displayedClients.length > 0 ? (
+                      displayedClients.map((client, index) => (
+                        <tr key={client.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-gray-900">
+                              {client.firstName} {client.lastName}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{client.phoneNumber}</td>
+                          <td className="px-4 py-3 text-gray-700">{client.address}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {getClientPets(client.id).length}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleEditClient(client)}
+                                className="text-blue-600 hover:text-blue-700 p-1.5"
+                                title="Edit"
+                              >
+                                <FiEdit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClient(client.id)}
+                                className="text-red-600 hover:text-red-700 p-1.5"
+                                title="Delete"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     ) : (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
-                          No clients found
+                        <td colSpan="5" className="px-4 py-12 text-center text-gray-500">
+                          <FiUser className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p>No clients found</p>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               ) : (
-                <table className="w-full">
-                  <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Pet Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Species
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Breed
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Age
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Owner
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                        Actions
-                      </th>
+                      <th className="px-4 py-2 text-left text-xs">Pet Name</th>
+                      <th className="px-4 py-2 text-left text-xs">Species</th>
+                      <th className="px-4 py-2 text-left text-xs">Breed</th>
+                      <th className="px-4 py-2 text-left text-xs">Age</th>
+                      <th className="px-4 py-2 text-left text-xs">Owner</th>
+                      <th className="px-4 py-2 text-right text-xs">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {filteredPets.length > 0 ? (
-                      <>
-                        {filteredPets.map((pet) => (
-                          <tr key={pet.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <p className="font-semibold text-gray-900">{pet.name}</p>
-                            </td>
-                            <td className="px-6 py-4 text-gray-700">{pet.species}</td>
-                            <td className="px-6 py-4 text-gray-700">{pet.breed}</td>
-                            <td className="px-6 py-4 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
-                            <td className="px-6 py-4 text-gray-700">{pet.clientName}</td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => handleViewPet(pet)}
-                                  className="text-gray-600 hover:text-gray-900 p-2"
-                                  title="View Details"
-                                >
-                                  <FiEye className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleEditPet(pet)}
-                                  className="text-blue-600 hover:text-blue-700 p-2"
-                                  title="Edit"
-                                >
-                                  <FiEdit2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeletePet(pet.id)}
-                                  className="text-red-600 hover:text-red-700 p-2"
-                                  title="Delete"
-                                >
-                                  <FiTrash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                        {/* Loading indicator and observer target */}
-                        {!searchQuery && hasMorePets && (
-                          <tr ref={observerTarget}>
-                            <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                              {loadingMore ? 'Loading more...' : ''}
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                    {displayedPets.length > 0 ? (
+                      displayedPets.map((pet, index) => (
+                        <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-gray-900">{pet.name}</p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">{pet.species}</td>
+                          <td className="px-4 py-3 text-gray-700">{pet.breed}</td>
+                          <td className="px-4 py-3 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
+                          <td className="px-4 py-3 text-gray-700">{pet.clientName}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleEditPet(pet)}
+                                className="text-blue-600 hover:text-blue-700 p-1.5"
+                                title="Edit"
+                              >
+                                <FiEdit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePet(pet.id)}
+                                className="text-red-600 hover:text-red-700 p-1.5"
+                                title="Delete"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     ) : (
                       <tr>
-                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                          No pets found
+                        <td colSpan="6" className="px-4 py-12 text-center text-gray-500">
+                          <FiHeart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p>No pets found</p>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               )}
+
+              {/* Loading indicator for lazy loading */}
+              {((activeTab === 'clients' && hasMoreClients) || (activeTab === 'pets' && hasMorePets)) && (
+                <div ref={observerTarget} className="py-4 text-center">
+                  <p className="text-sm text-gray-500">Loading more...</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            {/* Footer with count */}
+            {((activeTab === 'clients' && !hasMoreClients && displayedClients.length > 0) ||
+              (activeTab === 'pets' && !hasMorePets && displayedPets.length > 0)) && (
+              <div className="py-3 text-center border-t flex-shrink-0 bg-gray-50">
+                <p className="text-xs text-gray-500">
+                  Showing all {activeTab === 'clients' ? filteredClients.length : filteredPets.length}{' '}
+                  {activeTab === 'clients' ? 'clients' : 'pets'}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* View Client Modal */}
-      {isViewModalOpen && viewingClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Client Details</h2>
-              <button onClick={handleCloseViewModal} className="text-gray-400 hover:text-gray-600">
-                <FiX className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {viewingClient.firstName} {viewingClient.lastName}
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Phone Number</label>
-                  <p className="text-gray-900">{viewingClient.phoneNumber}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Address</label>
-                  <p className="text-gray-900">{viewingClient.address}</p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  Pets ({getClientPets(viewingClient.id).length})
-                </h4>
-                {getClientPets(viewingClient.id).length > 0 ? (
-                  <div className="space-y-2">
-                    {getClientPets(viewingClient.id).map((pet) => (
-                      <div key={pet.id} className="p-3 bg-gray-50 rounded-lg">
-                        <p className="font-medium text-gray-900">{pet.name}</p>
-                        <p className="text-sm text-gray-600">
-                          {pet.species} • {pet.breed} • {calculateAge(pet.dateOfBirth)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-sm italic">No pets registered for this client</p>
-                )}
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <button
-                onClick={handleCloseViewModal}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Pet Modal */}
-      {isViewModalOpen && viewingPet && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Pet Details</h2>
-              <button onClick={handleCloseViewModal} className="text-gray-400 hover:text-gray-600">
-                <FiX className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900">{viewingPet.name}</h3>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Species</label>
-                  <p className="text-gray-900">{viewingPet.species}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Breed</label>
-                  <p className="text-gray-900">{viewingPet.breed}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Age</label>
-                  <p className="text-gray-900">{calculateAge(viewingPet.dateOfBirth)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Owner</label>
-                  <p className="text-gray-900">{viewingPet.clientName}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-gray-200">
-              <button
-                onClick={handleCloseViewModal}
-                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add/Edit Client Modal */}
       {isClientModalOpen && (

@@ -465,3 +465,77 @@ export const deletePetActivity = async (activityId) => {
     throw error;
   }
 };
+
+// ==================== PET STORE ITEMS ====================
+export const addStoreItem = async (itemData) => {
+  try {
+    const docRef = await addDoc(collection(db, "storeItems"), {
+      ...itemData,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...itemData };
+  } catch (error) {
+    console.error("Error adding store item:", error);
+    throw error;
+  }
+};
+
+export const getStoreItems = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "storeItems"));
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error getting store items:", error);
+    throw error;
+  }
+};
+
+export const updateStoreItem = async (itemId, itemData) => {
+  try {
+    const docRef = doc(db, "storeItems", itemId);
+    await updateDoc(docRef, itemData);
+    return { id: itemId, ...itemData };
+  } catch (error) {
+    console.error("Error updating store item:", error);
+    throw error;
+  }
+};
+
+export const deleteStoreItem = async (itemId) => {
+  try {
+    await deleteDoc(doc(db, "storeItems", itemId));
+  } catch (error) {
+    console.error("Error deleting store item:", error);
+    throw error;
+  }
+};
+
+// ==================== SALES ====================
+export const addSale = async (saleData) => {
+  try {
+    const docRef = await addDoc(collection(db, "sales"), {
+      ...saleData,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...saleData };
+  } catch (error) {
+    console.error("Error adding sale:", error);
+    throw error;
+  }
+};
+
+export const getSales = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "sales"));
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error getting sales:", error);
+    throw error;
+  }
+};
