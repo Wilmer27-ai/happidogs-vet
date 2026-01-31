@@ -11,12 +11,7 @@ function AddClientModal({ isOpen, onClose, onSubmit, clientData, setClientData }
     e.preventDefault()
     setIsSaving(true)
     try {
-      const newClient = await addClient({
-        firstName: clientData.firstName,
-        lastName: clientData.lastName,
-        phoneNumber: clientData.phoneNumber,
-        address: clientData.address
-      })
+      const newClient = await addClient(clientData)
       onSubmit(newClient)
       setClientData({ firstName: '', lastName: '', phoneNumber: '', address: '' })
     } catch (error) {
@@ -28,77 +23,68 @@ function AddClientModal({ isOpen, onClose, onSubmit, clientData, setClientData }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b">
-          <h3 className="text-lg font-semibold text-gray-800">Add New Client</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <FiX className="w-5 h-5" />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Add New Client</h2>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name
                 </label>
                 <input
                   type="text"
-                  required
                   value={clientData.firstName}
                   onChange={(e) => setClientData({ ...clientData, firstName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Juan"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="First"
+                  required
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name
                 </label>
                 <input
                   type="text"
-                  required
                   value={clientData.lastName}
                   onChange={(e) => setClientData({ ...clientData, lastName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Dela Cruz"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="Last"
+                  required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone Number *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Contact Number
               </label>
               <input
                 type="tel"
-                required
                 value={clientData.phoneNumber}
                 onChange={(e) => setClientData({ ...clientData, phoneNumber: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="09171234567"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="### ### ####"
+                required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Address
               </label>
               <textarea
-                required
                 value={clientData.address}
                 onChange={(e) => setClientData({ ...clientData, address: e.target.value })}
                 rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="Complete address"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                placeholder="Enter address..."
+                required
               />
             </div>
           </div>
@@ -107,16 +93,15 @@ function AddClientModal({ isOpen, onClose, onSubmit, clientData, setClientData }
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSaving}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors"
             >
-              {isSaving ? 'Adding...' : 'Add Client'}
+              Add Client
             </button>
           </div>
         </form>
