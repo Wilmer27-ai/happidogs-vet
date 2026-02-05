@@ -555,3 +555,52 @@ export const calculateAvailableUnits = (item) => {
 export const calculatePackagesNeeded = (sellingQuantity, packageSize) => {
   return Math.ceil(sellingQuantity / packageSize);
 };
+
+// ==================== EXPENSES ====================
+export const addExpense = async (expenseData) => {
+  try {
+    const docRef = await addDoc(collection(db, "expenses"), {
+      ...expenseData,
+      createdAt: serverTimestamp(),
+    });
+    return { id: docRef.id, ...expenseData };
+  } catch (error) {
+    console.error("Error adding expense:", error);
+    throw error;
+  }
+};
+
+export const getExpenses = async () => {
+  try {
+    const querySnapshot = await getDocs(
+      query(collection(db, "expenses"), orderBy("expenseDate", "desc")),
+    );
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error getting expenses:", error);
+    throw error;
+  }
+};
+
+export const updateExpense = async (expenseId, expenseData) => {
+  try {
+    const docRef = doc(db, "expenses", expenseId);
+    await updateDoc(docRef, expenseData);
+    return { id: expenseId, ...expenseData };
+  } catch (error) {
+    console.error("Error updating expense:", error);
+    throw error;
+  }
+};
+
+export const deleteExpense = async (expenseId) => {
+  try {
+    await deleteDoc(doc(db, "expenses", expenseId));
+  } catch (error) {
+    console.error("Error deleting expense:", error);
+    throw error;
+  }
+};
