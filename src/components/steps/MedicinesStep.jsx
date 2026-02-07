@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FiSearch, FiMinus, FiPlus, FiX } from 'react-icons/fi'
 import { getMedicines } from '../../firebase/services'
 
@@ -8,10 +8,42 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   const [selectedMedicines, setSelectedMedicines] = useState(medicinesData || [])
   const [medicines, setMedicines] = useState([])
   const [loading, setLoading] = useState(true)
+  const [displayCount, setDisplayCount] = useState(20)
+  const observerTarget = useRef(null)
+  const [showQuantityModal, setShowQuantityModal] = useState(false)
+  const [quantityModalItem, setQuantityModalItem] = useState(null)
+  const [customQuantity, setCustomQuantity] = useState('')
 
   useEffect(() => {
     loadMedicines()
   }, [])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && displayCount < filteredMedicines.length) {
+          setDisplayCount(prev => prev + 20)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
+    }
+
+    return () => observer.disconnect()
+  }, [displayCount])
+
+  useEffect(() => {
+    setDisplayCount(20)
+  }, [searchQuery, activeFilter])
+
+  useEffect(() => {
+    if (setMedicinesData) {
+      setMedicinesData(selectedMedicines)
+    }
+  }, [selectedMedicines, setMedicinesData])
 
   const loadMedicines = async () => {
     try {
@@ -27,211 +59,375 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   const categories = ['All', 'Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
 
   const filteredMedicines = medicines.filter(med => {
-    const matchesSearch = med.medicineName.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = med.medicineName?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesFilter = activeFilter === 'All' || med.category === activeFilter
     return matchesSearch && matchesFilter
   })
 
+  const displayedMedicines = filteredMedicines.slice(0, displayCount)
+  const hasMore = displayCount < filteredMedicines.length
+
+  const getStep = (medicine) => {
+    return 0.5
+  }
+
   const handleAddMedicine = (medicine) => {
+    if (medicine.stockQuantity === 0) return
+    
     const existing = selectedMedicines.find(m => m.id === medicine.id)
+    const step = getStep(medicine)
+    
     if (existing) {
-      setSelectedMedicines(selectedMedicines.map(m => 
-        m.id === medicine.id ? { ...m, quantity: m.quantity + 1 } : m
-      ))
+      if (existing.quantity + step <= medicine.stockQuantity) {
+        setSelectedMedicines(selectedMedicines.map(m => 
+          m.id === medicine.id ? { ...m, quantity: parseFloat((m.quantity + step).toFixed(2)) } : m
+        ))
+      } else {
+        alert(`Only ${medicine.stockQuantity} ${medicine.unit} available!`)
+      }
     } else {
-      setSelectedMedicines([...selectedMedicines, { ...medicine, quantity: 1 }])
+      setSelectedMedicines([...selectedMedicines, { ...medicine, quantity: step }])
     }
   }
 
   const handleUpdateQuantity = (id, change) => {
-    setSelectedMedicines(selectedMedicines.map(m => {
-      if (m.id === id) {
-        const newQuantity = m.quantity + change
-        return newQuantity > 0 ? { ...m, quantity: newQuantity } : m
-      }
-      return m
-    }).filter(m => m.quantity > 0))
+    const item = selectedMedicines.find(m => m.id === id)
+    const stockItem = medicines.find(m => m.id === id)
+    const step = getStep(stockItem)
+    const newQuantity = parseFloat((item.quantity + change * step).toFixed(2))
+
+    if (newQuantity <= 0) {
+      handleRemoveMedicine(id)
+    } else if (newQuantity <= stockItem.stockQuantity) {
+      setSelectedMedicines(selectedMedicines.map(m => 
+        m.id === id ? { ...m, quantity: newQuantity } : m
+      ))
+    } else {
+      alert(`Only ${stockItem.stockQuantity} ${stockItem.unit} available!`)
+    }
   }
 
   const handleRemoveMedicine = (id) => {
     setSelectedMedicines(selectedMedicines.filter(m => m.id !== id))
   }
 
+  const handleCustomQuantityClick = (medicine) => {
+    if (medicine.stockQuantity === 0) return
+    setQuantityModalItem(medicine)
+    setShowQuantityModal(true)
+    setCustomQuantity('')
+  }
+
+  const handleCustomQuantitySubmit = () => {
+    const quantity = parseFloat(customQuantity)
+    
+    if (isNaN(quantity) || quantity <= 0) {
+      alert('Please enter a valid quantity')
+      return
+    }
+
+    if (quantity > quantityModalItem.stockQuantity) {
+      alert(`Only ${quantityModalItem.stockQuantity} ${quantityModalItem.unit} available!`)
+      return
+    }
+
+    const existing = selectedMedicines.find(m => m.id === quantityModalItem.id)
+    
+    if (existing) {
+      setSelectedMedicines(selectedMedicines.map(m => 
+        m.id === quantityModalItem.id ? { ...m, quantity } : m
+      ))
+    } else {
+      setSelectedMedicines([...selectedMedicines, { ...quantityModalItem, quantity }])
+    }
+
+    setShowQuantityModal(false)
+    setQuantityModalItem(null)
+    setCustomQuantity('')
+  }
+
   const getTotalPrice = () => {
     return selectedMedicines.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0)
   }
 
-  const handleSubmit = () => {
-    setMedicinesData(selectedMedicines)
+  const handleNext = () => {
+    if (setMedicinesData) {
+      setMedicinesData(selectedMedicines)
+    }
     onNext()
   }
 
   return (
-    <div className="h-screen flex flex-col bg-white">
-      {/* Selected Pets Info Header */}
-      {selectedPets && selectedPets.length > 0 && (
-        <div className="bg-blue-50 border-b border-blue-200 px-6 md:px-8 py-3 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-blue-900">
-              {selectedClient?.firstName} {selectedClient?.lastName}
-            </span>
-            <span className="text-sm text-blue-700">•</span>
-            <span className="text-sm text-blue-700">
-              {selectedPets.length} pet(s): {selectedPets.map(p => p.name).join(', ')}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-0 min-h-0">
-        {/* Left Side - Medicine List */}
-        <div className="lg:col-span-2 border-r border-gray-200 flex flex-col">
-          <div className="p-6 md:p-8 border-b flex-shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Select medicines administered</h3>
-            
-            {/* Search */}
-            <div className="relative mb-4">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search medicines..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Filters */}
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveFilter(cat)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap ${
-                    activeFilter === cat
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+    <div className="h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel - Medicines List */}
+        <div className="flex-1 flex flex-col bg-gray-50">
+          <div className="px-6 py-3 bg-white border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Available Medicines</h3>
+          
           </div>
 
-          {/* Medicine List */}
-          <div className="flex-1 overflow-y-auto px-6 md:px-8 py-4 space-y-2">
-            {loading ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-gray-500">Loading medicines...</p>
+          <div className="p-6 flex flex-col flex-1 overflow-hidden">
+            {/* Search & Filters */}
+            <div className="mb-3 space-y-2">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search medicines..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
               </div>
-            ) : filteredMedicines.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-gray-500">No medicines found</p>
+
+              <div className="flex gap-2 flex-wrap">
+                {categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveFilter(category)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      activeFilter === category
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Medicines Table */}
+            {loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-gray-400 text-sm">Loading medicines...</p>
+              </div>
+            ) : displayedMedicines.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-gray-400 text-sm">No medicines found</p>
               </div>
             ) : (
-              filteredMedicines.map(medicine => (
-              <div
-                key={medicine.id}
-                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{medicine.medicineName}</p>
-                  <p className="text-xs text-gray-500">Stock: {medicine.stockQuantity}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-blue-600">₱{medicine.sellingPrice || 0}</span>
-                  <button
-                    onClick={() => handleAddMedicine(medicine)}
-                    className="w-7 h-7 flex items-center justify-center bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    <FiPlus className="w-4 h-4" />
-                  </button>
+              <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
+                <div className="overflow-auto h-full">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
+                      <tr>
+                        <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Medicine</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Category</th>
+                        <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Stock</th>
+                        <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Price</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {displayedMedicines.map((medicine) => {
+                        const isOutOfStock = medicine.stockQuantity === 0
+                        const isSelected = selectedMedicines.find(m => m.id === medicine.id)
+                        
+                        return (
+                          <tr key={medicine.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-2 py-2">
+                              <span className={`font-medium text-xs ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
+                                {medicine.medicineName || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                {medicine.category || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2">
+                              <span className={`text-xs ${isOutOfStock ? 'text-red-600 font-medium' : 'text-gray-700'}`}>
+                                {medicine.stockQuantity || 0} {medicine.unit || ''}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-right">
+                              <div className="text-xs text-gray-900 font-medium">₱{medicine.sellingPrice?.toLocaleString() || 0}</div>
+                              <div className="text-xs text-gray-500">per {medicine.unit || 'unit'}</div>
+                            </td>
+                            <td className="px-2 py-2">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleAddMedicine(medicine)}
+                                  disabled={isOutOfStock}
+                                  className="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                                >
+                                  {isSelected ? 'Add More' : 'Add'}
+                                </button>
+                                <button
+                                  onClick={() => handleCustomQuantityClick(medicine)}
+                                  disabled={isOutOfStock}
+                                  className="px-2 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs"
+                                  title="Enter custom quantity"
+                                >
+                                  #
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+
+                  {hasMore && (
+                    <div ref={observerTarget} className="py-4 text-center">
+                      <p className="text-sm text-gray-500">Loading more...</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            )))}
+            )}
           </div>
         </div>
 
-        {/* Right Side - Selected Medicines */}
-        <div className="flex flex-col bg-gray-50">
-          <div className="p-6 md:p-8 border-b border-gray-200 flex-shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900">
-              Selected ({selectedMedicines.length})
-            </h3>
+        {/* Right Panel - Selected Medicines */}
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Prescribed Medicines</h3>
+            <p className="text-sm text-gray-600">{selectedMedicines.length} items</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 md:px-8 py-4 space-y-3">
-            {selectedMedicines.length > 0 ? (
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {selectedMedicines.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm mt-8">No medicines selected</p>
+            ) : (
               selectedMedicines.map(med => (
-                <div key={med.id} className="p-3 bg-white border border-gray-200 rounded-lg">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={med.id} className="bg-gray-50 rounded-md p-3 border border-gray-200">
+                  <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{med.medicineName}</p>
-                      <p className="text-xs text-gray-500">₱{med.sellingPrice || 0} each</p>
+                      <p className="font-medium text-gray-900 text-sm">{med.medicineName}</p>
+                      <p className="text-xs text-gray-600">{med.category}</p>
                     </div>
                     <button
                       onClick={() => handleRemoveMedicine(med.id)}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-red-600 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded"
                     >
                       <FiX className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleUpdateQuantity(med.id, -1)}
-                        className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                        className="w-7 h-7 flex items-center justify-center bg-gray-200 hover:bg-gray-300 transition-colors rounded text-gray-700"
                       >
                         <FiMinus className="w-3 h-3" />
                       </button>
-                      <span className="text-sm font-medium w-8 text-center">{med.quantity}</span>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min="0.5"
+                        value={med.quantity}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value)
+                          if (!isNaN(val) && val > 0 && val <= med.stockQuantity) {
+                            setSelectedMedicines(selectedMedicines.map(m =>
+                              m.id === med.id ? { ...m, quantity: val } : m
+                            ))
+                          }
+                        }}
+                        className="w-16 px-2 py-1 text-center text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-600">{med.unit}</span>
                       <button
                         onClick={() => handleUpdateQuantity(med.id, 1)}
-                        className="w-6 h-6 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                        className="w-7 h-7 flex items-center justify-center bg-gray-200 hover:bg-gray-300 transition-colors rounded text-gray-700"
                       >
                         <FiPlus className="w-3 h-3" />
                       </button>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">
-                      ₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}
-                    </span>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">
+                        ₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-sm text-gray-500">No medicines selected</p>
-              </div>
             )}
           </div>
 
-          {/* Footer with Total and Buttons */}
-          <div className="p-6 md:p-8 border-t border-gray-200 bg-white flex-shrink-0">
-            {selectedMedicines.length > 0 && (
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium text-gray-700">Total</span>
-                <span className="text-lg font-bold text-gray-900">₱{getTotalPrice().toLocaleString()}</span>
-              </div>
-            )}
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm font-medium text-gray-700">Total:</span>
+              <span className="text-xl font-bold text-gray-900">₱{getTotalPrice().toLocaleString()}</span>
+            </div>
+
             <div className="flex gap-2">
               <button
                 onClick={onBack}
-                className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium text-sm"
               >
                 Back
               </button>
               <button
-                onClick={handleSubmit}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
+                onClick={handleNext}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm"
               >
-                {selectedMedicines.length > 0 ? 'Next' : 'Skip'}
+                Continue
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Custom Quantity Modal */}
+      {showQuantityModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 m-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Enter Quantity</h3>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-medium">{quantityModalItem?.medicineName}</span>
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                Available: {quantityModalItem?.stockQuantity} {quantityModalItem?.unit}
+              </p>
+              
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quantity ({quantityModalItem?.unit})
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min="0.5"
+                value={customQuantity}
+                onChange={(e) => setCustomQuantity(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., 2.5"
+                autoFocus
+                onKeyPress={(e) => e.key === 'Enter' && handleCustomQuantitySubmit()}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                You can enter decimals like 0.5, 1.5, 2.5, etc.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowQuantityModal(false)
+                  setQuantityModalItem(null)
+                  setCustomQuantity('')
+                }}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCustomQuantitySubmit}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

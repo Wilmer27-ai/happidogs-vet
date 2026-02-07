@@ -48,7 +48,7 @@ function MedicinesStocks() {
   const allCategories = ['All', ...new Set([...medicineCategories, ...storeCategories])]
 
   const filteredItems = allItems.filter(item => {
-    const matchesSearch = item.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = item.itemName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          item.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          item.supplierName?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory
@@ -247,7 +247,7 @@ function MedicinesStocks() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div>
-                                <p className="font-medium text-gray-900">{item.itemName}</p>
+                                <p className="font-medium text-gray-900">{item.itemName || 'N/A'}</p>
                                 {item.brand && <p className="text-xs text-gray-500">{item.brand}</p>}
                               </div>
                               {isExpiringSoon && (
@@ -260,7 +260,7 @@ function MedicinesStocks() {
                               {item.type === 'medicine' ? 'Medicine' : 'Store Item'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-gray-600 text-sm">{item.category}</td>
+                          <td className="px-4 py-3 text-gray-600 text-sm">{item.category || 'N/A'}</td>
                           <td className="px-4 py-3">
                             {item.type === 'store' && item.packageSize && item.sellingUnit ? (
                               <div>
@@ -279,7 +279,7 @@ function MedicinesStocks() {
                                 item.stockQuantity === 0 ? 'text-red-600' :
                                 item.stockQuantity <= 10 ? 'text-yellow-600' : 'text-gray-900'
                               }`}>
-                                {item.stockQuantity} {item.unit}
+                                {item.stockQuantity || 0} {item.unit || ''}
                               </span>
                             )}
                           </td>
@@ -287,7 +287,7 @@ function MedicinesStocks() {
                             {item.supplierName || <span className="text-gray-400 italic">N/A</span>}
                           </td>
                           <td className="px-4 py-3 text-right font-medium text-gray-900">
-                            ₱{item.sellingPrice?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₱{item.sellingPrice?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-gray-900">
                             ₱{stockValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
