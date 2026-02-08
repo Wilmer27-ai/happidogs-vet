@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock } from 'react-icons/fi'
+import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiPackage } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale } from '../firebase/services'
 
@@ -12,11 +12,6 @@ function PetStore() {
   const [activeCategory, setActiveCategory] = useState('All')
   const [itemType, setItemType] = useState('All')
   const [order, setOrder] = useState([])
-  
-  // Custom quantity modal
-  const [showQuantityModal, setShowQuantityModal] = useState(false)
-  const [quantityModalItem, setQuantityModalItem] = useState(null)
-  const [customQuantity, setCustomQuantity] = useState('')
   
   // Lazy loading
   const [displayCount, setDisplayCount] = useState(20)
@@ -118,39 +113,25 @@ function PetStore() {
     }
   }
 
-  const handleCustomQuantityClick = (item) => {
-    const existing = order.find(i => i.id === item.id && i.type === item.type)
-    setQuantityModalItem(item)
-    setCustomQuantity(existing ? existing.quantity.toString() : '')
-    setShowQuantityModal(true)
-  }
-
-  const handleCustomQuantitySubmit = () => {
-    const qty = parseFloat(customQuantity)
-    if (isNaN(qty) || qty <= 0) {
-      alert('Please enter a valid quantity')
-      return
-    }
-
-    if (qty > quantityModalItem.stockQuantity) {
-      alert(`Only ${quantityModalItem.stockQuantity} ${quantityModalItem.unit} available!`)
-      return
-    }
-
-    const existing = order.find(i => i.id === quantityModalItem.id && i.type === quantityModalItem.type)
-    if (existing) {
-      setOrder(order.map(i => 
-        (i.id === quantityModalItem.id && i.type === quantityModalItem.type)
-          ? { ...i, quantity: qty }
-          : i
-      ))
+  const handleAddBundle = (item) => {
+    if (item.stockQuantity === 0 || !item.hasBundle) return
+    
+    const existingItem = order.find(i => i.id === item.id && i.type === item.type)
+    
+    if (existingItem) {
+      const newQty = existingItem.quantity + item.bundleQuantity
+      if (newQty <= item.stockQuantity) {
+        setOrder(order.map(i => 
+          (i.id === item.id && i.type === item.type)
+            ? { ...i, quantity: newQty }
+            : i
+        ))
+      } else {
+        alert(`Only ${item.stockQuantity} ${item.unit} available!`)
+      }
     } else {
-      setOrder([...order, { ...quantityModalItem, quantity: qty }])
+      setOrder([...order, { ...item, quantity: item.bundleQuantity }])
     }
-
-    setShowQuantityModal(false)
-    setQuantityModalItem(null)
-    setCustomQuantity('')
   }
 
   const handleRemoveFromOrder = (itemId, itemType) => {
@@ -176,8 +157,24 @@ function PetStore() {
     }
   }
 
+  const calculateItemTotal = (item) => {
+    // Check if bundle pricing applies
+    if (item.type === 'store' && item.hasBundle && item.bundleQuantity && item.bundlePrice) {
+      const fullBundles = Math.floor(item.quantity / item.bundleQuantity)
+      const remainingItems = item.quantity % item.bundleQuantity
+      
+      const bundleTotal = fullBundles * item.bundlePrice
+      const remainingTotal = remainingItems * item.sellingPrice
+      
+      return bundleTotal + remainingTotal
+    }
+    
+    // Regular pricing
+    return item.sellingPrice * item.quantity
+  }
+
   const getTotalAmount = () => {
-    return order.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0)
+    return order.reduce((sum, item) => sum + calculateItemTotal(item), 0)
   }
 
   const handleCheckout = async () => {
@@ -188,6 +185,8 @@ function PetStore() {
 
     try {
       for (const orderItem of order) {
+        const totalAmount = calculateItemTotal(orderItem)
+        
         const saleData = {
           itemId: orderItem.id,
           itemName: orderItem.itemName,
@@ -198,9 +197,12 @@ function PetStore() {
           unit: orderItem.unit,
           purchasePrice: orderItem.purchasePrice || 0,
           sellingPrice: orderItem.sellingPrice,
+          bundleApplied: orderItem.hasBundle && orderItem.quantity >= orderItem.bundleQuantity,
+          bundleQuantity: orderItem.bundleQuantity || null,
+          bundlePrice: orderItem.bundlePrice || null,
           totalCost: (orderItem.purchasePrice || 0) * orderItem.quantity,
-          totalAmount: orderItem.sellingPrice * orderItem.quantity,
-          profit: ((orderItem.sellingPrice - (orderItem.purchasePrice || 0)) * orderItem.quantity),
+          totalAmount: totalAmount,
+          profit: totalAmount - ((orderItem.purchasePrice || 0) * orderItem.quantity),
           saleDate: new Date().toISOString()
         }
         await addSale(saleData)
@@ -246,14 +248,14 @@ function PetStore() {
               placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <select
             value={itemType}
             onChange={(e) => setItemType(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="All">All Types</option>
             <option value="store">Store Items</option>
@@ -263,7 +265,7 @@ function PetStore() {
           <select
             value={activeCategory}
             onChange={(e) => setActiveCategory(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[200px]"
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[200px]"
           >
             {allCategories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -289,63 +291,73 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-800 text-white sticky top-0">
+              <table className="w-full text-xs">
+                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs">Type</th>
-                    <th className="px-4 py-2 text-left text-xs">Item Name</th>
-                    <th className="px-4 py-2 text-left text-xs">Category</th>
-                    <th className="px-4 py-2 text-left text-xs">Stock</th>
-                    <th className="px-4 py-2 text-right text-xs">Price</th>
-                    <th className="px-4 py-2 text-center text-xs">Action</th>
+                    <th className="px-2 py-2 text-left text-xs">Type</th>
+                    <th className="px-2 py-2 text-left text-xs">Item Name</th>
+                    <th className="px-2 py-2 text-left text-xs">Category</th>
+                    <th className="px-2 py-2 text-left text-xs">Stock</th>
+                    <th className="px-2 py-2 text-left text-xs">Price</th>
+                    <th className="px-2 py-2 text-right text-xs">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {displayedItems.map((item, index) => {
                     const isOutOfStock = item.stockQuantity === 0
                     const isSelected = order.find(i => i.id === item.id && i.type === item.type)
+                    const hasBundle = item.type === 'store' && item.hasBundle && item.bundleQuantity && item.bundlePrice
                     
                     return (
-                      <tr key={`${item.type}-${item.id}`} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                      <tr key={`${item.type}-${item.id}`} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-2 py-2">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
                             item.type === 'medicine' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {item.type === 'medicine' ? 'Medicine' : 'Store'}
+                            {item.type === 'medicine' ? 'Med' : 'Store'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <p className={`font-medium ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
+                        <td className="px-2 py-2">
+                          <div className={`font-medium ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
                             {item.itemName || 'N/A'}
-                          </p>
-                          {item.brand && <p className="text-xs text-gray-500">{item.brand}</p>}
+                            {item.brand && <span className="text-gray-500 ml-1">({item.brand})</span>}
+                          </div>
                         </td>
-                        <td className="px-4 py-3 text-gray-700">{item.category || 'N/A'}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-2 text-gray-700">{item.category || 'N/A'}</td>
+                        <td className="px-2 py-2">
                           <span className={isOutOfStock ? 'text-red-600 font-medium' : 'text-gray-700'}>
                             {item.stockQuantity || 0} {item.unit || ''}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="font-medium text-gray-900">₱{item.sellingPrice?.toLocaleString() || 0}</div>
-                          <div className="text-xs text-gray-500">per {item.unit || 'unit'}</div>
+                        <td className="px-2 py-2">
+                          <div className="font-medium text-gray-900">
+                            ₱{item.sellingPrice?.toLocaleString() || 0}/{item.unit || 'unit'}
+                            {hasBundle && (
+                              <span className="text-blue-600 ml-1">
+                                • Bundle: {item.bundleQuantity} @ ₱{item.bundlePrice.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="px-2 py-2">
+                          <div className="flex items-center justify-end gap-1">
+                            {hasBundle && (
+                              <button
+                                onClick={() => handleAddBundle(item)}
+                                disabled={isOutOfStock}
+                                className="px-2.5 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors flex items-center gap-1"
+                                title={`Add bundle of ${item.bundleQuantity}`}
+                              >
+                                <FiPackage className="w-3 h-3" />
+                                Bundle
+                              </button>
+                            )}
                             <button
                               onClick={() => handleAddToOrder(item)}
                               disabled={isOutOfStock}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
+                              className="px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                             >
-                              {isSelected ? 'Add More' : 'Add'}
-                            </button>
-                            <button
-                              onClick={() => handleCustomQuantityClick(item)}
-                              disabled={isOutOfStock}
-                              className="px-2 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs"
-                              title="Enter custom quantity"
-                            >
-                              #
+                              Add
                             </button>
                           </div>
                         </td>
@@ -366,153 +378,118 @@ function PetStore() {
 
         {/* Cart Sidebar */}
         <div className="w-96 bg-white rounded-lg border border-gray-200 flex flex-col">
-          <div className="p-4 border-b bg-gray-50">
+          <div className="p-3 border-b bg-gray-50">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Shopping Cart</h3>
-                <p className="text-sm text-gray-600">{order.length} items</p>
+                <h3 className="font-semibold text-sm text-gray-900">Shopping Cart</h3>
+                <p className="text-xs text-gray-600">{order.length} items</p>
               </div>
-              <FiShoppingBag className="w-6 h-6 text-gray-400" />
+              <FiShoppingBag className="w-5 h-5 text-gray-400" />
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
             {order.length === 0 ? (
-              <p className="text-center text-gray-400 text-sm mt-8">Cart is empty</p>
+              <p className="text-center text-gray-400 text-xs mt-8">Cart is empty</p>
             ) : (
-              order.map(item => (
-                <div key={`${item.type}-${item.id}`} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-sm">{item.itemName}</p>
-                      <p className="text-xs text-gray-600">{item.category}</p>
-                      {item.brand && <p className="text-xs text-gray-500">{item.brand}</p>}
+              order.map(item => {
+                const itemTotal = calculateItemTotal(item)
+                const hasBundle = item.type === 'store' && item.hasBundle && item.bundleQuantity && item.bundlePrice
+                const bundlesApplied = hasBundle ? Math.floor(item.quantity / item.bundleQuantity) : 0
+                const regularItems = hasBundle ? item.quantity % item.bundleQuantity : item.quantity
+                
+                return (
+                  <div key={`${item.type}-${item.id}`} className="bg-gray-50 rounded-lg p-2 border border-gray-200">
+                    <div className="flex justify-between items-start mb-1.5">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 text-xs">{item.itemName}</p>
+                        <p className="text-xs text-gray-600">{item.category}</p>
+                        {item.brand && <p className="text-xs text-gray-500">{item.brand}</p>}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFromOrder(item.id, item.type)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <FiX className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRemoveFromOrder(item.id, item.type)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <FiX className="w-4 h-4" />
-                    </button>
-                  </div>
 
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id, item.type, -1)}
-                        className="w-7 h-7 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                      >
-                        <FiMinus className="w-3 h-3" />
-                      </button>
-                      <input
-                        type="number"
-                        step={getStep(item)}
-                        min={getStep(item)}
-                        value={item.quantity}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value)
-                          if (!isNaN(val) && val > 0 && val <= item.stockQuantity) {
-                            setOrder(order.map(i =>
-                              (i.id === item.id && i.type === item.type) ? { ...i, quantity: val } : i
-                            ))
-                          }
-                        }}
-                        className="w-16 px-2 py-1 text-center text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-xs text-gray-600">{item.unit}</span>
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id, item.type, 1)}
-                        className="w-7 h-7 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                      >
-                        <FiPlus className="w-3 h-3" />
-                      </button>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.type, -1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                        >
+                          <FiMinus className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          step={getStep(item)}
+                          min={getStep(item)}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            if (!isNaN(val) && val > 0 && val <= item.stockQuantity) {
+                              setOrder(order.map(i =>
+                                (i.id === item.id && i.type === item.type) ? { ...i, quantity: val } : i
+                              ))
+                            }
+                          }}
+                          className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-gray-600">{item.unit}</span>
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.type, 1)}
+                          className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                        >
+                          <FiPlus className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-semibold text-gray-900">
+                          ₱{itemTotal.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-600">
-                        ₱{item.sellingPrice.toLocaleString()}/{item.unit}
-                      </p>
-                      <p className="text-sm font-semibold text-gray-900">
-                        ₱{(item.sellingPrice * item.quantity).toLocaleString()}
-                      </p>
-                    </div>
+
+                    {hasBundle && bundlesApplied > 0 && (
+                      <div className="text-xs bg-green-50 border border-green-200 rounded px-1.5 py-1">
+                        <p className="text-green-700 font-medium text-xs">
+                          Bundle savings applied!
+                        </p>
+                        <p className="text-green-600 text-xs">
+                          {bundlesApplied} bundle{bundlesApplied > 1 ? 's' : ''} × ₱{item.bundlePrice.toLocaleString()} = ₱{(bundlesApplied * item.bundlePrice).toLocaleString()}
+                        </p>
+                        {regularItems > 0 && (
+                          <p className="text-green-600 text-xs">
+                            {regularItems} regular × ₱{item.sellingPrice.toLocaleString()} = ₱{(regularItems * item.sellingPrice).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
 
-          <div className="p-4 border-t bg-gray-50">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-gray-700">Total:</span>
-              <span className="text-2xl font-bold text-gray-900">₱{getTotalAmount().toLocaleString()}</span>
+          <div className="p-3 border-t bg-gray-50">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xs font-medium text-gray-700">Total:</span>
+              <span className="text-xl font-bold text-gray-900">₱{getTotalAmount().toLocaleString()}</span>
             </div>
 
             <button
               onClick={handleCheckout}
               disabled={order.length === 0}
-              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              <FiShoppingBag className="w-5 h-5" />
+              <FiShoppingBag className="w-4 h-4" />
               Checkout
             </button>
           </div>
         </div>
       </div>
-
-      {/* Custom Quantity Modal */}
-      {showQuantityModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Enter Quantity</h3>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-2">
-                <span className="font-medium">{quantityModalItem?.itemName}</span>
-              </p>
-              <p className="text-xs text-gray-500 mb-4">
-                Available: {quantityModalItem?.stockQuantity} {quantityModalItem?.unit}
-              </p>
-              
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity ({quantityModalItem?.unit})
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0.1"
-                value={customQuantity}
-                onChange={(e) => setCustomQuantity(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., 2.5 or 0.25"
-                autoFocus
-                onKeyPress={(e) => e.key === 'Enter' && handleCustomQuantitySubmit()}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter any decimal amount (e.g., 0.25 for quarter {quantityModalItem?.unit}, 2.5 for two and a half)
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowQuantityModal(false)
-                  setQuantityModalItem(null)
-                  setCustomQuantity('')
-                }}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCustomQuantitySubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -253,16 +253,9 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                                   disabled={isOutOfStock}
                                   className="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium"
                                 >
-                                  {isSelected ? 'Add More' : 'Add'}
+                                  {isSelected ? 'Add' : 'Add'}
                                 </button>
-                                <button
-                                  onClick={() => handleCustomQuantityClick(medicine)}
-                                  disabled={isOutOfStock}
-                                  className="px-2 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-xs"
-                                  title="Enter custom quantity"
-                                >
-                                  #
-                                </button>
+                                
                               </div>
                             </td>
                           </tr>
@@ -374,60 +367,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
         </div>
       </div>
 
-      {/* Custom Quantity Modal */}
-      {showQuantityModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 m-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Enter Quantity</h3>
-            
-            <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-2">
-                <span className="font-medium">{quantityModalItem?.medicineName}</span>
-              </p>
-              <p className="text-xs text-gray-500 mb-4">
-                Available: {quantityModalItem?.stockQuantity} {quantityModalItem?.unit}
-              </p>
-              
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity ({quantityModalItem?.unit})
-              </label>
-              <input
-                type="number"
-                step="0.5"
-                min="0.5"
-                value={customQuantity}
-                onChange={(e) => setCustomQuantity(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 2.5"
-                autoFocus
-                onKeyPress={(e) => e.key === 'Enter' && handleCustomQuantitySubmit()}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                You can enter decimals like 0.5, 1.5, 2.5, etc.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowQuantityModal(false)
-                  setQuantityModalItem(null)
-                  setCustomQuantity('')
-                }}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-md hover:bg-gray-50 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCustomQuantitySubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   )
 }

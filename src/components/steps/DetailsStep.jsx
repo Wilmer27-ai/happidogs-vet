@@ -176,12 +176,10 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     e.preventDefault()
     
     if (!formData.activityType || !formData.date) {
-      alert('Please fill in all required fields')
       return
     }
 
     if (selectedPets.length === 0) {
-      alert('Please select at least one pet')
       return
     }
 
@@ -214,10 +212,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
       await loadActivities()
       setShowForm(false)
-      alert(`Activity added successfully to ${selectedPets.length} pet(s)!`)
     } catch (error) {
       console.error('Error adding activity:', error)
-      alert('Failed to add activity. Please try again.')
     }
   }
 
@@ -555,7 +551,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                         <tbody className="divide-y divide-gray-200">
                           {activities.map((activity) => (
                             <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-2 py-2 text-center">
+                              <td className="px-2 py-2 border-r border-gray-200">
                                 <input
                                   type="checkbox"
                                   checked={selectedActivities.includes(activity.id)}
@@ -563,30 +559,28 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                                 />
                               </td>
-                              <td className="px-2 py-2">
+                              <td className="px-2 py-2 border-r border-gray-200">
                                 <span className="font-medium text-gray-900 text-xs">{activity.petName}</span>
                               </td>
-                              <td className="px-2 py-2 text-gray-700 text-xs whitespace-nowrap">
+                              <td className="px-2 py-2 text-gray-700 text-xs whitespace-nowrap border-r border-gray-200">
                                 {new Date(activity.date).toLocaleDateString('en-US', { 
                                   month: 'short', 
                                   day: 'numeric', 
                                   year: 'numeric' 
                                 })}
                               </td>
-                              <td className="px-2 py-2">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                  {activity.activityType}
-                                </span>
+                              <td className="px-2 py-2 border-r border-gray-200">
+                                <div className="text-xs text-gray-700">{activity.activityType}</div>
                                 {activity.weight && (
-                                  <div className="text-xs text-gray-600 mt-0.5">Wt: {activity.weight}kg</div>
+                                  <div className="text-xs text-gray-600">Wt: {activity.weight}kg</div>
                                 )}
                                 {activity.temperature && (
                                   <div className="text-xs text-gray-600">Temp: {activity.temperature}°C</div>
                                 )}
                               </td>
-                              <td className="px-2 py-2 text-xs text-gray-700 hidden md:table-cell">
-                                {activity.diagnosis && <div className="mb-1">{activity.diagnosis}</div>}
-                                {activity.treatment && <div className="text-gray-600">{activity.treatment}</div>}
+                              <td className="px-2 py-2 text-xs text-gray-700 hidden md:table-cell border-r border-gray-200 max-w-xs">
+                                {activity.diagnosis && <div className="mb-1 break-words">{activity.diagnosis}</div>}
+                                {activity.treatment && <div className="text-gray-600 break-words">{activity.treatment}</div>}
                                 {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">-</span>}
                               </td>
                               <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap hidden sm:table-cell">

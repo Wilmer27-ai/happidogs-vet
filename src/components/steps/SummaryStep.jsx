@@ -34,200 +34,187 @@ function SummaryStep({
 
   const getCurrentDate = () => {
     return new Date().toLocaleDateString('en-US', { 
-      month: '2-digit', 
-      day: '2-digit', 
+      month: 'long', 
+      day: 'numeric', 
       year: 'numeric' 
     })
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      {/* Main Content - Medical Record Format */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto bg-white shadow-sm rounded-md border border-gray-200">
-          
-          {/* Header - Green Bar */}
-          <div className="bg-gradient-to-r from-green-700 to-green-600 text-white px-6 py-3 rounded-t-md flex justify-between items-center">
-            <div>
-              <h1 className="text-base font-bold">Patient Visit Summary</h1>
-              <p className="text-xs mt-1">
-                {selectedPets?.[0]?.name} ({selectedPets?.length} pet{selectedPets?.length > 1 ? 's' : ''}) • {getCurrentDate()}
-              </p>
+    <div className="h-screen flex flex-col bg-gray-100">
+      {/* Main Content - A4 Page Display */}
+      <div className="flex-1 overflow-auto p-8 print:p-0 print:overflow-visible">
+        {/* A4 Page Container */}
+        <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none print:max-w-none" style={{ minHeight: '297mm' }}>
+          <div className="p-16 print:p-12">
+            
+            {/* Hospital Header */}
+            <div className="text-center pb-4 mb-2">
+              <h1 className="text-2xl font-bold uppercase tracking-wide">Happi Dogs Veterinary Clinic</h1>
+              <p className="text-sm mt-1">Pob. Ilaya Lambunao, Iloilo</p>
+              <p className="text-sm">Tel: (123) 456-7890</p>
             </div>
-            <div className="text-right text-xs">
-              <p className="font-bold">Happi Dogs Veterinary Clinic</p>
-              <p className="mt-0.5">Metro Manila, Philippines</p>
-              <p>(123) 456-7890</p>
-            </div>
-          </div>
 
-          {/* Patient Info Section */}
-          <div className="grid grid-cols-2 gap-6 px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <div>
-              <p className="text-sm font-bold text-gray-900">{selectedPets?.map(p => p.name).join(', ')}</p>
-              <p className="text-xs text-gray-600 mt-1">DOB: {selectedPets?.[0]?.dateOfBirth ? new Date(selectedPets[0].dateOfBirth).toLocaleDateString('en-US') : 'N/A'}</p>
-              <p className="text-xs text-gray-600">Sex: {selectedPets?.[0]?.gender || 'N/A'}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-gray-900">Owner: {selectedClient?.firstName} {selectedClient?.lastName}</p>
-              <p className="text-xs text-gray-600 mt-1">Contact: {selectedClient?.phoneNumber || 'N/A'}</p>
-            </div>
-          </div>
-
-          {/* Visit Summary Section */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-sm font-bold text-gray-900 mb-2">Visit Summary for {getCurrentDate()}</h2>
-            <div className="text-xs text-gray-700">
-              <p><span className="font-semibold">Owner:</span> {selectedClient?.firstName} {selectedClient?.lastName}</p>
-            </div>
-          </div>
-
-          {/* Chief Complaint */}
-          {consultationData && consultationData.length > 0 && (
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-sm font-bold text-gray-900 mb-3">Chief Complaint</h2>
-              <div className="space-y-2">
-                {consultationData.map((activity, index) => (
-                  <div key={index} className="bg-blue-50 rounded-md px-3 py-2 border border-blue-100">
-                    <p className="text-xs text-gray-800">{activity.diagnosis || activity.activityType}</p>
-                  </div>
-                ))}
+       
+            {/* Patient Information */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Patient Information</h3>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div>
+                  <span className="font-semibold">Patient Name:</span> {selectedPets?.map(p => p.name).join(', ')}
+                </div>
+                <div>
+                  <span className="font-semibold">Owner Name:</span> {selectedClient?.firstName} {selectedClient?.lastName}
+                </div>
+                <div>
+                  <span className="font-semibold">Species:</span> {selectedPets?.[0]?.species || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Contact Number:</span> {selectedClient?.phoneNumber || 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Date of Birth:</span> {selectedPets?.[0]?.dateOfBirth ? new Date(selectedPets[0].dateOfBirth).toLocaleDateString('en-US') : 'N/A'}
+                </div>
+                <div>
+                  <span className="font-semibold">Gender:</span> {selectedPets?.[0]?.gender || 'N/A'}
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Vitals */}
-          {consultationData && consultationData.length > 0 && (
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-sm font-bold text-gray-900 mb-3">Vitals</h2>
-              <div className="grid grid-cols-2 gap-4">
+            {/* Vitals */}
+            {consultationData && consultationData.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Vital Signs</h3>
                 {consultationData.map((activity, index) => (
-                  <div key={index} className="bg-gray-50 rounded-md px-3 py-2 border border-gray-200">
+                  <div key={index} className="grid grid-cols-2 gap-x-8 text-sm mb-2">
                     {activity.weight && (
-                      <p className="text-xs text-gray-700">
+                      <div>
                         <span className="font-semibold">Weight:</span> {activity.weight} kg
-                      </p>
+                      </div>
                     )}
                     {activity.temperature && (
-                      <p className="text-xs text-gray-700">
-                        <span className="font-semibold">Temperature:</span> {activity.temperature}°F
-                      </p>
+                      <div>
+                        <span className="font-semibold">Temperature:</span> {activity.temperature}°C
+                      </div>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Clinical Findings */}
-          {consultationData && consultationData.length > 0 && (
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-sm font-bold text-gray-900 mb-3">Clinical Findings & Treatment</h2>
-              <div className="space-y-3">
+            {/* Chief Complaint & Diagnosis */}
+            {consultationData && consultationData.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Chief Complaint & Diagnosis</h3>
                 {consultationData.map((activity, index) => (
-                  <div key={index} className="bg-gray-50 rounded-md px-4 py-3 border border-gray-200">
-                    <p className="text-xs font-semibold text-gray-900 mb-2">
-                      {activity.petName} • {new Date(activity.date).toLocaleDateString('en-US')}
-                    </p>
-                    <div className="ml-3 space-y-1">
-                      <p className="text-xs text-gray-700">
-                        <span className="font-medium">Activity:</span> {activity.activityType}
-                      </p>
-                      {activity.diagnosis && (
-                        <p className="text-xs text-gray-700">
-                          <span className="font-medium">Diagnosis:</span> {activity.diagnosis}
-                        </p>
-                      )}
-                      {activity.treatment && (
-                        <p className="text-xs text-gray-700">
-                          <span className="font-medium">Treatment:</span> {activity.treatment}
-                        </p>
-                      )}
+                  <div key={index} className="mb-4 text-sm">
+                    <div className="mb-2">
+                      <span className="font-semibold">Activity Type:</span> {activity.activityType}
                     </div>
+                    {activity.diagnosis && (
+                      <div className="mb-2">
+                        <span className="font-semibold">Diagnosis:</span> 
+                        <div className="break-words">{activity.diagnosis}</div>
+                      </div>
+                    )}
+                    {activity.treatment && (
+                      <div className="mb-2">
+                        <span className="font-semibold">Treatment Plan:</span>
+                        <div className="break-words">{activity.treatment}</div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Medications */}
-          {medicinesData && medicinesData.length > 0 && (
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-sm font-bold text-gray-900 mb-3">Medications Prescribed</h2>
-              <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">Medicine</th>
-                      <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide">Quantity</th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Price</th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">Subtotal</th>
+            {/* Medications Prescribed */}
+            {medicinesData && medicinesData.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Medications Prescribed</h3>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-black">
+                      <th className="text-left py-2 font-semibold">Medicine Name</th>
+                      <th className="text-center py-2 font-semibold">Quantity</th>
+                      <th className="text-right py-2 font-semibold">Unit Price</th>
+                      <th className="text-right py-2 font-semibold">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody>
                     {medicinesData.map((med, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-3 py-2 text-gray-900">{med.medicineName}</td>
-                        <td className="px-3 py-2 text-center text-gray-700">{med.quantity} {med.unit}</td>
-                        <td className="px-3 py-2 text-right text-gray-700">₱{(med.sellingPrice || 0).toLocaleString()}</td>
-                        <td className="px-3 py-2 text-right font-medium text-gray-900">₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}</td>
+                      <tr key={index} className="border-b border-gray-300">
+                        <td className="py-2">{med.medicineName}</td>
+                        <td className="text-center py-2">{med.quantity} {med.unit}</td>
+                        <td className="text-right py-2">₱{(med.sellingPrice || 0).toLocaleString()}</td>
+                        <td className="text-right py-2">₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Plan */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-sm font-bold text-gray-900 mb-2">Plan</h2>
-            <div className="bg-yellow-50 rounded-md px-3 py-2 border border-yellow-200">
-              <p className="text-xs text-gray-800">Follow-up consultation recommended in 7-14 days</p>
-            </div>
-          </div>
-
-          {/* Billing Summary */}
-          <div className="px-6 py-4">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Billing Summary</h2>
-            <div className="bg-gray-50 rounded-md px-4 py-3 border border-gray-200">
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between text-gray-700">
+            {/* Billing Summary */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Billing Summary</h3>
+              <div className="text-sm space-y-2">
+                <div className="flex justify-between">
                   <span>Professional Fee (Consultation × {selectedPets?.length || 0})</span>
-                  <span className="font-medium">₱{(300 * (selectedPets?.length || 1)).toLocaleString()}</span>
+                  <span>₱{(300 * (selectedPets?.length || 1)).toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-gray-700">
+                <div className="flex justify-between">
                   <span>Medications</span>
-                  <span className="font-medium">₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}</span>
+                  <span>₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between font-bold text-sm pt-2 border-t border-gray-300 text-gray-900">
+                <div className="flex justify-between font-bold text-base border-t-2 border-black pt-2 mt-2">
                   <span>TOTAL AMOUNT DUE</span>
-                  <span className="text-green-600">₱{getTotalPrice().toLocaleString()}</span>
+                  <span>₱{getTotalPrice().toLocaleString()}</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Footer - Green Bar */}
-          <div className="bg-gradient-to-r from-green-700 to-green-600 text-white px-6 py-2 rounded-b-md text-center">
-            <p className="text-xs">Happi Dogs Veterinary Clinic • {getCurrentDate()} • Page 1 of 1</p>
-          </div>
+            {/* Follow-up Recommendations */}
+            <div className="mb-6">
+              <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Recommendations</h3>
+              <p className="text-sm">Follow-up consultation recommended in 7-14 days</p>
+            </div>
 
+            {/* Veterinarian Signature */}
+            <div className="mt-12 mb-6">
+              <div className="grid grid-cols-2 gap-8">
+                <div></div>
+                <div>
+                  <div className="border-t border-black pt-2 text-center">
+                    <p className="text-sm font-semibold">Attending Veterinarian</p>
+                    <p className="text-xs mt-1">License No: _______________</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs border-t border-gray-300 pt-4 mt-8">
+              <p>This is a computer-generated document. No signature is required.</p>
+              <p className="mt-1">Page 1 of 1</p>
+            </div>
+
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Hidden when printing */}
       <div className="bg-white border-t border-gray-200 px-6 py-4 print:hidden">
         <div className="max-w-4xl mx-auto flex gap-3">
           <button
             onClick={onBack}
-            className="px-6 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
+            className="px-6 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
           >
             Back
           </button>
           <button
             onClick={handlePrint}
-            className="px-6 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors flex items-center gap-2"
           >
             <FiPrinter className="w-4 h-4" />
             Print
@@ -240,6 +227,20 @@ function SummaryStep({
           </button>
         </div>
       </div>
+
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          @page {
+            size: A4;
+            margin: 0;
+          }
+        }
+      `}</style>
     </div>
   )
 }
