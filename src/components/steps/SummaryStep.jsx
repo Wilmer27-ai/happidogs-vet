@@ -59,70 +59,96 @@ function SummaryStep({
             {/* Patient Information */}
             <div className="mb-6">
               <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Patient Information</h3>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-                <div>
-                  <span className="font-semibold">Patient Name:</span> {selectedPets?.map(p => p.name).join(', ')}
+              <div className="text-sm space-y-3">
+                <div className="grid grid-cols-2 gap-x-8">
+                  <div>
+                    <span className="font-semibold">Owner Name:</span> {selectedClient?.firstName} {selectedClient?.lastName}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Contact Number:</span> {selectedClient?.phoneNumber || 'N/A'}
+                  </div>
                 </div>
-                <div>
-                  <span className="font-semibold">Owner Name:</span> {selectedClient?.firstName} {selectedClient?.lastName}
-                </div>
-                <div>
-                  <span className="font-semibold">Species:</span> {selectedPets?.[0]?.species || 'N/A'}
-                </div>
-                <div>
-                  <span className="font-semibold">Contact Number:</span> {selectedClient?.phoneNumber || 'N/A'}
-                </div>
-                <div>
-                  <span className="font-semibold">Date of Birth:</span> {selectedPets?.[0]?.dateOfBirth ? new Date(selectedPets[0].dateOfBirth).toLocaleDateString('en-US') : 'N/A'}
-                </div>
-                <div>
-                  <span className="font-semibold">Gender:</span> {selectedPets?.[0]?.gender || 'N/A'}
-                </div>
+                
+                {/* Multiple Pets Section */}
+                {selectedPets && selectedPets.length > 0 && (
+                  <div className="border-t border-gray-300 pt-3 mt-3">
+                    <p className="font-semibold mb-2">Patients ({selectedPets.length}):</p>
+                    {selectedPets.map((pet, index) => (
+                      <div key={pet.id || index} className="grid grid-cols-3 gap-x-8 gap-y-1 mb-3 pl-4">
+                        <div>
+                          <span className="font-semibold">Name:</span> {pet.name}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Species:</span> {pet.species || 'N/A'}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Breed:</span> {pet.breed || 'N/A'}
+                        </div>
+                        <div>
+                          <span className="font-semibold">DOB:</span> {pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString('en-US') : 'N/A'}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Gender:</span> {pet.gender || 'N/A'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Vitals */}
+            {/* Vitals - Grouped by Pet */}
             {consultationData && consultationData.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Vital Signs</h3>
                 {consultationData.map((activity, index) => (
-                  <div key={index} className="grid grid-cols-2 gap-x-8 text-sm mb-2">
-                    {activity.weight && (
-                      <div>
-                        <span className="font-semibold">Weight:</span> {activity.weight} kg
-                      </div>
+                  <div key={index} className="mb-3 text-sm">
+                    {activity.petName && (
+                      <p className="font-semibold mb-1">{activity.petName}:</p>
                     )}
-                    {activity.temperature && (
-                      <div>
-                        <span className="font-semibold">Temperature:</span> {activity.temperature}°C
-                      </div>
-                    )}
+                    <div className="grid grid-cols-2 gap-x-8 pl-4">
+                      {activity.weight && (
+                        <div>
+                          <span className="font-semibold">Weight:</span> {activity.weight} kg
+                        </div>
+                      )}
+                      {activity.temperature && (
+                        <div>
+                          <span className="font-semibold">Temperature:</span> {activity.temperature}°C
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Chief Complaint & Diagnosis */}
+            {/* Chief Complaint & Diagnosis - Grouped by Pet */}
             {consultationData && consultationData.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Chief Complaint & Diagnosis</h3>
                 {consultationData.map((activity, index) => (
                   <div key={index} className="mb-4 text-sm">
-                    <div className="mb-2">
-                      <span className="font-semibold">Activity Type:</span> {activity.activityType}
+                    {activity.petName && (
+                      <p className="font-semibold mb-2">{activity.petName}:</p>
+                    )}
+                    <div className="pl-4 space-y-2">
+                      <div>
+                        <span className="font-semibold">Activity Type:</span> {activity.activityType}
+                      </div>
+                      {activity.diagnosis && (
+                        <div>
+                          <span className="font-semibold">Diagnosis:</span>
+                          <div className="break-words mt-1">{activity.diagnosis}</div>
+                        </div>
+                      )}
+                      {activity.treatment && (
+                        <div>
+                          <span className="font-semibold">Treatment Plan:</span>
+                          <div className="break-words mt-1">{activity.treatment}</div>
+                        </div>
+                      )}
                     </div>
-                    {activity.diagnosis && (
-                      <div className="mb-2">
-                        <span className="font-semibold">Diagnosis:</span> 
-                        <div className="break-words">{activity.diagnosis}</div>
-                      </div>
-                    )}
-                    {activity.treatment && (
-                      <div className="mb-2">
-                        <span className="font-semibold">Treatment Plan:</span>
-                        <div className="break-words">{activity.treatment}</div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -160,7 +186,7 @@ function SummaryStep({
               <h3 className="text-sm font-bold uppercase border-b border-black pb-1 mb-3">Billing Summary</h3>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
-                  <span>Professional Fee (Consultation × {selectedPets?.length || 0})</span>
+                  <span>Professional Fee (Consultation × {selectedPets?.length || 0} {selectedPets?.length > 1 ? 'pets' : 'pet'})</span>
                   <span>₱{(300 * (selectedPets?.length || 1)).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
