@@ -201,71 +201,6 @@ export const deleteMedicine = async (medicineId) => {
   }
 };
 
-// ==================== CONSULTATIONS ====================
-export const addConsultation = async (consultationData) => {
-  try {
-    const docRef = await addDoc(collection(db, "consultations"), {
-      ...consultationData,
-      createdAt: serverTimestamp(),
-    });
-    return { id: docRef.id, ...consultationData };
-  } catch (error) {
-    console.error("Error adding consultation:", error);
-    throw error;
-  }
-};
-
-export const getConsultations = async () => {
-  try {
-    const q = query(
-      collection(db, "consultations"),
-      orderBy("createdAt", "desc"),
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  } catch (error) {
-    console.error("Error getting consultations:", error);
-    throw error;
-  }
-};
-
-export const getConsultation = async (consultationId) => {
-  try {
-    const docRef = doc(db, "consultations", consultationId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    return null;
-  } catch (error) {
-    console.error("Error getting consultation:", error);
-    throw error;
-  }
-};
-
-export const updateConsultation = async (consultationId, consultationData) => {
-  try {
-    const docRef = doc(db, "consultations", consultationId);
-    await updateDoc(docRef, consultationData);
-    return { id: consultationId, ...consultationData };
-  } catch (error) {
-    console.error("Error updating consultation:", error);
-    throw error;
-  }
-};
-
-export const deleteConsultation = async (consultationId) => {
-  try {
-    await deleteDoc(doc(db, "consultations", consultationId));
-  } catch (error) {
-    console.error("Error deleting consultation:", error);
-    throw error;
-  }
-};
-
 // ==================== FOLLOW UPS ====================
 export const addFollowUp = async (followUpData) => {
   try {
@@ -290,23 +225,6 @@ export const getFollowUps = async () => {
     }));
   } catch (error) {
     console.error("Error getting follow-ups:", error);
-    throw error;
-  }
-};
-
-export const getFollowUpsByConsultation = async (consultationId) => {
-  try {
-    const q = query(
-      collection(db, "followUps"),
-      where("consultationId", "==", consultationId),
-    );
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  } catch (error) {
-    console.error("Error getting follow-ups by consultation:", error);
     throw error;
   }
 };
@@ -442,6 +360,21 @@ export const getPetActivities = async (petId) => {
     return activities.sort((a, b) => new Date(b.date) - new Date(a.date));
   } catch (error) {
     console.error("Error getting pet activities:", error);
+    throw error;
+  }
+};
+
+// Get ALL pet activities (for reports)
+export const getAllPetActivities = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "petActivities"));
+    const activities = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+  } catch (error) {
+    console.error("Error getting all pet activities:", error);
     throw error;
   }
 };

@@ -32,6 +32,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [loading, setLoading] = useState(false)
   const [selectedPets, setSelectedPets] = useState(propSelectedPets || [])
   const [showForm, setShowForm] = useState(true)
+  const [consultations, setConsultations] = useState([])
 
   const getCurrentDate = () => {
     const today = new Date()
@@ -545,13 +546,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Date</th>
                             <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Activity</th>
                             <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide hidden md:table-cell">Details</th>
+                            <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide hidden lg:table-cell">Medicines</th>
                             <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide hidden sm:table-cell">Follow-up</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
                           {activities.map((activity) => (
                             <tr key={activity.id} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-2 py-2 border-r border-gray-200">
+                              <td className="px-2 py-2 text-center border-r border-gray-200">
                                 <input
                                   type="checkbox"
                                   checked={selectedActivities.includes(activity.id)}
@@ -582,6 +584,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 {activity.diagnosis && <div className="mb-1 break-words">{activity.diagnosis}</div>}
                                 {activity.treatment && <div className="text-gray-600 break-words">{activity.treatment}</div>}
                                 {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">-</span>}
+                              </td>
+                              <td className="px-2 py-2 text-xs text-gray-700 hidden lg:table-cell border-r border-gray-200">
+                                {activity.medicines && activity.medicines.length > 0 ? (
+                                  <div className="space-y-1 max-w-xs">
+                                    {activity.medicines.map((med, idx) => (
+                                      <div key={idx} className="text-xs">
+                                        <span className="font-medium text-gray-900">{med.medicineName}</span>
+                                        <span className="text-gray-600"> ({med.quantity} {med.unit || 'units'})</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
                               </td>
                               <td className="px-2 py-2 text-xs text-gray-700 whitespace-nowrap hidden sm:table-cell">
                                 {activity.followUpDate ? (

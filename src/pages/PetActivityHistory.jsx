@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { FiArrowLeft, FiFileText } from 'react-icons/fi'
-import { getPetActivities, getConsultations, getClients } from '../firebase/services'
+import { getPetActivities, getClients } from '../firebase/services'
 
 function PetActivityHistory() {
   const navigate = useNavigate()
   const location = useLocation()
   const [selectedPet, setSelectedPet] = useState(location.state?.selectedPet || null)
   const [activities, setActivities] = useState([])
-  const [consultations, setConsultations] = useState([])
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +25,7 @@ function PetActivityHistory() {
       const clientsData = await getClients()
       setClients(clientsData)
 
-      // Load pet activities
+      // Load pet activities - medicines are already included
       const activitiesData = await getPetActivities(selectedPet.id)
       
       // Sort by date descending (newest first)
@@ -37,26 +36,11 @@ function PetActivityHistory() {
       })
       
       setActivities(sortedActivities)
-
-      // Load consultations for this pet to get medicines
-      const allConsultations = await getConsultations()
-      const petConsultations = allConsultations.filter(c => c.petId === selectedPet.id)
-      setConsultations(petConsultations)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  // Get medicines for a specific activity by matching date and type
-  const getMedicinesForActivity = (activity) => {
-    const consultation = consultations.find(c => {
-      const activityDate = new Date(activity.date).toDateString()
-      const consultationDate = new Date(c.dateTime).toDateString()
-      return activityDate === consultationDate && c.petId === selectedPet?.id
-    })
-    return consultation?.medicines || []
   }
 
   const getOwnerName = (clientId) => {
@@ -106,69 +90,66 @@ function PetActivityHistory() {
               </tr>
             </thead>
             <tbody>
-              {activities.map((activity, index) => {
-                const medicines = getMedicinesForActivity(activity)
-                return (
-                  <tr key={activity.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
-                    <td className="border border-gray-300 px-3 py-2 align-top">
-                      <div className="text-xs">
-                        {new Date(activity.date).toLocaleDateString('en-US', { 
-                          month: '2-digit', 
-                          day: '2-digit', 
-                          year: '2-digit' 
-                        })}
-                      </div>
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 align-top">
-                      <div className="text-xs font-bold">{activity.activityType}</div>
-                      {activity.weight && (
-                        <div className="text-xs text-gray-600">Wt: {activity.weight}kg</div>
-                      )}
-                      {activity.temperature && (
-                        <div className="text-xs text-gray-600">Temp: {activity.temperature}°C</div>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 align-top">
-                      {activity.diagnosis && (
-                        <div className="text-xs mb-1">{activity.diagnosis}</div>
-                      )}
-                      {activity.treatment && (
-                        <div className="text-xs text-gray-600">{activity.treatment}</div>
-                      )}
-                      {!activity.diagnosis && !activity.treatment && (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 align-top">
-                      <div className="text-xs">
-                        {activity.followUpDate ? (
-                          new Date(activity.followUpDate).toLocaleDateString('en-US', {
-                            month: '2-digit',
-                            day: '2-digit',
-                            year: '2-digit'
-                          })
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="border border-gray-300 px-3 py-2 align-top">
-                      {medicines.length > 0 ? (
-                        <div className="space-y-1">
-                          {medicines.map((med, idx) => (
-                            <div key={idx} className="text-xs">
-                              <span className="font-medium">{med.medicineName}</span>
-                              <span className="text-gray-600"> (Qty: {med.quantity})</span>
-                            </div>
-                          ))}
-                        </div>
+              {activities.map((activity, index) => (
+                <tr key={activity.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
+                  <td className="border border-gray-300 px-3 py-2 align-top">
+                    <div className="text-xs">
+                      {new Date(activity.date).toLocaleDateString('en-US', { 
+                        month: '2-digit', 
+                        day: '2-digit', 
+                        year: '2-digit' 
+                      })}
+                    </div>
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 align-top">
+                    <div className="text-xs font-bold">{activity.activityType}</div>
+                    {activity.weight && (
+                      <div className="text-xs text-gray-600">Wt: {activity.weight}kg</div>
+                    )}
+                    {activity.temperature && (
+                      <div className="text-xs text-gray-600">Temp: {activity.temperature}°C</div>
+                    )}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 align-top">
+                    {activity.diagnosis && (
+                      <div className="text-xs mb-1">{activity.diagnosis}</div>
+                    )}
+                    {activity.treatment && (
+                      <div className="text-xs text-gray-600">{activity.treatment}</div>
+                    )}
+                    {!activity.diagnosis && !activity.treatment && (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 align-top">
+                    <div className="text-xs">
+                      {activity.followUpDate ? (
+                        new Date(activity.followUpDate).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: '2-digit'
+                        })
                       ) : (
-                        <span className="text-xs text-gray-400">-</span>
+                        <span className="text-gray-400">-</span>
                       )}
-                    </td>
-                  </tr>
-                )
-              })}
+                    </div>
+                  </td>
+                  <td className="border border-gray-300 px-3 py-2 align-top">
+                    {activity.medicines && activity.medicines.length > 0 ? (
+                      <div className="space-y-1">
+                        {activity.medicines.map((med, idx) => (
+                          <div key={idx} className="text-xs">
+                            <span className="font-medium">{med.medicineName}</span>
+                            <span className="text-gray-600"> (Qty: {med.quantity})</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         ) : (

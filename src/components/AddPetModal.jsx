@@ -39,11 +39,7 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
         <div className="flex items-center justify-between p-5 border-b">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">Add New Pet</h3>
-            {selectedClient && (
-              <p className="text-sm text-gray-500 mt-1">
-                for {selectedClient.firstName} {selectedClient.lastName}
-              </p>
-            )}
+           
           </div>
           <button
             onClick={onClose}
@@ -82,10 +78,14 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select</option>
-                  <option value="Dog">Dog</option>
-                  <option value="Cat">Cat</option>
-                  <option value="Bird">Bird</option>
+                  <option value="Canine">Canine (Dog)</option>
+                  <option value="Feline">Feline (Cat)</option>
+                  <option value="Avian">Avian (Bird)</option>
                   <option value="Rabbit">Rabbit</option>
+                  <option value="Guinea Pig">Guinea Pig</option>
+                  <option value="Hamster">Hamster</option>
+                  <option value="Reptile">Reptile</option>
+                  <option value="Fish">Fish</option>
                   <option value="Other">Other</option>
                 </select>
               </div>

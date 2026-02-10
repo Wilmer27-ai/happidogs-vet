@@ -11,7 +11,7 @@ function CreatePurchaseOrder() {
   const [orderItems, setOrderItems] = useState([])
   const [orderFormData, setOrderFormData] = useState({
     orderDate: new Date().toISOString().split('T')[0],
-    paymentTerms: selectedSupplier?.paymentTerms || 'COD'
+    paymentTerms: selectedSupplier?.paymentTerms || '0'
   })
 
   const [currentItem, setCurrentItem] = useState({
@@ -294,7 +294,7 @@ function CreatePurchaseOrder() {
                     value={orderFormData.paymentTerms}
                     onChange={(e) => setOrderFormData({ ...orderFormData, paymentTerms: e.target.value })}
                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="COD, 7, 30"
+                    placeholder="0, 7, 30"
                   />
                 </div>
               </div>

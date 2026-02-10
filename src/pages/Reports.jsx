@@ -3,7 +3,7 @@ import {
   FiDownload,
   FiPrinter
 } from 'react-icons/fi'
-import { getSales, getExpenses, getConsultations, getMedicines, getStoreItems, getClients, getPets } from '../firebase/services'
+import { getSales, getExpenses, getAllPetActivities, getMedicines, getStoreItems, getClients, getPets } from '../firebase/services'
 
 function Reports() {
   const [loading, setLoading] = useState(true)
@@ -26,17 +26,17 @@ function Reports() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [sales, expenses, consultations, medicines, storeItems, clients, pets] = await Promise.all([
+      const [sales, expenses, activities, medicines, storeItems, clients, pets] = await Promise.all([
         getSales(),
         getExpenses(),
-        getConsultations(),
+        getAllPetActivities(), // Changed from getConsultations
         getMedicines(),
         getStoreItems(),
         getClients(),
         getPets()
       ])
       
-      setData({ sales, expenses, consultations, medicines, storeItems, clients, pets })
+      setData({ sales, expenses, consultations: activities, medicines, storeItems, clients, pets })
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {

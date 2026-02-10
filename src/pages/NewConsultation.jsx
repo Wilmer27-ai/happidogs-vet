@@ -5,7 +5,7 @@ import { FiCheckCircle } from 'react-icons/fi'
 import DetailsStep from '../components/steps/DetailsStep'
 import MedicinesStep from '../components/steps/MedicinesStep'
 import SummaryStep from '../components/steps/SummaryStep'
-import { addConsultation } from '../firebase/services'
+import { updatePetActivity } from '../firebase/services'
 
 function NewConsultation() {
   const navigate = useNavigate()
@@ -19,35 +19,36 @@ function NewConsultation() {
   const handleSaveConsultation = async () => {
     setIsSaving(true)
     try {
-      if (!selectedClient?.id || selectedPets.length === 0) {
-        alert('Please select a client and at least one pet')
+      if (!selectedClient?.id || selectedPets.length === 0 || !consultationData) {
+        alert('Please complete all steps')
         return
       }
 
-      // Save consultation for each pet
-      const consultationPromises = selectedPets.map(pet => {
-        const consultationToSave = {
-          clientId: selectedClient.id,
-          clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-          petId: pet.id,
-          petName: pet.name,
-          dateTime: consultationData?.[0]?.date || new Date().toISOString(),
-          reason: '',
-          diagnosis: consultationData?.[0]?.diagnosis || '',
-          treatment: consultationData?.[0]?.treatment || '',
+      // Calculate total medicine cost
+      const medicineCost = medicinesData?.reduce((sum, med) => 
+        sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0
+      ) || 0
+
+      // Update each selected activity with medicines and billing info
+      const updatePromises = consultationData.map(activity => {
+        const activityUpdate = {
           medicines: medicinesData?.map(med => ({
             medicineId: med.id,
             medicineName: med.medicineName,
             quantity: med.quantity,
+            unit: med.unit,
             price: med.sellingPrice
           })) || [],
-          totalAmount: (medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0) / selectedPets.length + 300,
-          consultationFee: 300
+          consultationFee: 300,
+          medicineCost: medicineCost,
+          totalAmount: 300 + medicineCost,
+          clientId: selectedClient.id,
+          clientName: `${selectedClient.firstName} ${selectedClient.lastName}`
         }
-        return addConsultation(consultationToSave)
+        return updatePetActivity(activity.id, activityUpdate)
       })
 
-      await Promise.all(consultationPromises)
+      await Promise.all(updatePromises)
 
       setTimeout(() => {
         setIsSaving(false)
@@ -69,9 +70,9 @@ function NewConsultation() {
             selectedPets={selectedPets}
             onSelectClient={setSelectedClient}
             onSelectPets={setSelectedPets}
+            onNext={() => setCurrentStep(1)}
             consultationData={consultationData}
             setConsultationData={setConsultationData}
-            onNext={() => setCurrentStep(1)}
           />
         )}
 
@@ -79,10 +80,10 @@ function NewConsultation() {
           <MedicinesStep
             selectedClient={selectedClient}
             selectedPets={selectedPets}
-            medicinesData={medicinesData}
-            setMedicinesData={setMedicinesData}
             onBack={() => setCurrentStep(0)}
             onNext={() => setCurrentStep(2)}
+            medicinesData={medicinesData}
+            setMedicinesData={setMedicinesData}
           />
         )}
 
@@ -100,12 +101,9 @@ function NewConsultation() {
 
       {isSaving && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-sm mx-4 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
-              <FiCheckCircle className="w-8 h-8 text-blue-600 animate-pulse" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Saving Consultation</h3>
-            <p className="text-sm text-gray-500">Please wait...</p>
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center">
+            <FiCheckCircle className="w-16 h-16 text-green-500 mb-4" />
+            <p className="text-lg font-semibold">Saving consultation...</p>
           </div>
         </div>
       )}

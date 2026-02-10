@@ -27,12 +27,9 @@ function Suppliers() {
   
   const [supplierFormData, setSupplierFormData] = useState({
     supplierName: '',
-    contactPerson: '',
     phoneNumber: '',
-    email: '',
     address: '',
-    paymentTerms: 'COD',
-    notes: ''
+    paymentTerms: ''
   })
 
   useEffect(() => {
@@ -64,6 +61,16 @@ function Suppliers() {
   const getPaymentStatusColor = (status) => {
     if (status === 'Paid') return 'bg-green-100 text-green-800'
     return 'bg-yellow-100 text-yellow-800'
+  }
+
+  const calculatePaymentDeadline = (orderDate, paymentTerms) => {
+    const date = new Date(orderDate)
+    const days = parseInt(paymentTerms) || 0
+  
+    if (days === 0) return orderDate // COD
+  
+    date.setDate(date.getDate() + days)
+    return date.toISOString().split('T')[0]
   }
 
   // Filter data
@@ -154,12 +161,9 @@ function Suppliers() {
     setEditingSupplier(supplier)
     setSupplierFormData({
       supplierName: supplier.supplierName,
-      contactPerson: supplier.contactPerson || '',
       phoneNumber: supplier.phoneNumber || '',
-      email: supplier.email || '',
       address: supplier.address || '',
-      paymentTerms: supplier.paymentTerms || 'COD',
-      notes: supplier.notes || ''
+      paymentTerms: supplier.paymentTerms || ''
     })
     setIsSupplierModalOpen(true)
   }
@@ -187,12 +191,9 @@ function Suppliers() {
     setEditingSupplier(null)
     setSupplierFormData({
       supplierName: '',
-      contactPerson: '',
       phoneNumber: '',
-      email: '',
       address: '',
-      paymentTerms: 'COD',
-      notes: ''
+      paymentTerms: ''
     })
   }
 
@@ -332,7 +333,7 @@ function Suppliers() {
                           <td className="px-4 py-3 text-gray-700">{supplier.email || 'N/A'}</td>
                           <td className="px-4 py-3">
                             <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {supplier.paymentTerms || 'COD'}
+                              {supplier.paymentTerms === '0' ? 'COD' : `${supplier.paymentTerms} days`}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -470,116 +471,96 @@ function Suppliers() {
 
       {/* Supplier Modal */}
       {isSupplierModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
-              </h2>
-              <button onClick={handleCloseSupplierModal} className="text-gray-400 hover:text-gray-600">
-                <FiX className="w-6 h-6" />
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
+                </h3>
+              </div>
+              <button
+                onClick={handleCloseSupplierModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSupplierSubmit}>
-              <div className="p-6 space-y-4">
+            {/* Form */}
+            <form onSubmit={handleSupplierSubmit} className="p-6">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Supplier Name <span className="text-red-500">*</span>
+                    Supplier Name *
                   </label>
                   <input
                     type="text"
                     required
                     value={supplierFormData.supplierName}
                     onChange={(e) => setSupplierFormData({ ...supplierFormData, supplierName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Supplier name"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
-                    <input
-                      type="text"
-                      value={supplierFormData.contactPerson}
-                      onChange={(e) => setSupplierFormData({ ...supplierFormData, contactPerson: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Contact person name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={supplierFormData.phoneNumber}
-                      onChange={(e) => setSupplierFormData({ ...supplierFormData, phoneNumber: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Phone number"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={supplierFormData.email}
-                      onChange={(e) => setSupplierFormData({ ...supplierFormData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Email address"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Terms <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={supplierFormData.paymentTerms}
-                      onChange={(e) => setSupplierFormData({ ...supplierFormData, paymentTerms: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., COD, 7 days, 30 days"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={supplierFormData.phoneNumber}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phoneNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Phone number"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address *
+                  </label>
                   <textarea
+                    required
                     value={supplierFormData.address}
                     onChange={(e) => setSupplierFormData({ ...supplierFormData, address: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     placeholder="Full address"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    value={supplierFormData.notes}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Additional notes"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Terms (Days) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={supplierFormData.paymentTerms}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, paymentTerms: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0 for COD, 7, 30, etc."
                   />
+                  <p className="text-xs text-gray-500 mt-1">Enter 0 for Cash on Delivery (COD)</p>
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-200 flex gap-3">
+              <div className="flex gap-3 mt-6">
                 <button
                   type="button"
                   onClick={handleCloseSupplierModal}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   {editingSupplier ? 'Update Supplier' : 'Add Supplier'}
                 </button>
