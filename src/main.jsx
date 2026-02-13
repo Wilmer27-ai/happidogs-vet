@@ -20,7 +20,9 @@ import CreatePurchaseOrder from './pages/CreatePurchaseOrder.jsx'
 import MasterData from './pages/MasterData'
 import Reports from './pages/Reports'
 import PetActivityHistory from './pages/PetActivityHistory'
-
+import PetRecords from './pages/PetRecords'
+import ConsultationSummary from './pages/ConsultationSummary'
+import Dashboard from './pages/dashboard.jsx'
 
 const router = createBrowserRouter([
   {
@@ -37,7 +39,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <NewConsultation />
+        element: <Dashboard />
+      },
+      {
+        path: '/dashboard',
+        element: <Dashboard />
       },
       {
         path: '/new-consultation',
@@ -46,6 +52,14 @@ const router = createBrowserRouter([
       {
         path: '/consultation-history',
         element: <ConsultationHistory />
+      },
+      {
+        path: '/pet-records',
+        element: <PetRecords />
+      },
+      {
+        path: '/consultation-summary',
+        element: <ConsultationSummary />
       },
       {
         path: '/clients-pets',

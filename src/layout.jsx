@@ -47,9 +47,11 @@ function Layout() {
   }
 
   const navigation = [
+    { name: 'Dashboard', path: '/dashboard', icon: FiBarChart2 },
     { name: 'New Consultation', path: '/new-consultation', icon: FiPlus },
     { name: 'POS', path: '/pet-store', icon: FiShoppingBag },
     { name: 'Consultation History', path: '/consultation-history', icon: FiFileText },
+    { name: 'Pet Records', path: '/pet-records', icon: FiUsers },
     { name: 'Clients & Pets', path: '/clients-pets', icon: FiUsers },
     { name: 'Medicines & Stocks', path: '/medicines-stocks', icon: FiPackage },
     { name: 'Suppliers', path: '/suppliers', icon: FiPackage },

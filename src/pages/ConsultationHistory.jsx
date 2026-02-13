@@ -1,17 +1,18 @@
-// ConsultationHistory.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiCalendar, FiHeart, FiUsers } from 'react-icons/fi'
+import { FiSearch, FiEye, FiCalendar } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
-import { getClients, getPets } from '../firebase/services'
+import { getAllPetActivities, getClients, getPets } from '../firebase/services'
 
 function ConsultationHistory() {
   const navigate = useNavigate()
-  const [pets, setPets] = useState([])
+  const [consultations, setConsultations] = useState([])
   const [clients, setClients] = useState([])
+  const [pets, setPets] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateFilter, setDateFilter] = useState('all')
   
-  // Lazy loading state
+  // Lazy loading
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
 
@@ -22,11 +23,18 @@ function ConsultationHistory() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [clientsData, petsData] = await Promise.all([
+      const [activitiesData, clientsData, petsData] = await Promise.all([
+        getAllPetActivities(),
         getClients(),
         getPets()
       ])
       
+      // Filter only activities that have medicines (are completed consultations)
+      const completedConsultations = activitiesData.filter(activity => 
+        activity.medicines && activity.medicines.length > 0
+      )
+      
+      setConsultations(completedConsultations)
       setClients(clientsData)
       setPets(petsData)
     } catch (error) {
@@ -36,50 +44,61 @@ function ConsultationHistory() {
     }
   }
 
-  const getOwnerName = (clientId) => {
+  const getClientName = (clientId) => {
     const client = clients.find(c => c.id === clientId)
     return client ? `${client.firstName} ${client.lastName}` : 'Unknown'
   }
 
-  const calculateAge = (dateOfBirth) => {
-    if (!dateOfBirth) return 'N/A'
-    const birthDate = new Date(dateOfBirth)
-    const today = new Date()
-    let years = today.getFullYear() - birthDate.getFullYear()
-    let months = today.getMonth() - birthDate.getMonth()
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
+  const getDateRange = (filter) => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     
-    if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
-      years--
-      months += 12
-    }
-    
-    if (months < 0) {
-      months = 0
-    }
-    
-    if (years === 0) {
-      return `${months} month${months !== 1 ? 's' : ''}`
-    } else if (months === 0) {
-      return `${years} year${years !== 1 ? 's' : ''}`
-    } else {
-      return `${years}y ${months}m`
+    switch(filter) {
+      case 'today':
+        return { start: today }
+      case 'week':
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        return { start: weekAgo }
+      case 'month':
+        const monthAgo = new Date(today)
+        monthAgo.setMonth(monthAgo.getMonth() - 1)
+        return { start: monthAgo }
+      default:
+        return null
     }
   }
 
-  // Filter pets based on search
-  const filteredPets = pets.filter(pet => {
-    const owner = getOwnerName(pet.clientId)
-    return (
-      pet.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pet.species?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pet.breed?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  // Filter consultations
+  const filteredConsultations = consultations.filter(consultation => {
+    const matchesSearch = 
+      consultation.petName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      consultation.clientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      consultation.diagnosis?.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const dateRange = getDateRange(dateFilter)
+    const matchesDate = !dateRange || new Date(consultation.date) >= dateRange.start
+    
+    return matchesSearch && matchesDate
   })
 
-  // Displayed pets with lazy loading
-  const displayedPets = filteredPets.slice(0, displayCount)
-  const hasMore = displayCount < filteredPets.length
+  // Sort by date descending
+  const sortedConsultations = [...filteredConsultations].sort((a, b) => 
+    new Date(b.date) - new Date(a.date)
+  )
+
+  // Displayed consultations with lazy loading
+  const displayedConsultations = sortedConsultations.slice(0, displayCount)
+  const hasMore = displayCount < sortedConsultations.length
 
   // Intersection Observer for lazy loading
   useEffect(() => {
@@ -89,147 +108,158 @@ function ConsultationHistory() {
           setDisplayCount(prev => prev + 20)
         }
       },
-      { threshold: 1 }
+      { threshold: 0.1 }
     )
 
     if (observerTarget.current) {
       observer.observe(observerTarget.current)
     }
 
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current)
-      }
-    }
+    return () => observer.disconnect()
   }, [hasMore])
 
-  // Reset display count when search changes
+  // Reset display count when filters change
   useEffect(() => {
     setDisplayCount(20)
-  }, [searchQuery])
+  }, [searchQuery, dateFilter])
 
-  const handlePetClick = (pet) => {
-    navigate('/pet-activity', { state: { selectedPet: pet } })
+  const handleViewConsultation = (consultation) => {
+    navigate('/consultation-summary', { state: { consultation } })
   }
 
   // Statistics
-  const totalPets = pets.length
-  const totalDogs = pets.filter(p => p.species === 'Dog').length
-  const totalCats = pets.filter(p => p.species === 'Cat').length
-  const totalClients = clients.length
+  const totalConsultations = consultations.length
+  const totalRevenue = consultations.reduce((sum, c) => sum + (c.totalAmount || 0), 0)
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Pet Records</h1>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Consultation History</h1>
+          
+          {/* Statistics */}
+          <div className="flex gap-6">
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Total Consultations</p>
+              <p className="text-lg font-semibold text-gray-900">{totalConsultations}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Total Revenue</p>
+              <p className="text-lg font-semibold text-green-600">₱{totalRevenue.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
 
-    
-
-        {/* Search & Actions */}
-        <div className="flex items-center gap-3">
+        {/* Search & Filters */}
+        <div className="flex gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by pet name, owner, species, or breed..."
+              placeholder="Search by pet, owner, or diagnosis..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">Last 7 Days</option>
+            <option value="month">Last 30 Days</option>
+          </select>
           <button
             onClick={() => navigate('/new-consultation')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm whitespace-nowrap shadow-sm"
           >
             New Consultation
           </button>
         </div>
       </div>
 
-      {/* Table Container with Fixed Height */}
+      {/* Table Container */}
       <div className="flex-1 px-6 py-4 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">Loading...</p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+              <p className="text-gray-500 text-sm">Loading consultations...</p>
+            </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col overflow-hidden">
-            <div className="overflow-auto flex-1">
-              {filteredPets.length === 0 ? (
+          <div className="bg-white rounded-md border border-gray-200 shadow-sm h-full overflow-hidden">
+            <div className="overflow-auto h-full">
+              {displayedConsultations.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <FiHeart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500">
-                      {searchQuery ? 'No pets match your search' : 'No pets found'}
+                    <FiCalendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-medium">No consultations found</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {searchQuery ? 'Try adjusting your search' : 'Start by creating a new consultation'}
                     </p>
                   </div>
                 </div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-800 text-white sticky top-0">
+                  <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs">Pet Name</th>
-                      <th className="px-4 py-2 text-left text-xs">Owner</th>
-                      <th className="px-4 py-2 text-left text-xs">Species</th>
-                      <th className="px-4 py-2 text-left text-xs">Breed</th>
-                      <th className="px-4 py-2 text-left text-xs">Age</th>
-                      <th className="px-4 py-2 text-left text-xs">Date of Birth</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Pet Name</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Owner</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Activity Type</th>
+                      <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {displayedPets.map((pet, index) => (
-                      <tr 
-                        key={pet.id} 
-                        onClick={() => handlePetClick(pet)}
-                        className={`cursor-pointer hover:bg-blue-50 transition-colors ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                        }`}
-                      >
+                    {displayedConsultations.map((consultation) => (
+                      <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
-                          <p className="font-medium text-blue-600">{pet.name}</p>
+                          <div className="flex items-center gap-2">
+                            <FiCalendar className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-gray-700">{formatDate(consultation.date)}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{consultation.petName}</p>
                         </td>
                         <td className="px-4 py-3 text-gray-700">
-                          {getOwnerName(pet.clientId)}
+                          {consultation.clientName || getClientName(consultation.clientId)}
                         </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.species || 'N/A'}
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {consultation.activityType}
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.breed || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {calculateAge(pet.dateOfBirth)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }) : 'N/A'}
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleViewConsultation(consultation)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs font-medium shadow-sm transition-colors"
+                          >
+                            <FiEye className="w-3.5 h-3.5" />
+                            View
+                          </button>
                         </td>
                       </tr>
                     ))}
+                    {hasMore && (
+                      <tr ref={observerTarget}>
+                        <td colSpan="5" className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2 text-gray-500">
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                            <span className="text-sm">Loading more...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               )}
-
-              {/* Loading indicator for lazy loading */}
-              {hasMore && (
-                <div ref={observerTarget} className="py-4 text-center">
-                  <p className="text-sm text-gray-500">Loading more...</p>
-                </div>
-              )}
             </div>
-
-            {/* Footer with count */}
-            {!hasMore && displayedPets.length > 0 && (
-              <div className="py-3 text-center border-t flex-shrink-0 bg-gray-50">
-                <p className="text-xs text-gray-500">
-                  Showing all {filteredPets.length} pets
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
