@@ -258,7 +258,7 @@ function ClientsPets() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+     <div className="bg-white border-b border-gray-200 px-6 py-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Clients & Pets</h1>
 
       

@@ -83,9 +83,13 @@ function PetStore() {
   }, [searchQuery, activeCategory, itemType])
 
   const getStep = (item) => {
-    // For items with decimal selling (kg, grams, ml, tablets), use 0.5
+    // Medicines are always whole numbers (1 vial = 1 unit)
+    if (item.type === 'medicine') {
+      return 1
+    }
+    // For store items with decimal selling (kg, grams, ml), use 0.5
     // For items sold as whole units, use 1
-    if (item.unit && ['kg', 'g', 'lbs', 'oz', 'ml', 'tablet', 'capsule'].includes(item.unit.toLowerCase())) {
+    if (item.unit && ['kg', 'g', 'lbs', 'oz', 'ml'].includes(item.unit.toLowerCase())) {
       return 0.5
     }
     return 1
@@ -98,7 +102,10 @@ function PetStore() {
     const step = getStep(item)
     
     if (existingItem) {
-      const newQty = parseFloat((existingItem.quantity + step).toFixed(2))
+      const newQty = item.type === 'medicine' 
+        ? existingItem.quantity + step 
+        : parseFloat((existingItem.quantity + step).toFixed(2))
+      
       if (newQty <= item.stockQuantity) {
         setOrder(order.map(i => 
           (i.id === item.id && i.type === item.type)
@@ -142,7 +149,10 @@ function PetStore() {
     const item = order.find(i => i.id === itemId && i.type === itemType)
     const stockItem = allItems.find(i => i.id === itemId && i.type === itemType)
     const step = getStep(stockItem)
-    const newQuantity = parseFloat((item.quantity + change * step).toFixed(2))
+    
+    const newQuantity = stockItem.type === 'medicine'
+      ? item.quantity + change * step
+      : parseFloat((item.quantity + change * step).toFixed(2))
 
     if (newQuantity <= 0) {
       handleRemoveFromOrder(itemId, itemType)
@@ -151,6 +161,28 @@ function PetStore() {
         (i.id === itemId && i.type === itemType)
           ? { ...i, quantity: newQuantity }
           : i
+      ))
+    } else {
+      alert(`Only ${stockItem.stockQuantity} ${stockItem.unit} available!`)
+    }
+  }
+
+  const handleQuantityInputChange = (itemId, itemType, value) => {
+    const stockItem = allItems.find(i => i.id === itemId && i.type === itemType)
+    const step = getStep(stockItem)
+    
+    let numValue
+    if (stockItem.type === 'medicine') {
+      numValue = parseInt(value)
+      if (isNaN(numValue) || numValue < 1) return
+    } else {
+      numValue = parseFloat(value)
+      if (isNaN(numValue) || numValue < step) return
+    }
+
+    if (numValue <= stockItem.stockQuantity) {
+      setOrder(order.map(i =>
+        (i.id === itemId && i.type === itemType) ? { ...i, quantity: numValue } : i
       ))
     } else {
       alert(`Only ${stockItem.stockQuantity} ${stockItem.unit} available!`)
@@ -197,7 +229,7 @@ function PetStore() {
           unit: orderItem.unit,
           purchasePrice: orderItem.purchasePrice || 0,
           sellingPrice: orderItem.sellingPrice,
-          bundleApplied: orderItem.hasBundle && orderItem.quantity >= orderItem.bundleQuantity,
+          bundleApplied: orderItem.type === 'store' && orderItem.hasBundle && orderItem.quantity >= orderItem.bundleQuantity,
           bundleQuantity: orderItem.bundleQuantity || null,
           bundlePrice: orderItem.bundlePrice || null,
           totalCost: (orderItem.purchasePrice || 0) * orderItem.quantity,
@@ -221,14 +253,14 @@ function PetStore() {
       loadItems()
     } catch (error) {
       console.error('Error processing sale:', error)
-      alert('Failed to process sale')
+      alert('Failed to process sale. Please try again.')
     }
   }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">Pet Store</h1>
           <button
@@ -277,8 +309,8 @@ function PetStore() {
       {/* Main Content */}
       <div className="flex-1 flex gap-4 p-6 overflow-hidden">
         {/* Items Table */}
-        <div className="flex-1 bg-white rounded-lg border border-gray-200 flex flex-col overflow-hidden">
-          <div className="overflow-auto flex-1" style={{ height: 'calc(100vh - 220px)' }}>
+        <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-auto h-full">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">Loading...</p>
@@ -291,61 +323,64 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <table className="w-full text-xs">
-                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-2 text-left text-xs">Type</th>
-                    <th className="px-2 py-2 text-left text-xs">Item Name</th>
-                    <th className="px-2 py-2 text-left text-xs">Category</th>
-                    <th className="px-2 py-2 text-left text-xs">Stock</th>
-                    <th className="px-2 py-2 text-left text-xs">Price</th>
-                    <th className="px-2 py-2 text-right text-xs">Action</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Type</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Item Name</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Price</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {displayedItems.map((item, index) => {
+                  {displayedItems.map((item) => {
                     const isOutOfStock = item.stockQuantity === 0
-                    const isSelected = order.find(i => i.id === item.id && i.type === item.type)
                     const hasBundle = item.type === 'store' && item.hasBundle && item.bundleQuantity && item.bundlePrice
                     
                     return (
                       <tr key={`${item.type}-${item.id}`} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-2 py-2">
-                          <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                             item.type === 'medicine' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {item.type === 'medicine' ? 'Med' : 'Store'}
+                            {item.type === 'medicine' ? 'Medicine' : 'Store'}
                           </span>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-4 py-3">
                           <div className={`font-medium ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
                             {item.itemName || 'N/A'}
-                            {item.brand && <span className="text-gray-500 ml-1">({item.brand})</span>}
                           </div>
+                          {item.brand && <span className="text-gray-500 text-xs">{item.brand}</span>}
                         </td>
-                        <td className="px-2 py-2 text-gray-700">{item.category || 'N/A'}</td>
-                        <td className="px-2 py-2">
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            {item.category || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
                           <span className={isOutOfStock ? 'text-red-600 font-medium' : 'text-gray-700'}>
                             {item.stockQuantity || 0} {item.unit || ''}
                           </span>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-4 py-3">
                           <div className="font-medium text-gray-900">
                             ₱{item.sellingPrice?.toLocaleString() || 0}/{item.unit || 'unit'}
-                            {hasBundle && (
-                              <span className="text-blue-600 ml-1">
-                                • Bundle: {item.bundleQuantity} @ ₱{item.bundlePrice.toLocaleString()}
-                              </span>
-                            )}
                           </div>
+                          {hasBundle && (
+                            <span className="text-blue-600 text-xs">
+                              Bundle: {item.bundleQuantity} @ ₱{item.bundlePrice.toLocaleString()}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             {hasBundle && (
                               <button
                                 onClick={() => handleAddBundle(item)}
                                 disabled={isOutOfStock}
-                                className="px-2.5 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors flex items-center gap-1"
+                                className="px-2.5 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium shadow-sm transition-colors flex items-center gap-1"
                                 title={`Add bundle of ${item.bundleQuantity}`}
                               >
                                 <FiPackage className="w-3 h-3" />
@@ -355,7 +390,7 @@ function PetStore() {
                             <button
                               onClick={() => handleAddToOrder(item)}
                               disabled={isOutOfStock}
-                              className="px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors"
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium shadow-sm transition-colors"
                             >
                               Add
                             </button>
@@ -364,14 +399,18 @@ function PetStore() {
                       </tr>
                     )
                   })}
+                  {hasMore && (
+                    <tr ref={observerTarget}>
+                      <td colSpan="6" className="px-4 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2 text-gray-500">
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                          <span className="text-sm">Loading more...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
-            )}
-
-            {hasMore && (
-              <div ref={observerTarget} className="py-4 text-center">
-                <p className="text-sm text-gray-500">Loading more...</p>
-              </div>
             )}
           </div>
         </div>
@@ -397,6 +436,7 @@ function PetStore() {
                 const hasBundle = item.type === 'store' && item.hasBundle && item.bundleQuantity && item.bundlePrice
                 const bundlesApplied = hasBundle ? Math.floor(item.quantity / item.bundleQuantity) : 0
                 const regularItems = hasBundle ? item.quantity % item.bundleQuantity : item.quantity
+                const step = getStep(item)
                 
                 return (
                   <div key={`${item.type}-${item.id}`} className="bg-gray-50 rounded-lg p-2 border border-gray-200">
@@ -424,17 +464,10 @@ function PetStore() {
                         </button>
                         <input
                           type="number"
-                          step={getStep(item)}
-                          min={getStep(item)}
+                          step={step}
+                          min={step}
                           value={item.quantity}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value)
-                            if (!isNaN(val) && val > 0 && val <= item.stockQuantity) {
-                              setOrder(order.map(i =>
-                                (i.id === item.id && i.type === item.type) ? { ...i, quantity: val } : i
-                              ))
-                            }
-                          }}
+                          onChange={(e) => handleQuantityInputChange(item.id, item.type, e.target.value)}
                           className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <span className="text-xs text-gray-600">{item.unit}</span>
@@ -482,7 +515,7 @@ function PetStore() {
             <button
               onClick={handleCheckout}
               disabled={order.length === 0}
-              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
             >
               <FiShoppingBag className="w-4 h-4" />
               Checkout

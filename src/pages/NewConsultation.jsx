@@ -5,7 +5,7 @@ import { FiCheckCircle } from 'react-icons/fi'
 import DetailsStep from '../components/steps/DetailsStep'
 import MedicinesStep from '../components/steps/MedicinesStep'
 import SummaryStep from '../components/steps/SummaryStep'
-import { updatePetActivity } from '../firebase/services'
+import { updatePetActivity, updateMedicine } from '../firebase/services'
 
 function NewConsultation() {
   const navigate = useNavigate()
@@ -28,6 +28,12 @@ function NewConsultation() {
       const medicineCost = medicinesData?.reduce((sum, med) => 
         sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0
       ) || 0
+
+      // Update medicine stock first
+      for (const medicine of medicinesData || []) {
+        const newStock = Math.max(0, medicine.stockQuantity - medicine.quantity)
+        await updateMedicine(medicine.id, { stockQuantity: newStock })
+      }
 
       // Update each selected activity with medicines and billing info
       const updatePromises = consultationData.map(activity => {

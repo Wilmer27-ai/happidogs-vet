@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+// src/components/steps/DetailsStep.jsx
+import { useState, useEffect, useRef } from 'react'
 import { FiPlus } from 'react-icons/fi'
-import { getPetActivities, addPetActivity, getClients, getPetsByClient } from '../../firebase/services'
+import { getClients, getPets, addPetActivity, getPetActivities } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
 
@@ -32,36 +33,37 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [loading, setLoading] = useState(false)
   const [selectedPets, setSelectedPets] = useState(propSelectedPets || [])
   const [showForm, setShowForm] = useState(true)
-  const [consultations, setConsultations] = useState([])
 
   const getCurrentDate = () => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
+    const date = new Date()
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
   }
 
   const [formData, setFormData] = useState({
     activityType: 'Consultation',
     date: getCurrentDate(),
-    weight: '',
-    temperature: '',
     diagnosis: '',
     treatment: '',
     followUpDate: ''
   })
+
+  // Store weight and temperature per pet
+  const [petVitals, setPetVitals] = useState({})
 
   useEffect(() => {
     loadClients()
   }, [])
 
   useEffect(() => {
-    if (selectedClient?.id) {
+    if (selectedClient) {
       loadPets()
     } else {
       setPets([])
       setSelectedPets([])
+      onSelectPets([])
     }
   }, [selectedClient])
 
@@ -70,20 +72,33 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       loadActivities()
     } else {
       setActivities([])
-      setSelectedActivities([])
     }
   }, [selectedPets])
 
   useEffect(() => {
-    if (onSelectPets) {
-      onSelectPets(selectedPets)
-    }
+    onSelectPets(selectedPets)
+  }, [selectedPets])
+
+  // Initialize vitals when pets are selected
+  useEffect(() => {
+    const newVitals = {}
+    selectedPets.forEach(pet => {
+      if (!petVitals[pet.id]) {
+        newVitals[pet.id] = {
+          weight: '',
+          temperature: ''
+        }
+      } else {
+        newVitals[pet.id] = petVitals[pet.id]
+      }
+    })
+    setPetVitals(newVitals)
   }, [selectedPets])
 
   const loadClients = async () => {
     try {
-      const data = await getClients()
-      setClients(data)
+      const allClients = await getClients()
+      setClients(allClients)
     } catch (error) {
       console.error('Error loading clients:', error)
     } finally {
@@ -94,8 +109,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const loadPets = async () => {
     setLoadingPets(true)
     try {
-      const data = await getPetsByClient(selectedClient.id)
-      setPets(data)
+      const allPets = await getPets()
+      const clientPets = allPets.filter(pet => pet.clientId === selectedClient.id)
+      setPets(clientPets)
     } catch (error) {
       console.error('Error loading pets:', error)
     } finally {
@@ -108,24 +124,13 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     try {
       const allActivities = []
       for (const pet of selectedPets) {
-        const data = await getPetActivities(pet.id)
-        const activitiesWithPetName = data.map(activity => ({
-          ...activity,
-          petName: pet.name
-        }))
-        allActivities.push(...activitiesWithPetName)
+        const petActivities = await getPetActivities(pet.id)
+        allActivities.push(...petActivities)
       }
       
-      const sortedData = allActivities.sort((a, b) => {
-        const dateA = new Date(a.date).getTime()
-        const dateB = new Date(b.date).getTime()
-        return dateB - dateA
-      })
-      
-      setActivities(sortedData)
-      if (sortedData.length > 0) {
-        setSelectedActivities([sortedData[0].id])
-      }
+      // Sort by date descending
+      allActivities.sort((a, b) => new Date(b.date) - new Date(a.date))
+      setActivities(allActivities)
     } catch (error) {
       console.error('Error loading activities:', error)
     } finally {
@@ -134,18 +139,15 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const handleAddClient = async (newClientData) => {
+    setClients([...clients, newClientData])
     onSelectClient(newClientData)
     setClientSearchQuery(`${newClientData.firstName} ${newClientData.lastName}`)
-    setNewClient({ firstName: '', lastName: '', phoneNumber: '', address: '' })
     setIsAddClientModalOpen(false)
-    await loadClients()
   }
 
   const handleAddPet = async (newPetData) => {
-    setSelectedPets([...selectedPets, newPetData])
-    setNewPet({ name: '', species: '', breed: '', dateOfBirth: '' })
+    setPets([...pets, newPetData])
     setIsAddPetModalOpen(false)
-    await loadPets()
   }
 
   const handleClientSelect = (client) => {
@@ -155,14 +157,12 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const togglePetSelection = (pet) => {
-    setSelectedPets(prev => {
-      const isSelected = prev.some(p => p.id === pet.id)
-      if (isSelected) {
-        return prev.filter(p => p.id !== pet.id)
-      } else {
-        return [...prev, pet]
-      }
-    })
+    const isSelected = selectedPets.some(p => p.id === pet.id)
+    if (isSelected) {
+      setSelectedPets(selectedPets.filter(p => p.id !== pet.id))
+    } else {
+      setSelectedPets([...selectedPets, pet])
+    }
   }
 
   const filteredClients = clients.filter(client =>
@@ -173,73 +173,87 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     `${pet.name} ${pet.species} ${pet.breed}`.toLowerCase().includes(petSearchQuery.toLowerCase())
   ).slice(0, 50)
 
+  const updatePetVital = (petId, field, value) => {
+    setPetVitals(prev => ({
+      ...prev,
+      [petId]: {
+        ...prev[petId],
+        [field]: value
+      }
+    }))
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (!formData.activityType || !formData.date) {
-      return
-    }
-
-    if (selectedPets.length === 0) {
-      return
-    }
-
-    try {
-      const promises = selectedPets.map(pet => {
-        const activityData = {
-          petId: pet.id,
-          activityType: formData.activityType,
-          date: formData.date,
-          weight: formData.weight || null,
-          temperature: formData.temperature || null,
-          diagnosis: formData.activityType === 'Consultation' ? formData.diagnosis : null,
-          treatment: formData.activityType === 'Consultation' ? formData.treatment : null,
-          followUpDate: formData.followUpDate || null
-        }
-        return addPetActivity(activityData)
-      })
-
-      await Promise.all(promises)
-
-      setFormData({
-        activityType: 'Consultation',
-        date: getCurrentDate(),
-        weight: '',
-        temperature: '',
-        diagnosis: '',
-        treatment: '',
-        followUpDate: ''
-      })
-
-      await loadActivities()
-      setShowForm(false)
-    } catch (error) {
-      console.error('Error adding activity:', error)
-    }
-  }
-
-  const handleContinue = () => {
     if (!selectedClient || selectedPets.length === 0) {
       alert('Please select a client and at least one pet')
       return
     }
 
-    const selectedActivityData = activities.filter(act => 
-      selectedActivities.includes(act.id)
-    )
+    setLoading(true)
+    try {
+      // Create an activity for each selected pet with their individual vitals
+      const activityPromises = selectedPets.map(pet => {
+        const vitals = petVitals[pet.id] || { weight: '', temperature: '' }
+        
+        return addPetActivity({
+          petId: pet.id,
+          petName: pet.name,
+          clientId: selectedClient.id,
+          clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+          activityType: formData.activityType,
+          date: formData.date,
+          weight: vitals.weight || '',
+          temperature: vitals.temperature || '',
+          diagnosis: formData.diagnosis || '',
+          treatment: formData.treatment || '',
+          followUpDate: formData.followUpDate || ''
+        })
+      })
 
-    setConsultationData(selectedActivityData)
+      await Promise.all(activityPromises)
+      
+      // Reset form and vitals
+      setFormData({
+        activityType: 'Consultation',
+        date: getCurrentDate(),
+        diagnosis: '',
+        treatment: '',
+        followUpDate: ''
+      })
+      setPetVitals({})
+      
+      // Reload activities
+      await loadActivities()
+    } catch (error) {
+      console.error('Error adding activity:', error)
+      alert('Failed to add activity. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleContinue = () => {
+    if (selectedActivities.length === 0) {
+      alert('Please select at least one activity to continue')
+      return
+    }
+
+    const selectedActivityObjects = activities.filter(activity => 
+      selectedActivities.includes(activity.id)
+    )
+    
+    setConsultationData(selectedActivityObjects)
     onNext()
   }
 
   const toggleActivitySelection = (activityId) => {
-    setSelectedActivities(prev => {
-      if (prev.includes(activityId)) {
-        return prev.filter(id => id !== activityId)
-      } else {
-        return [...prev, activityId]
-      }
-    })
+    if (selectedActivities.includes(activityId)) {
+      setSelectedActivities(selectedActivities.filter(id => id !== activityId))
+    } else {
+      setSelectedActivities([...selectedActivities, activityId])
+    }
   }
 
   return (
@@ -440,29 +454,38 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Weight (kg)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={formData.weight}
-                        onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0.0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Temperature (°C)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={formData.temperature}
-                        onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="0.0"
-                      />
-                    </div>
+                  {/* Individual Vitals for Each Pet */}
+                  <div className="space-y-3 pt-2">
+                    <div className="text-xs font-medium text-gray-700 mb-2">Vitals</div>
+                    {selectedPets.map(pet => (
+                      <div key={pet.id} className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                        <div className="text-xs font-semibold text-gray-800 mb-2">{pet.name}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Weight (kg)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={petVitals[pet.id]?.weight || ''}
+                              onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0.0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Temp (°C)</label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={petVitals[pet.id]?.temperature || ''}
+                              onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="0.0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {formData.activityType === 'Consultation' && (
@@ -521,7 +544,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         {/* Right Panel */}
         <div className={`${!showForm ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50`}>
           <div className="px-6 py-3 bg-white border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">Pet Activities ({activities.length})</h3>
+            <h3 className="font-semibold text-gray-900">Pet Consultations</h3>
           </div>
 
           <div className="flex-1 p-6 overflow-hidden flex flex-col">
