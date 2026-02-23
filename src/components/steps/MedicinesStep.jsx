@@ -11,9 +11,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
 
-  useEffect(() => {
-    loadMedicines()
-  }, [])
+  useEffect(() => { loadMedicines() }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -24,34 +22,87 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
       },
       { threshold: 0.1 }
     )
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current)
-    }
-
+    if (observerTarget.current) observer.observe(observerTarget.current)
     return () => observer.disconnect()
   }, [displayCount])
 
-  useEffect(() => {
-    setDisplayCount(20)
-  }, [searchQuery, activeFilter])
+  useEffect(() => { setDisplayCount(20) }, [searchQuery, activeFilter])
 
   useEffect(() => {
-    if (setMedicinesData) {
-      setMedicinesData(selectedMedicines)
-    }
+    if (setMedicinesData) setMedicinesData(selectedMedicines)
   }, [selectedMedicines, setMedicinesData])
 
   const loadMedicines = async () => {
     try {
       const data = await getMedicines()
-      // Filter to only show medicines with stock
-      setMedicines(data.filter(med => med.stockQuantity > 0))
+      // Keep all medicines, filter out fully empty stock
+      setMedicines(data.filter(med => getTotalStock(med) > 0))
     } catch (error) {
       console.error('Error loading medicines:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── Stock helpers ──
+  const getTotalStock = (med) => {
+    if (med.medicineType === 'syrup') return ((med.bottleCount ?? 0) * (med.mlPerBottle ?? 0)) + (med.looseMl ?? 0)
+    if (med.medicineType === 'tablet') return ((med.boxCount ?? 0) * (med.tabletsPerBox ?? 0)) + (med.looseTablets ?? 0)
+    return med.stockQuantity ?? 0
+  }
+
+  const getStockDisplay = (med) => {
+    if (med.medicineType === 'syrup') {
+      const bottles = med.bottleCount ?? 0
+      const ml = med.looseMl ?? 0
+      return (
+        <div className="flex items-center gap-1 whitespace-nowrap">
+          <span className="text-gray-900">{bottles} Bottle{bottles !== 1 ? 's' : ''}</span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-900">{ml} ml</span>
+        </div>
+      )
+    }
+    if (med.medicineType === 'tablet') {
+      const boxes = med.boxCount ?? 0
+      const tabs = med.looseTablets ?? 0
+      return (
+        <div className="flex items-center gap-1 whitespace-nowrap">
+          <span className="text-gray-900">{boxes} Box{boxes !== 1 ? 'es' : ''}</span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-900">{tabs} Tablets</span>
+        </div>
+      )
+    }
+    return <span className="text-gray-900">{med.stockQuantity ?? 0} {med.unit ?? ''}</span>
+  }
+
+  const getPriceDisplay = (med) => {
+    if (med.medicineType === 'syrup') return (
+      <div className="leading-tight">
+        <p className="font-medium text-gray-900">₱{med.sellingPricePerMl?.toLocaleString()}/ml</p>
+        <p className="font-medium text-gray-900">₱{med.sellingPricePerBottle?.toLocaleString()}/bottle</p>
+      </div>
+    )
+    if (med.medicineType === 'tablet') return (
+      <div className="leading-tight">
+        <p className="font-medium text-gray-900">₱{med.sellingPricePerTablet?.toLocaleString()}/tablet</p>
+        <p className="font-medium text-gray-900">₱{med.sellingPricePerBox?.toLocaleString()}/box</p>
+      </div>
+    )
+    return <span className="font-medium text-gray-900">₱{med.sellingPrice?.toLocaleString() || 0}/{med.unit}</span>
+  }
+
+  const getDefaultUnit = (med) => {
+    if (med.medicineType === 'syrup') return 'ml'
+    if (med.medicineType === 'tablet') return 'tablet'
+    return med.unit ?? 'unit'
+  }
+
+  const getPricePerUnit = (med, unit) => {
+    if (med.medicineType === 'syrup') return unit === 'bottle' ? (med.sellingPricePerBottle ?? 0) : (med.sellingPricePerMl ?? 0)
+    if (med.medicineType === 'tablet') return unit === 'box' ? (med.sellingPricePerBox ?? 0) : (med.sellingPricePerTablet ?? 0)
+    return med.sellingPrice ?? 0
   }
 
   const categories = ['All', 'Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
@@ -66,36 +117,44 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   const hasMore = displayCount < filteredMedicines.length
 
   const handleAddMedicine = (medicine) => {
-    if (medicine.stockQuantity === 0) return
-    
+    if (getTotalStock(medicine) === 0) return
     const existing = selectedMedicines.find(m => m.id === medicine.id)
-    
+    const defaultUnit = getDefaultUnit(medicine)
+    const pricePerUnit = getPricePerUnit(medicine, defaultUnit)
+
     if (existing) {
-      if (existing.quantity + 1 <= medicine.stockQuantity) {
-        setSelectedMedicines(selectedMedicines.map(m => 
-          m.id === medicine.id ? { ...m, quantity: m.quantity + 1 } : m
-        ))
-      } else {
-        alert(`Only ${medicine.stockQuantity} ${medicine.unit} available!`)
-      }
+      setSelectedMedicines(selectedMedicines.map(m =>
+        m.id === medicine.id ? { ...m, quantity: m.quantity + 1 } : m
+      ))
     } else {
-      setSelectedMedicines([...selectedMedicines, { ...medicine, quantity: 1 }])
+      setSelectedMedicines([...selectedMedicines, {
+        ...medicine,
+        quantity: 1,
+        sellUnit: defaultUnit,
+        pricePerUnit,
+        subtotal: pricePerUnit,
+        // carry stock fields for deduction later
+        mlPerBottle: medicine.mlPerBottle ?? null,
+        tabletsPerBox: medicine.tabletsPerBox ?? null,
+        bottleCount: medicine.bottleCount ?? 0,
+        looseMl: medicine.looseMl ?? 0,
+        boxCount: medicine.boxCount ?? 0,
+        looseTablets: medicine.looseTablets ?? 0,
+      }])
     }
   }
 
   const handleUpdateQuantity = (id, change) => {
     const item = selectedMedicines.find(m => m.id === id)
-    const stockItem = medicines.find(m => m.id === id)
     const newQuantity = item.quantity + change
-
     if (newQuantity <= 0) {
       handleRemoveMedicine(id)
-    } else if (newQuantity <= stockItem.stockQuantity) {
-      setSelectedMedicines(selectedMedicines.map(m => 
-        m.id === id ? { ...m, quantity: newQuantity } : m
-      ))
     } else {
-      alert(`Only ${stockItem.stockQuantity} ${stockItem.unit} available!`)
+      setSelectedMedicines(selectedMedicines.map(m =>
+        m.id === id
+          ? { ...m, quantity: newQuantity, subtotal: newQuantity * (m.pricePerUnit ?? 0) }
+          : m
+      ))
     }
   }
 
@@ -106,25 +165,30 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   const handleQuantityInputChange = (id, value) => {
     const numValue = parseInt(value)
     if (isNaN(numValue) || numValue < 1) return
+    setSelectedMedicines(selectedMedicines.map(m =>
+      m.id === id
+        ? { ...m, quantity: numValue, subtotal: numValue * (m.pricePerUnit ?? 0) }
+        : m
+    ))
+  }
 
-    const stockItem = medicines.find(m => m.id === id)
-    if (numValue <= stockItem.stockQuantity) {
-      setSelectedMedicines(selectedMedicines.map(m => 
-        m.id === id ? { ...m, quantity: numValue } : m
-      ))
-    } else {
-      alert(`Only ${stockItem.stockQuantity} ${stockItem.unit} available!`)
-    }
+  const handleSellUnitChange = (id, newUnit) => {
+    const sourceItem = medicines.find(m => m.id === id)
+    if (!sourceItem) return
+    const newPrice = getPricePerUnit(sourceItem, newUnit)
+    setSelectedMedicines(selectedMedicines.map(m =>
+      m.id === id
+        ? { ...m, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice }
+        : m
+    ))
   }
 
   const getTotalPrice = () => {
-    return selectedMedicines.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0)
+    return selectedMedicines.reduce((sum, med) => sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)), 0)
   }
 
   const handleNext = () => {
-    if (setMedicinesData) {
-      setMedicinesData(selectedMedicines)
-    }
+    if (setMedicinesData) setMedicinesData(selectedMedicines)
     onNext()
   }
 
@@ -182,6 +246,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
 
       {/* Main Content */}
       <div className="flex-1 flex gap-4 p-6 overflow-hidden">
+
         {/* Medicines Table */}
         <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-auto h-full">
@@ -206,8 +271,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {displayedMedicines.map(medicine => {
-                    const isOutOfStock = medicine.stockQuantity === 0
-                    
+                    const isOutOfStock = getTotalStock(medicine) === 0
                     return (
                       <tr key={medicine.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
@@ -215,6 +279,9 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                             {medicine.medicineName}
                             {medicine.brand && <span className="text-gray-500 ml-1">({medicine.brand})</span>}
                           </div>
+                          {medicine.medicineType && (
+                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{medicine.medicineType}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
@@ -222,14 +289,13 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={isOutOfStock ? 'text-red-600 font-medium' : 'text-gray-700'}>
-                            {medicine.stockQuantity} {medicine.unit}
-                          </span>
+                          {isOutOfStock
+                            ? <span className="text-red-600 font-medium text-xs">Out of Stock</span>
+                            : <div className="text-xs">{getStockDisplay(medicine)}</div>
+                          }
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-gray-900">
-                            ₱{medicine.sellingPrice?.toLocaleString() || 0}/{medicine.unit}
-                          </span>
+                        <td className="px-4 py-3 text-xs">
+                          {getPriceDisplay(medicine)}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
@@ -273,8 +339,11 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
           <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
             {selectedMedicines.length === 0 ? (
               <p className="text-center text-gray-400 text-xs mt-8">No medicines selected</p>
-            ) : (
-              selectedMedicines.map(medicine => (
+            ) : selectedMedicines.map(medicine => {
+              const subtotal = (medicine.pricePerUnit ?? medicine.sellingPrice ?? 0) * (medicine.quantity || 0)
+              const step = medicine.sellUnit === 'ml' ? 0.5 : 1
+
+              return (
                 <div key={medicine.id} className="bg-gray-50 rounded-lg p-2 border border-gray-200">
                   <div className="flex justify-between items-start mb-1.5">
                     <div className="flex-1">
@@ -282,47 +351,75 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                       <p className="text-xs text-gray-600">{medicine.category}</p>
                       {medicine.brand && <p className="text-xs text-gray-500">{medicine.brand}</p>}
                     </div>
-                    <button
-                      onClick={() => handleRemoveMedicine(medicine.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
+                    <button onClick={() => handleRemoveMedicine(medicine.id)} className="text-red-600 hover:text-red-700">
                       <FiX className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
+                  {/* Unit toggle for syrup / tablet */}
+                  {(medicine.medicineType === 'syrup' || medicine.medicineType === 'tablet') && (
+                    <div className="flex gap-1 mb-1.5">
+                      {medicine.medicineType === 'syrup' && (
+                        <>
+                          <button
+                            onClick={() => handleSellUnitChange(medicine.id, 'ml')}
+                            className={`flex-1 py-0.5 text-xs rounded border transition-colors ${medicine.sellUnit === 'ml' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
+                          >per ml</button>
+                          <button
+                            onClick={() => handleSellUnitChange(medicine.id, 'bottle')}
+                            className={`flex-1 py-0.5 text-xs rounded border transition-colors ${medicine.sellUnit === 'bottle' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
+                          >per bottle</button>
+                        </>
+                      )}
+                      {medicine.medicineType === 'tablet' && (
+                        <>
+                          <button
+                            onClick={() => handleSellUnitChange(medicine.id, 'tablet')}
+                            className={`flex-1 py-0.5 text-xs rounded border transition-colors ${medicine.sellUnit === 'tablet' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
+                          >per tablet</button>
+                          <button
+                            onClick={() => handleSellUnitChange(medicine.id, 'box')}
+                            className={`flex-1 py-0.5 text-xs rounded border transition-colors ${medicine.sellUnit === 'box' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}
+                          >per box</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleUpdateQuantity(medicine.id, -1)}
+                        onClick={() => handleUpdateQuantity(medicine.id, -step)}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
                       >
                         <FiMinus className="w-3 h-3" />
                       </button>
                       <input
                         type="number"
-                        min="1"
-                        step="1"
+                        min={step}
+                        step={step}
                         value={medicine.quantity}
                         onChange={(e) => handleQuantityInputChange(medicine.id, e.target.value)}
                         className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <span className="text-xs text-gray-600">{medicine.unit}</span>
+                      <span className="text-xs text-gray-600">{medicine.sellUnit ?? medicine.unit}</span>
                       <button
-                        onClick={() => handleUpdateQuantity(medicine.id, 1)}
+                        onClick={() => handleUpdateQuantity(medicine.id, step)}
                         className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
                       >
                         <FiPlus className="w-3 h-3" />
                       </button>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-semibold text-gray-900">
-                        ₱{((medicine.sellingPrice || 0) * (medicine.quantity || 0)).toLocaleString()}
-                      </p>
+                      <p className="text-xs font-semibold text-gray-900">₱{subtotal.toLocaleString()}</p>
                     </div>
                   </div>
+                  <p className="text-xs text-gray-400 mt-0.5 text-right">
+                    ₱{(medicine.pricePerUnit ?? medicine.sellingPrice ?? 0).toLocaleString()}/{medicine.sellUnit ?? medicine.unit}
+                  </p>
                 </div>
-              ))
-            )}
+              )
+            })}
           </div>
 
           <div className="p-3 border-t bg-gray-50">
@@ -330,7 +427,6 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
               <span className="text-xs font-medium text-gray-700">Total:</span>
               <span className="text-xl font-bold text-gray-900">₱{getTotalPrice().toLocaleString()}</span>
             </div>
-
             <button
               onClick={handleNext}
               className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm"

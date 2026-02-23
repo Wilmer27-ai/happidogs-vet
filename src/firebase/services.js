@@ -181,25 +181,14 @@ export const getMedicines = async () => {
   }
 };
 
-export const updateMedicine = async (medicineId, medicineData) => {
-  try {
-    const docRef = doc(db, "medicines", medicineId);
-    await updateDoc(docRef, medicineData);
-    return { id: medicineId, ...medicineData };
-  } catch (error) {
-    console.error("Error updating medicine:", error);
-    throw error;
-  }
-};
+export const updateMedicine = async (id, data) => {
+  const ref = doc(db, 'medicines', id)
+  await updateDoc(ref, data)
+}
 
-export const deleteMedicine = async (medicineId) => {
-  try {
-    await deleteDoc(doc(db, "medicines", medicineId));
-  } catch (error) {
-    console.error("Error deleting medicine:", error);
-    throw error;
-  }
-};
+export const deleteMedicine = async (id) => {
+  await deleteDoc(doc(db, 'medicines', id))
+}
 
 // ==================== FOLLOW UPS ====================
 export const addFollowUp = async (followUpData) => {
@@ -415,36 +404,22 @@ export const addStoreItem = async (itemData) => {
 
 export const getStoreItems = async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, "storeItems"));
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const snapshot = await getDocs(collection(db, "storeItems"));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error("Error getting store items:", error);
     throw error;
   }
 };
 
-export const updateStoreItem = async (itemId, itemData) => {
-  try {
-    const docRef = doc(db, "storeItems", itemId);
-    await updateDoc(docRef, itemData);
-    return { id: itemId, ...itemData };
-  } catch (error) {
-    console.error("Error updating store item:", error);
-    throw error;
-  }
-};
+export const updateStoreItem = async (id, data) => {
+  const ref = doc(db, 'storeItems', id)
+  await updateDoc(ref, data)
+}
 
-export const deleteStoreItem = async (itemId) => {
-  try {
-    await deleteDoc(doc(db, "storeItems", itemId));
-  } catch (error) {
-    console.error("Error deleting store item:", error);
-    throw error;
-  }
-};
+export const deleteStoreItem = async (id) => {
+  await deleteDoc(doc(db, 'storeItems', id))
+}
 
 // ==================== SALES ====================
 export const addSale = async (saleData) => {

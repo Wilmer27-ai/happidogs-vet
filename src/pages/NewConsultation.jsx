@@ -6,13 +6,16 @@ import DetailsStep from '../components/steps/DetailsStep'
 import MedicinesStep from '../components/steps/MedicinesStep'
 import SummaryStep from '../components/steps/SummaryStep'
 import { updatePetActivity, updateMedicine } from '../firebase/services'
+import { deductMedicineStock } from '../components/steps/MedicinesStep'
 
 function NewConsultation() {
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedClient, setSelectedClient] = useState(null)
   const [selectedPets, setSelectedPets] = useState([])
-  const [consultationData, setConsultationData] = useState(null)
+  const [consultationData, setConsultationData] = useState({
+    prescribedMedicines: [],
+  })
   const [medicinesData, setMedicinesData] = useState([])
   const [isSaving, setIsSaving] = useState(false)
   
@@ -55,6 +58,8 @@ function NewConsultation() {
       })
 
       await Promise.all(updatePromises)
+
+      await deductMedicineStock(consultationData.prescribedMedicines || [], updateMedicine)
 
       setTimeout(() => {
         setIsSaving(false)

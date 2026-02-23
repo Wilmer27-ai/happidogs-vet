@@ -28,10 +28,12 @@ function CreatePurchaseOrder() {
     unitsPerPackage: '',
     purchasePrice: '',
     sellingPrice: '',
-    // Bundle fields for store items
-    bundleQuantity: '',
-    bundlePrice: '',
-    expirationDate: ''
+    sackSellingPrice: '',
+    expirationDate: '',
+    // Medicine-specific
+    mlPerBottle: '',
+    tabletsPerBox: '',
+    medicineType: 'tablet', // tablet, syrup, vial, other
   })
 
   const medicineCategories = ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
@@ -47,50 +49,61 @@ function CreatePurchaseOrder() {
   const calculatePaymentDeadline = (orderDate, paymentTerms) => {
     const date = new Date(orderDate)
     if (paymentTerms.toLowerCase() === 'cod') return orderDate
-    
     const daysMatch = paymentTerms.match(/\d+/)
     if (daysMatch) {
       const days = parseInt(daysMatch[0])
       date.setDate(date.getDate() + days)
       return date.toISOString().split('T')[0]
     }
-    
     return orderDate
   }
 
-  // Check if current category is a food category
   const isFoodCategory = () => {
     return currentItem.itemType === 'store' && foodCategories.includes(currentItem.category)
   }
 
-  // Check if item is food category
   const isItemFoodCategory = (item) => {
     return item.itemType === 'store' && foodCategories.includes(item.category)
   }
 
+  // Medicine type helpers
+  const isSyrup = () => currentItem.itemType === 'medicine' && currentItem.medicineType === 'syrup'
+  const isTablet = () => currentItem.itemType === 'medicine' && currentItem.medicineType === 'tablet'
+  const isItemSyrup = (item) => item.itemType === 'medicine' && item.medicineType === 'syrup'
+  const isItemTablet = (item) => item.itemType === 'medicine' && item.medicineType === 'tablet'
+
   const handleAddItemToOrder = (e) => {
     e.preventDefault()
-    
-    if (!currentItem.itemName || !currentItem.quantity || !currentItem.purchasePrice || !currentItem.sellingPrice) {
-      alert('Please fill in all required fields')
-      return
-    }
+
+    if (!currentItem.itemName) { alert('Item Name is required'); return }
+    if (!currentItem.quantity) { alert('Quantity is required'); return }
+    if (!currentItem.purchasePrice) { alert('Purchase Price is required'); return }
+    if (!currentItem.sellingPrice) { alert('Selling Price is required'); return }
 
     if (currentItem.itemType === 'medicine' && !currentItem.expirationDate) {
       alert('Expiration date is required for medicines')
       return
     }
 
-    // Validate bundle: if one field is filled, both must be filled
-    if (currentItem.itemType === 'store' && !isFoodCategory()) {
-      if ((currentItem.bundleQuantity && !currentItem.bundlePrice) || (!currentItem.bundleQuantity && currentItem.bundlePrice)) {
-        alert('Please fill in both bundle quantity and bundle price, or leave both empty')
-        return
-      }
+    if (isSyrup() && !currentItem.mlPerBottle) {
+      alert('ML per bottle is required for syrup')
+      return
     }
 
-    // For food items, ensure selling unit is kg
-    const finalSellingUnit = isFoodCategory() ? 'kg' : currentItem.sellingUnit
+    if (isTablet() && !currentItem.tabletsPerBox) {
+      alert('Tablets per box/pack is required for tablets')
+      return
+    }
+
+    if (isFoodCategory() && !currentItem.packageSize) {
+      alert('KG per sack is required for food items')
+      return
+    }
+
+    if (isFoodCategory() && !currentItem.sackSellingPrice) {
+      alert('Selling price per sack is required for food items')
+      return
+    }
 
     setOrderItems([...orderItems, {
       ...currentItem,
@@ -99,9 +112,9 @@ function CreatePurchaseOrder() {
       unitsPerPackage: currentItem.unitsPerPackage ? Number(currentItem.unitsPerPackage) : null,
       purchasePrice: Number(currentItem.purchasePrice),
       sellingPrice: Number(currentItem.sellingPrice),
-      sellingUnit: finalSellingUnit,
-      bundleQuantity: currentItem.bundleQuantity ? Number(currentItem.bundleQuantity) : null,
-      bundlePrice: currentItem.bundlePrice ? Number(currentItem.bundlePrice) : null
+      sackSellingPrice: currentItem.sackSellingPrice ? Number(currentItem.sackSellingPrice) : null,
+      mlPerBottle: currentItem.mlPerBottle ? Number(currentItem.mlPerBottle) : null,
+      tabletsPerBox: currentItem.tabletsPerBox ? Number(currentItem.tabletsPerBox) : null,
     }])
 
     setCurrentItem({
@@ -118,9 +131,11 @@ function CreatePurchaseOrder() {
       unitsPerPackage: '',
       purchasePrice: '',
       sellingPrice: '',
-      bundleQuantity: '',
-      bundlePrice: '',
-      expirationDate: ''
+      sackSellingPrice: '',
+      expirationDate: '',
+      mlPerBottle: '',
+      tabletsPerBox: '',
+      medicineType: currentItem.medicineType,
     })
   }
 
@@ -138,17 +153,30 @@ function CreatePurchaseOrder() {
         packageUnit: 'kg',
         sellingUnit: '',
         unitsPerPackage: '',
-        bundleQuantity: '',
-        bundlePrice: ''
+        sackSellingPrice: '',
+        mlPerBottle: '',
+        tabletsPerBox: '',
+        medicineType: 'tablet',
+        unit: value === 'medicine' ? 'bottle' : 'sack',
+      })
+    } else if (field === 'medicineType') {
+      setCurrentItem({
+        ...currentItem,
+        medicineType: value,
+        unit: value === 'syrup' ? 'bottle' : value === 'tablet' ? 'box' : 'vial',
+        mlPerBottle: '',
+        tabletsPerBox: '',
+        sellingUnit: '',
+        unitsPerPackage: '',
       })
     } else if (field === 'category' && currentItem.itemType === 'store') {
-      // Auto-set to kg for food categories
       const isFood = foodCategories.includes(value)
       setCurrentItem({
         ...currentItem,
         category: value,
         packageUnit: isFood ? 'kg' : currentItem.packageUnit,
-        sellingUnit: '' // Clear selling unit when category changes
+        sellingUnit: '',
+        sackSellingPrice: ''
       })
     } else {
       setCurrentItem({ ...currentItem, [field]: value })
@@ -161,7 +189,7 @@ function CreatePurchaseOrder() {
 
   const handleSubmitPurchaseOrder = async (e) => {
     e.preventDefault()
-    
+
     if (orderItems.length === 0) {
       alert('Please add at least one item to the order.')
       return
@@ -189,60 +217,130 @@ function CreatePurchaseOrder() {
 
       for (const item of orderItems) {
         if (item.itemType === 'medicine') {
-          let totalStock = item.quantity
-          if (item.unitsPerPackage) {
-            totalStock = item.quantity * item.unitsPerPackage
+
+          if (isItemSyrup(item)) {
+            // SYRUP: bottleCount + looseMl (1 bottle opened on arrival)
+            const totalBottles = item.quantity
+            const mlPerBottle = item.mlPerBottle
+
+            await addMedicine({
+              medicineName: item.itemName,
+              category: item.category,
+              brand: item.brand || '',
+              description: item.description || '',
+              medicineType: 'syrup',
+              // Dual stock structure
+              bottleCount: totalBottles - 1,       // sealed bottles
+              looseMl: mlPerBottle,                // ml from 1 opened bottle
+              mlPerBottle: mlPerBottle,
+              stockQuantity: totalBottles * mlPerBottle, // total ml
+              unit: 'bottle',
+              sellingPricePerMl: item.sellingPrice,
+              sellingPricePerBottle: item.sackSellingPrice,
+              purchasePrice: item.purchasePrice,
+              expirationDate: item.expirationDate,
+              supplierId: selectedSupplier.id,
+              supplierName: selectedSupplier.supplierName,
+              createdAt: new Date().toISOString()
+            })
+
+          } else if (isItemTablet(item)) {
+            // TABLET: boxCount + looseTablets (1 box opened on arrival)
+            const totalBoxes = item.quantity
+            const tabletsPerBox = item.tabletsPerBox
+
+            await addMedicine({
+              medicineName: item.itemName,
+              category: item.category,
+              brand: item.brand || '',
+              description: item.description || '',
+              medicineType: 'tablet',
+              // Dual stock structure
+              boxCount: totalBoxes - 1,            // sealed boxes
+              looseTablets: tabletsPerBox,         // tablets from 1 opened box
+              tabletsPerBox: tabletsPerBox,
+              stockQuantity: totalBoxes * tabletsPerBox, // total tablets
+              unit: 'box',
+              sellingPricePerTablet: item.sellingPrice,
+              sellingPricePerBox: item.sackSellingPrice,
+              purchasePrice: item.purchasePrice,
+              expirationDate: item.expirationDate,
+              supplierId: selectedSupplier.id,
+              supplierName: selectedSupplier.supplierName,
+              createdAt: new Date().toISOString()
+            })
+
+          } else {
+            // VIAL / OTHER: simple stock (no split logic needed)
+            await addMedicine({
+              medicineName: item.itemName,
+              category: item.category,
+              brand: item.brand || '',
+              description: item.description || '',
+              medicineType: item.medicineType || 'other',
+              stockQuantity: item.quantity,
+              unit: item.unit,
+              sellingPrice: item.sellingPrice,
+              purchasePrice: item.purchasePrice,
+              expirationDate: item.expirationDate,
+              supplierId: selectedSupplier.id,
+              supplierName: selectedSupplier.supplierName,
+              createdAt: new Date().toISOString()
+            })
           }
 
-          await addMedicine({
-            medicineName: item.itemName,  // Changed from 'name' to 'medicineName'
-            category: item.category,
-            brand: item.brand || '',
-            description: item.description || '',
-            stockQuantity: totalStock,  // Changed from 'stock' to 'stockQuantity'
-            unit: item.sellingUnit || item.unit,
-            packageUnit: item.unit,
-            unitsPerPackage: item.unitsPerPackage || null,
-            purchasePrice: item.purchasePrice,
-            sellingPrice: item.sellingPrice,
-            expirationDate: item.expirationDate,
-            supplierId: selectedSupplier.id,
-            supplierName: selectedSupplier.supplierName,
-            createdAt: new Date().toISOString()
-          })
         } else if (item.itemType === 'store') {
-          // Calculate total stock based on whether it's food or not
-          let totalStock = item.quantity
-          let finalUnit = item.unit // Default: sell by package unit
 
-          if (isItemFoodCategory(item) && item.packageSize) {
-            // Food items: convert to kg
-            totalStock = item.quantity * item.packageSize
-            finalUnit = 'kg'
-          } else if (item.packageSize) {
-            // Non-food with package size: sell by piece
-            totalStock = item.quantity * item.packageSize
-            finalUnit = item.packageUnit || 'pcs'
+          if (isItemFoodCategory(item)) {
+            const totalSacks = item.quantity
+            const kgPerSack = item.packageSize
+            const totalKg = totalSacks * kgPerSack
+
+            await addStoreItem({
+              itemName: item.itemName,
+              category: item.category,
+              brand: item.brand || '',
+              description: item.description || '',
+              stockQuantity: totalKg,
+              sacksCount: totalSacks - 1,
+              looseKg: kgPerSack,
+              kgPerSack: kgPerSack,
+              unit: 'sack',
+              sellingPricePerKg: item.sellingPrice,
+              sellingPricePerSack: item.sackSellingPrice,
+              purchasePrice: item.purchasePrice,
+              hasBundle: false,
+              supplierId: selectedSupplier.id,
+              supplierName: selectedSupplier.supplierName,
+              createdAt: new Date().toISOString()
+            })
+
+          } else {
+            let totalStock = item.quantity
+            let finalUnit = item.unit
+
+            if (item.packageSize) {
+              totalStock = item.quantity * item.packageSize
+              finalUnit = item.packageUnit || 'pcs'
+            }
+
+            await addStoreItem({
+              itemName: item.itemName,
+              category: item.category,
+              brand: item.brand || '',
+              description: item.description || '',
+              stockQuantity: totalStock,
+              unit: finalUnit,
+              packageUnit: item.unit,
+              packageSize: item.packageSize || null,
+              purchasePrice: item.purchasePrice,
+              sellingPrice: item.sellingPrice,
+              hasBundle: false,
+              supplierId: selectedSupplier.id,
+              supplierName: selectedSupplier.supplierName,
+              createdAt: new Date().toISOString()
+            })
           }
-
-          await addStoreItem({
-            itemName: item.itemName,  // Changed from 'name' to 'itemName'
-            category: item.category,
-            brand: item.brand || '',
-            description: item.description || '',
-            stockQuantity: totalStock,  // Changed from 'stock' to 'stockQuantity'
-            unit: finalUnit,
-            packageUnit: item.unit,
-            packageSize: item.packageSize || null,
-            purchasePrice: item.purchasePrice,
-            sellingPrice: item.sellingPrice,
-            hasBundle: !!(item.bundleQuantity && item.bundlePrice),
-            bundleQuantity: item.bundleQuantity || null,
-            bundlePrice: item.bundlePrice || null,
-            supplierId: selectedSupplier.id,
-            supplierName: selectedSupplier.supplierName,
-            createdAt: new Date().toISOString()
-          })
         }
       }
 
@@ -258,7 +356,6 @@ function CreatePurchaseOrder() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Main Content - 2 Column Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT SIDE - Input Form */}
         <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
@@ -271,7 +368,7 @@ function CreatePurchaseOrder() {
             </button>
             <h3 className="font-semibold text-gray-900">Add New Item</h3>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-3">
               {/* Order Date & Payment Terms */}
@@ -312,6 +409,24 @@ function CreatePurchaseOrder() {
                   <option value="store">Store</option>
                 </select>
               </div>
+
+              {/* Medicine Type (Medicine only) */}
+              {currentItem.itemType === 'medicine' && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Medicine Form *</label>
+                  <select
+                    required
+                    value={currentItem.medicineType}
+                    onChange={(e) => handleCurrentItemChange('medicineType', e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="tablet">Tablet / Capsule</option>
+                    <option value="syrup">Syrup / Liquid</option>
+                    <option value="vial">Vial / Injectable</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              )}
 
               {/* Item Name */}
               <div>
@@ -369,98 +484,369 @@ function CreatePurchaseOrder() {
                 </div>
               )}
 
-              {/* Quantity & Package Unit */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={currentItem.quantity}
-                    onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Package Unit *</label>
-                  <select
-                    required
-                    value={currentItem.unit}
-                    onChange={(e) => handleCurrentItemChange('unit', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                  >
-                    {currentItem.itemType === 'medicine' ? (
-                      <>
-                        <option value="bottle">bottle</option>
+              {/* ── SYRUP FIELDS ── */}
+              {isSyrup() && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">No. of Bottles *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={currentItem.quantity}
+                        onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">ML per Bottle *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        step="0.01"
+                        value={currentItem.mlPerBottle}
+                        onChange={(e) => handleCurrentItemChange('mlPerBottle', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 60"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Syrup Stock Preview */}
+                  {currentItem.quantity && currentItem.mlPerBottle && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
+                      <p className="text-xs text-gray-800 font-medium mb-1">Stock Preview</p>
+                      <p className="text-xs text-gray-700">{Number(currentItem.quantity)} bottles ordered</p>
+                      <p className="text-xs text-gray-700">
+                        On save: <strong>{Number(currentItem.quantity) - 1} sealed bottles</strong> + <strong>{Number(currentItem.mlPerBottle)} ml loose</strong> (1 bottle opened)
+                      </p>
+                      <p className="text-xs text-gray-700">
+                        Total: <strong>{Number(currentItem.quantity) * Number(currentItem.mlPerBottle)} ml</strong>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Syrup Pricing */}
+                  <div className="border border-gray-200 rounded-md p-2.5 space-y-2">
+                    <p className="text-xs font-semibold text-gray-800">Pricing</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price (per bottle) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.purchasePrice}
+                        onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per bottle"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per ML *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per ml"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per Bottle *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sackSellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sackSellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per bottle"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── TABLET FIELDS ── */}
+              {isTablet() && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">No. of Boxes *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={currentItem.quantity}
+                        onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Tablets per Box *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={currentItem.tabletsPerBox}
+                        onChange={(e) => handleCurrentItemChange('tabletsPerBox', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 100"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tablet Stock Preview */}
+                  {currentItem.quantity && currentItem.tabletsPerBox && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
+                      <p className="text-xs text-gray-800 font-medium mb-1">Stock Preview</p>
+                      <p className="text-xs text-gray-700">{Number(currentItem.quantity)} boxes ordered</p>
+                      <p className="text-xs text-gray-700">
+                        On save: <strong>{Number(currentItem.quantity) - 1} sealed boxes</strong> + <strong>{Number(currentItem.tabletsPerBox)} tablets loose</strong> (1 box opened)
+                      </p>
+                      <p className="text-xs text-gray-700">
+                        Total: <strong>{Number(currentItem.quantity) * Number(currentItem.tabletsPerBox)} tablets</strong>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Tablet Pricing */}
+                  <div className="border border-gray-200 rounded-md p-2.5 space-y-2">
+                    <p className="text-xs font-semibold text-gray-800">Pricing</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price (per box) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.purchasePrice}
+                        onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per box"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per Tablet *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per tablet"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per Box *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sackSellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sackSellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per box"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── VIAL / OTHER FIELDS ── */}
+              {currentItem.itemType === 'medicine' && !isSyrup() && !isTablet() && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={currentItem.quantity}
+                        onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., 20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Unit *</label>
+                      <select
+                        value={currentItem.unit}
+                        onChange={(e) => handleCurrentItemChange('unit', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      >
                         <option value="vial">vial</option>
-                        <option value="box">box</option>
+                        <option value="ampoule">ampoule</option>
                         <option value="pack">pack</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="sack">sack</option>
+                        <option value="tube">tube</option>
+                        <option value="sachet">sachet</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.purchasePrice}
+                        onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* FOOD ITEMS */}
+              {isFoodCategory() && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">No. of Sacks *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={currentItem.quantity}
+                      onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., 10"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      KG per Sack * <span className="text-gray-500">(e.g., 25 for a 25kg sack)</span>
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      min="0.01"
+                      value={currentItem.packageSize}
+                      onChange={(e) => handleCurrentItemChange('packageSize', e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., 25"
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
+                    <p className="text-xs text-gray-800 font-medium mb-1">Stock Preview</p>
+                    <p className="text-xs text-gray-700">{Number(currentItem.quantity)} sacks ordered</p>
+                    <p className="text-xs text-gray-700">
+                      On save: <strong>{Number(currentItem.quantity) - 1} sealed sacks</strong> + <strong>{Number(currentItem.packageSize)} kg loose</strong> (1 sack opened)
+                    </p>
+                    <p className="text-xs text-gray-700">
+                      Total: <strong>{Number(currentItem.quantity) * Number(currentItem.packageSize)} kg</strong>
+                    </p>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-md p-2.5 space-y-2">
+                    <p className="text-xs font-semibold text-gray-800">Pricing</p>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price (per sack) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.purchasePrice}
+                        onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per sack"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per KG *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per kg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price per Sack *</label>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.sackSellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sackSellingPrice', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="₱ per sack"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* NON-FOOD STORE */}
+              {currentItem.itemType === 'store' && !isFoodCategory() && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        value={currentItem.quantity}
+                        onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Package Unit *</label>
+                      <select
+                        required
+                        value={currentItem.unit}
+                        onChange={(e) => handleCurrentItemChange('unit', e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      >
                         <option value="bag">bag</option>
                         <option value="box">box</option>
                         <option value="pack">pack</option>
                         <option value="pcs">pcs</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              {/* MEDICINE: Units per Package & Selling Unit */}
-              {currentItem.itemType === 'medicine' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Units/Package</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={currentItem.unitsPerPackage}
-                      onChange={(e) => handleCurrentItemChange('unitsPerPackage', e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., 100"
-                    />
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Selling Unit</label>
-                    <select
-                      value={currentItem.sellingUnit}
-                      onChange={(e) => handleCurrentItemChange('sellingUnit', e.target.value)}
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                    >
-                      <option value="">Same as package</option>
-                      <option value="tablet">per Tablet</option>
-                      <option value="capsule">per Capsule</option>
-                      <option value="ml">per ml</option>
-                      <option value="dose">per Dose</option>
-                    </select>
-                  </div>
-                </div>
-              )}
 
-              {/* STORE FOOD: KG/Package */}
-              {currentItem.itemType === 'store' && isFoodCategory() && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">KG/Package * <span className="text-blue-600">(Sold by kg)</span></label>
-                  <input
-                    type="number"
-                    required
-                    step="0.01"
-                    min="0.01"
-                    value={currentItem.packageSize}
-                    onChange={(e) => handleCurrentItemChange('packageSize', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., 25"
-                  />
-                </div>
-              )}
-
-              {/* STORE NON-FOOD: Pcs/Package & Bundle */}
-              {currentItem.itemType === 'store' && !isFoodCategory() && (
-                <>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Pcs/Package (Optional)</label>
                     <input
@@ -476,70 +862,39 @@ function CreatePurchaseOrder() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Bundle Qty</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
                       <input
                         type="number"
-                        min="2"
-                        value={currentItem.bundleQuantity}
-                        onChange={(e) => handleCurrentItemChange('bundleQuantity', e.target.value)}
+                        required
+                        min="0"
+                        step="0.01"
+                        value={currentItem.purchasePrice}
+                        onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                         className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="6"
+                        placeholder="₱"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">Bundle ₱</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price * <span className="text-xs text-gray-500">/pc</span></label>
                       <input
                         type="number"
+                        required
                         min="0"
                         step="0.01"
-                        value={currentItem.bundlePrice}
-                        onChange={(e) => handleCurrentItemChange('bundlePrice', e.target.value)}
+                        value={currentItem.sellingPrice}
+                        onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
                         className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="250"
+                        placeholder="₱"
                       />
                     </div>
                   </div>
                 </>
               )}
 
-              {/* Purchase & Selling Price */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={currentItem.purchasePrice}
-                    onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="₱"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Selling Price *
-                    <span className="text-xs text-gray-500 ml-1">
-                      ({isFoodCategory() ? '/kg' : currentItem.itemType === 'medicine' ? '/unit' : '/pc'})
-                    </span>
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={currentItem.sellingPrice}
-                    onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="₱"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Add Button - Sticky at bottom */}
+          {/* Add Button */}
           <div className="p-4 bg-white border-t border-gray-200">
             <button
               onClick={handleAddItemToOrder}
@@ -568,7 +923,6 @@ function CreatePurchaseOrder() {
               </div>
             ) : (
               <>
-                {/* Table with fixed height */}
                 <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden mb-3">
                   <div className="overflow-auto h-full">
                     <table className="w-full text-xs">
@@ -577,12 +931,10 @@ function CreatePurchaseOrder() {
                           <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Type</th>
                           <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Item Name</th>
                           <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Category</th>
-                          <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Package</th>
-                          <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Total Stock</th>
-                          <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Sell By</th>
-                          <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Purchase</th>
-                          <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Selling</th>
-                          <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Bundle</th>
+                          <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Ordered</th>
+                          <th className="px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide">Stock</th>
+                          <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Purchase Price</th>
+                          <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Selling Price</th>
                           <th className="px-2 py-2 text-right text-xs font-semibold uppercase tracking-wide">Subtotal</th>
                           <th className="px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide">Action</th>
                         </tr>
@@ -590,66 +942,138 @@ function CreatePurchaseOrder() {
                       <tbody className="divide-y divide-gray-200">
                         {orderItems.map((item, index) => {
                           const isFood = isItemFoodCategory(item)
-                          const totalStock = item.packageSize 
+                          const isMedSyrup = isItemSyrup(item)
+                          const isMedTablet = isItemTablet(item)
+
+                          // FOOD ROWS
+                          if (isFood) {
+                            const sealedSacks = item.quantity - 1
+                            const looseKg = item.packageSize
+                            return (
+                              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-2 py-2 text-xs font-medium text-gray-900">Store</td>
+                                <td className="px-2 py-2">
+                                  <span className="font-medium text-gray-900">{item.itemName}</span>
+                                  {item.brand && <span className="text-xs text-gray-500 ml-1">({item.brand})</span>}
+                                </td>
+                                <td className="px-2 py-2 text-xs text-gray-900">{item.category}</td>
+                                <td className="px-2 py-2 text-gray-900 whitespace-nowrap">{item.quantity} sacks × {item.packageSize}kg</td>
+                                <td className="px-2 py-2">
+                                  <div className="flex items-center gap-1 whitespace-nowrap">
+                                    <span className="font-semibold text-gray-900">{sealedSacks} Sack{sealedSacks !== 1 ? 's' : ''}</span>
+                                    <span className="text-gray-400">|</span>
+                                    <span className="font-semibold text-gray-900">{looseKg} Kilos</span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/sack</td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">
+                                  ₱{item.sellingPrice.toLocaleString()}/kg · ₱{item.sackSellingPrice?.toLocaleString()}/sack
+                                </td>
+                                <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
+                                <td className="px-2 py-2 text-center">
+                                  <button onClick={() => handleRemoveOrderItem(index)} className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded">
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          // SYRUP ROWS
+                          if (isMedSyrup) {
+                            const sealedBottles = item.quantity - 1
+                            const looseMl = item.mlPerBottle
+                            return (
+                              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-2 py-2 text-xs font-medium text-gray-900">Syrup</td>
+                                <td className="px-2 py-2">
+                                  <span className="font-medium text-gray-900">{item.itemName}</span>
+                                </td>
+                                <td className="px-2 py-2 text-xs text-gray-900">{item.category}</td>
+                                <td className="px-2 py-2 text-gray-900 whitespace-nowrap">{item.quantity} bottles × {item.mlPerBottle}ml</td>
+                                <td className="px-2 py-2">
+                                  <div className="flex items-center gap-1 whitespace-nowrap">
+                                    <span className="font-semibold text-gray-900">{sealedBottles} Bottle{sealedBottles !== 1 ? 's' : ''}</span>
+                                    <span className="text-gray-400">|</span>
+                                    <span className="font-semibold text-gray-900">{looseMl} ml</span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/bottle</td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">
+                                  ₱{item.sellingPrice.toLocaleString()}/ml · ₱{item.sackSellingPrice?.toLocaleString()}/bottle
+                                </td>
+                                <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
+                                <td className="px-2 py-2 text-center">
+                                  <button onClick={() => handleRemoveOrderItem(index)} className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded">
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          // TABLET ROWS
+                          if (isMedTablet) {
+                            const sealedBoxes = item.quantity - 1
+                            const looseTablets = item.tabletsPerBox
+                            return (
+                              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-2 py-2 text-xs font-medium text-gray-900">Tablet</td>
+                                <td className="px-2 py-2">
+                                  <span className="font-medium text-gray-900">{item.itemName}</span>
+                                </td>
+                                <td className="px-2 py-2 text-xs text-gray-900">{item.category}</td>
+                                <td className="px-2 py-2 text-gray-900 whitespace-nowrap">{item.quantity} boxes × {item.tabletsPerBox} tabs</td>
+                                <td className="px-2 py-2">
+                                  <div className="flex items-center gap-1 whitespace-nowrap">
+                                    <span className="font-semibold text-gray-900">{sealedBoxes} Box{sealedBoxes !== 1 ? 'es' : ''}</span>
+                                    <span className="text-gray-400">|</span>
+                                    <span className="font-semibold text-gray-900">{looseTablets} Tablets</span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/box</td>
+                                <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">
+                                  ₱{item.sellingPrice.toLocaleString()}/tab · ₱{item.sackSellingPrice?.toLocaleString()}/box
+                                </td>
+                                <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
+                                <td className="px-2 py-2 text-center">
+                                  <button onClick={() => handleRemoveOrderItem(index)} className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded">
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          }
+
+                          // VIAL / OTHER / NON-FOOD STORE ROWS
+                          const totalStock = item.packageSize
                             ? (item.quantity * item.packageSize)
-                            : item.unitsPerPackage 
-                              ? (item.quantity * item.unitsPerPackage)
-                              : item.quantity
-                          
+                            : item.quantity
+
                           return (
                             <tr key={index} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-2 py-2">
-                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                                  item.itemType === 'medicine' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {item.itemType === 'medicine' ? 'Med' : 'Store'}
-                                </span>
+                              <td className="px-2 py-2 text-xs font-medium text-gray-900">
+                                {item.itemType === 'medicine' ? (item.medicineType || 'Med') : 'Store'}
                               </td>
                               <td className="px-2 py-2">
-                                <span className="font-medium text-gray-900 text-xs">{item.itemName}</span>
+                                <span className="font-medium text-gray-900">{item.itemName}</span>
                                 {item.brand && <span className="text-xs text-gray-500 ml-1">({item.brand})</span>}
                               </td>
-                              <td className="px-2 py-2">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                  {item.category}
-                                </span>
-                              </td>
-                              <td className="px-2 py-2 text-gray-700 text-xs whitespace-nowrap">
+                              <td className="px-2 py-2 text-xs text-gray-900">{item.category}</td>
+                              <td className="px-2 py-2 text-gray-900 whitespace-nowrap">
                                 {item.quantity} {item.unit}
-                                {item.packageSize && ` × ${item.packageSize}${isFood ? 'kg' : 'pcs'}`}
-                                {item.unitsPerPackage && ` × ${item.unitsPerPackage}`}
+                                {item.packageSize && ` × ${item.packageSize}pcs`}
                               </td>
                               <td className="px-2 py-2">
-                                <span className="font-semibold text-blue-600 text-xs whitespace-nowrap">
-                                  {totalStock.toFixed(isFood ? 2 : 0)} {isFood ? 'kg' : item.unitsPerPackage ? 'units' : 'pcs'}
+                                <span className="font-semibold text-gray-900 whitespace-nowrap">
+                                  {totalStock} {item.unit}
                                 </span>
                               </td>
-                              <td className="px-2 py-2 text-gray-700 text-xs">
-                                {isFood ? 'kg' : item.sellingUnit || 'piece'}
-                              </td>
-                              <td className="px-2 py-2 text-right text-gray-900 text-xs whitespace-nowrap">
-                                ₱{item.purchasePrice.toLocaleString()}/{item.unit}
-                              </td>
-                              <td className="px-2 py-2 text-right text-gray-900 text-xs whitespace-nowrap">
-                                ₱{item.sellingPrice.toLocaleString()}/{isFood ? 'kg' : item.sellingUnit || 'pc'}
-                              </td>
-                              <td className="px-2 py-2 text-right">
-                                {item.bundleQuantity && item.bundlePrice ? (
-                                  <span className="text-blue-600 font-medium text-xs whitespace-nowrap">
-                                    {item.bundleQuantity}pcs @ ₱{item.bundlePrice.toLocaleString()}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">-</span>
-                                )}
-                              </td>
-                              <td className="px-2 py-2 text-right font-semibold text-gray-900 text-xs whitespace-nowrap">
-                                ₱{(item.purchasePrice * item.quantity).toLocaleString()}
-                              </td>
+                              <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/{item.unit}</td>
+                              <td className="px-2 py-2 text-right text-gray-900 whitespace-nowrap">₱{item.sellingPrice.toLocaleString()}/{item.unit}</td>
+                              <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
                               <td className="px-2 py-2 text-center">
-                                <button
-                                  onClick={() => handleRemoveOrderItem(index)}
-                                  className="text-red-600 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded"
-                                >
+                                <button onClick={() => handleRemoveOrderItem(index)} className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded">
                                   <FiTrash2 className="w-3.5 h-3.5" />
                                 </button>
                               </td>
