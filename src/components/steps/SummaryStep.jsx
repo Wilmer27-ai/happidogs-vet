@@ -10,7 +10,9 @@ function SummaryStep({
   onSave 
 }) {
   const getTotalPrice = () => {
-    const medicinesTotal = medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0
+    const medicinesTotal = medicinesData?.reduce((sum, med) =>
+      sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)), 0
+    ) || 0
     const consultationFee = 300 * (selectedPets?.length || 1)
     return medicinesTotal + consultationFee
   }
@@ -171,9 +173,9 @@ function SummaryStep({
                     {medicinesData.map((med, index) => (
                       <tr key={index} className="border-b border-gray-300">
                         <td className="py-2">{med.medicineName}</td>
-                        <td className="text-center py-2">{med.quantity} {med.unit}</td>
-                        <td className="text-right py-2">₱{(med.sellingPrice || 0).toLocaleString()}</td>
-                        <td className="text-right py-2">₱{((med.sellingPrice || 0) * (med.quantity || 0)).toLocaleString()}</td>
+                        <td className="text-center py-2">{med.quantity} {med.sellUnit ?? med.unit}</td>
+                        <td className="text-right py-2">₱{(med.pricePerUnit ?? med.sellingPrice ?? 0).toLocaleString()}</td>
+                        <td className="text-right py-2">₱{((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -191,7 +193,7 @@ function SummaryStep({
                 </div>
                 <div className="flex justify-between">
                   <span>Medications</span>
-                  <span>₱{(medicinesData?.reduce((sum, med) => sum + ((med.sellingPrice || 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}</span>
+                  <span>₱{(medicinesData?.reduce((sum, med) => sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)), 0) || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between font-bold text-base border-t-2 border-black pt-2 mt-2">
                   <span>TOTAL AMOUNT DUE</span>
