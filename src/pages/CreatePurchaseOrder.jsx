@@ -441,6 +441,18 @@ function CreatePurchaseOrder() {
                 />
               </div>
 
+              {/* Brand - shown for both medicine and store */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Brand</label>
+                <input
+                  type="text"
+                  value={currentItem.brand}
+                  onChange={(e) => handleCurrentItemChange('brand', e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Pfizer, Vetoquinol"
+                />
+              </div>
+
               {/* Category */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
@@ -455,20 +467,6 @@ function CreatePurchaseOrder() {
                   ))}
                 </select>
               </div>
-
-              {/* Brand (Store only) */}
-              {currentItem.itemType === 'store' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Brand</label>
-                  <input
-                    type="text"
-                    value={currentItem.brand}
-                    onChange={(e) => handleCurrentItemChange('brand', e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Brand name"
-                  />
-                </div>
-              )}
 
               {/* Expiry Date (Medicine only) */}
               {currentItem.itemType === 'medicine' && (

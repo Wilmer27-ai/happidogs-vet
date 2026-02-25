@@ -99,13 +99,14 @@ function Dashboard() {
       }
 
       // Upcoming follow-ups (next 30 days)
-      const thirtyDaysFromNow = new Date()
+      const thirtyDaysFromNow = new Date(today)
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-      
-      const upcomingFollowUps = consultations
+      thirtyDaysFromNow.setHours(23, 59, 59, 999)
+
+      const upcomingFollowUps = activities
         .filter(c => {
           if (!c.followUpDate) return false
-          const followUpDate = new Date(c.followUpDate)
+          const followUpDate = new Date(c.followUpDate + 'T00:00:00')
           return followUpDate >= today && followUpDate <= thirtyDaysFromNow
         })
         .map(c => {
@@ -116,8 +117,9 @@ function Dashboard() {
             clientName: c.clientName || (client ? `${client.firstName} ${client.lastName}` : 'Unknown'),
             phoneNumber: client?.phoneNumber || 'N/A',
             followUpDate: c.followUpDate,
-            activityType: c.activityType,
-            diagnosis: c.diagnosis
+            activityType: c.activityType || 'Consultation',
+            diagnosis: c.diagnosis || '',
+            followUpNote: c.followUpNote || ''
           }
         })
         .sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate))
@@ -164,10 +166,10 @@ function Dashboard() {
   }, [hasMore])
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString + 'T00:00:00')
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const compareDate = new Date(dateString)
+    const compareDate = new Date(dateString + 'T00:00:00')
     compareDate.setHours(0, 0, 0, 0)
     
     if (compareDate.getTime() === today.getTime()) return 'Today'
@@ -326,46 +328,54 @@ function Dashboard() {
                     </div>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-100 sticky top-0 z-10">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Date</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Pet</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Owner</th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Contact</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-800 whitespace-nowrap">Date</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-800">Pet</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-800">Owner</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-800">Contact</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-800">Details</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-100">
                       {displayedFollowUps.map((followUp) => (
                         <tr key={followUp.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3">
-                            <span className={`inline-block text-xs font-medium px-2.5 py-1 rounded ${
-                              formatDate(followUp.followUpDate) === 'Today' 
-                                ? 'bg-gray-200 text-gray-800'
+                          <td className="px-3 py-1.5 whitespace-nowrap">
+                            <span className={`text-xs font-semibold ${
+                              formatDate(followUp.followUpDate) === 'Today'
+                                ? 'text-blue-600'
                                 : formatDate(followUp.followUpDate) === 'Tomorrow'
-                                ? 'bg-gray-200 text-gray-800'
-                                : 'bg-gray-100 text-gray-700'
+                                ? 'text-yellow-600'
+                                : 'text-gray-800'
                             }`}>
                               {formatDate(followUp.followUpDate)}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
-                            <p className="font-semibold text-gray-900 truncate">{followUp.petName}</p>
-                            <p className="text-xs text-gray-500 truncate">{followUp.activityType}</p>
+                          <td className="px-3 py-1.5">
+                            <p className="font-semibold text-gray-900 truncate max-w-[70px]">{followUp.petName}</p>
                           </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-700 truncate">{followUp.clientName}</p>
+                          <td className="px-3 py-1.5">
+                            <p className="text-gray-800 truncate max-w-[80px]">{followUp.clientName}</p>
                           </td>
-                          <td className="px-4 py-3">
-                            <p className="text-gray-600 truncate">{followUp.phoneNumber}</p>
+                          <td className="px-3 py-1.5">
+                            <p className="text-gray-800 whitespace-nowrap">{followUp.phoneNumber}</p>
+                          </td>
+                          <td className="px-3 py-1.5">
+                            <p className="font-medium text-gray-900">{followUp.activityType}</p>
+                            {followUp.followUpNote ? (
+                              <p className="text-gray-500 truncate max-w-[140px]" title={followUp.followUpNote}>{followUp.followUpNote}</p>
+                            ) : followUp.diagnosis ? (
+                              <p className="text-gray-400 truncate max-w-[140px]" title={followUp.diagnosis}>{followUp.diagnosis}</p>
+                            ) : null}
                           </td>
                         </tr>
                       ))}
                       {hasMore && (
                         <tr ref={observerTarget}>
-                          <td colSpan="4" className="px-4 py-4 text-center">
-                            <div className="flex items-center justify-center gap-2 text-gray-500">
-                              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                          <td colSpan="5" className="px-3 py-2 text-center">
+                            <div className="flex items-center justify-center gap-2 text-gray-400">
+                              <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
                               <span className="text-xs">Loading more...</span>
                             </div>
                           </td>
