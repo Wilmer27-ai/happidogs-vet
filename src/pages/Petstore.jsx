@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock } from 'react-icons/fi'
+import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale } from '../firebase/services'
 
@@ -12,6 +12,7 @@ function PetStore() {
   const [activeCategory, setActiveCategory] = useState('All')
   const [itemType, setItemType] = useState('All')
   const [order, setOrder] = useState([])
+  const [showCart, setShowCart] = useState(false)
 
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
@@ -43,7 +44,6 @@ function PetStore() {
     ...medicines.map(med => ({ ...med, _type: 'medicine', itemName: med.medicineName }))
   ]
 
-  // ── Stock helpers ──
   const getTotalStock = (item) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return ((item.bottleCount ?? 0) * (item.mlPerBottle ?? 0)) + (item.looseMl ?? 0)
@@ -59,64 +59,37 @@ function PetStore() {
   const getStockDisplay = (item) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') {
-        const bottles = item.bottleCount ?? 0
-        const ml = item.looseMl ?? 0
-        return (
-          <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-gray-900">{bottles} Bottle{bottles !== 1 ? 's' : ''}</span>
-            <span className="text-gray-400">|</span>
-            <span className="text-gray-900">{ml} ml</span>
-          </div>
-        )
+        return <span className="text-gray-900">{item.bottleCount ?? 0}btl <span className="text-gray-300">|</span> {item.looseMl ?? 0}ml</span>
       }
       if (item.medicineType === 'tablet') {
-        const boxes = item.boxCount ?? 0
-        const tabs = item.looseTablets ?? 0
-        return (
-          <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-gray-900">{boxes} Box{boxes !== 1 ? 'es' : ''}</span>
-            <span className="text-gray-400">|</span>
-            <span className="text-gray-900">{tabs} Tablets</span>
-          </div>
-        )
+        return <span className="text-gray-900">{item.boxCount ?? 0}box <span className="text-gray-300">|</span> {item.looseTablets ?? 0}tab</span>
       }
-      return <span className="text-gray-900 whitespace-nowrap">{item.stockQuantity ?? 0} {item.unit ?? ''}</span>
+      return <span className="text-gray-900">{item.stockQuantity ?? 0} {item.unit ?? ''}</span>
     }
     if (isFood(item)) {
-      const sacks = item.sacksCount ?? 0
-      const kg = item.looseKg ?? 0
-      return (
-        <div className="flex items-center gap-1 whitespace-nowrap">
-          <span className="text-gray-900">{sacks} Sack{sacks !== 1 ? 's' : ''}</span>
-          <span className="text-gray-400">|</span>
-          <span className="text-gray-900">{kg} Kilos</span>
-        </div>
-      )
+      return <span className="text-gray-900">{item.sacksCount ?? 0}sk <span className="text-gray-300">|</span> {item.looseKg ?? 0}kg</span>
     }
-    return <span className="text-gray-900 whitespace-nowrap">{item.stockQuantity ?? 0} {item.unit ?? 'pcs'}</span>
+    return <span className="text-gray-900">{item.stockQuantity ?? 0} {item.unit ?? 'pcs'}</span>
   }
 
   const getTypeLabel = (item) => {
     if (item._type === 'medicine') {
-      return item.medicineType
-        ? item.medicineType.charAt(0).toUpperCase() + item.medicineType.slice(1)
-        : 'Medicine'
+      return item.medicineType ? item.medicineType.charAt(0).toUpperCase() + item.medicineType.slice(1) : 'Medicine'
     }
     return isFood(item) ? 'Food' : 'Store'
   }
 
-  // ── Price display ──
   const getPriceDisplay = (item) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return (
         <div className="leading-tight">
           <p className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/ml</p>
-          <p className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/bottle</p>
+          <p className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/btl</p>
         </div>
       )
       if (item.medicineType === 'tablet') return (
         <div className="leading-tight">
-          <p className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tablet</p>
+          <p className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tab</p>
           <p className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/box</p>
         </div>
       )
@@ -131,7 +104,6 @@ function PetStore() {
     return <p className="text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit ?? 'pcs'}</p>
   }
 
-  // ── Default sell unit ──
   const getDefaultSellUnit = (item) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return 'ml'
@@ -142,7 +114,6 @@ function PetStore() {
     return item.unit ?? 'pcs'
   }
 
-  // ── Get price per sell unit ──
   const getPricePerUnit = (item, unit) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return unit === 'bottle' ? (item.sellingPricePerBottle ?? 0) : (item.sellingPricePerMl ?? 0)
@@ -153,7 +124,6 @@ function PetStore() {
     return item.sellingPrice ?? 0
   }
 
-  // ── Filtering ──
   const filteredItems = allItems.filter(item => {
     const matchesSearch = item.itemName?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory
@@ -178,16 +148,13 @@ function PetStore() {
 
   useEffect(() => { setDisplayCount(20) }, [searchQuery, activeCategory, itemType])
 
-  // ── Order logic ──
   const handleAddToOrder = (item) => {
     if (isOutOfStock(item)) return
     const existing = order.find(i => i.id === item.id && i._type === item._type)
     const defaultUnit = getDefaultSellUnit(item)
     if (existing) {
       setOrder(order.map(i =>
-        (i.id === item.id && i._type === item._type)
-          ? { ...i, quantity: i.quantity + 1 }
-          : i
+        (i.id === item.id && i._type === item._type) ? { ...i, quantity: i.quantity + 1 } : i
       ))
     } else {
       setOrder([...order, {
@@ -224,25 +191,29 @@ function PetStore() {
     setOrder(order.map(i => {
       if (i.id !== id || i._type !== type) return i
       const sourceItem = allItems.find(a => a.id === id && a._type === type)
-      return {
-        ...i,
-        sellUnit: newUnit,
-        pricePerUnit: getPricePerUnit(sourceItem, newUnit),
-        quantity: 1
-      }
+      return { ...i, sellUnit: newUnit, pricePerUnit: getPricePerUnit(sourceItem, newUnit), quantity: 1 }
     }))
   }
 
-  const calculateItemTotal = (orderItem) => {
-    return (orderItem.pricePerUnit ?? 0) * orderItem.quantity
-  }
-
+  const calculateItemTotal = (orderItem) => (orderItem.pricePerUnit ?? 0) * orderItem.quantity
   const getTotalAmount = () => order.reduce((sum, i) => sum + calculateItemTotal(i), 0)
 
-  // ── Checkout / stock deduction ──
+  const handlePriceEdit = (id, type, value) => {
+    const num = parseFloat(value)
+    if (isNaN(num) || num < 0) return
+    setOrder(order.map(i =>
+      (i.id === id && i._type === type) ? { ...i, pricePerUnit: num } : i
+    ))
+  }
+
+  const handleToggleEditPrice = (id, type) => {
+    setOrder(order.map(i =>
+      (i.id === id && i._type === type) ? { ...i, editingPrice: !i.editingPrice } : i
+    ))
+  }
+
   const handleCheckout = async () => {
     if (order.length === 0) { alert('Order is empty!'); return }
-
     try {
       for (const orderItem of order) {
         const qty = orderItem.quantity
@@ -264,87 +235,58 @@ function PetStore() {
         }
         await addSale(saleData)
 
-        // ── Deduct stock ──
         if (orderItem._type === 'medicine') {
-
           if (orderItem.medicineType === 'syrup') {
             let mlToDeduct = unit === 'bottle' ? qty * (orderItem.mlPerBottle ?? 0) : qty
             let looseMl = orderItem.looseMl ?? 0
             let bottleCount = orderItem.bottleCount ?? 0
-
             if (mlToDeduct <= looseMl) {
               looseMl -= mlToDeduct
             } else {
-              mlToDeduct -= looseMl
-              looseMl = 0
+              mlToDeduct -= looseMl; looseMl = 0
               const bottlesNeeded = Math.ceil(mlToDeduct / (orderItem.mlPerBottle ?? 1))
               bottleCount = Math.max(0, bottleCount - bottlesNeeded)
               looseMl = (bottlesNeeded * (orderItem.mlPerBottle ?? 0)) - mlToDeduct
             }
-            await updateMedicine(orderItem.id, {
-              bottleCount,
-              looseMl,
-              stockQuantity: (bottleCount * (orderItem.mlPerBottle ?? 0)) + looseMl
-            })
-
+            await updateMedicine(orderItem.id, { bottleCount, looseMl, stockQuantity: (bottleCount * (orderItem.mlPerBottle ?? 0)) + looseMl })
           } else if (orderItem.medicineType === 'tablet') {
             let tabletsToDeduct = unit === 'box' ? qty * (orderItem.tabletsPerBox ?? 0) : qty
             let looseTablets = orderItem.looseTablets ?? 0
             let boxCount = orderItem.boxCount ?? 0
-
             if (tabletsToDeduct <= looseTablets) {
               looseTablets -= tabletsToDeduct
             } else {
-              tabletsToDeduct -= looseTablets
-              looseTablets = 0
+              tabletsToDeduct -= looseTablets; looseTablets = 0
               const boxesNeeded = Math.ceil(tabletsToDeduct / (orderItem.tabletsPerBox ?? 1))
               boxCount = Math.max(0, boxCount - boxesNeeded)
               looseTablets = (boxesNeeded * (orderItem.tabletsPerBox ?? 0)) - tabletsToDeduct
             }
-            await updateMedicine(orderItem.id, {
-              boxCount,
-              looseTablets,
-              stockQuantity: (boxCount * (orderItem.tabletsPerBox ?? 0)) + looseTablets
-            })
-
+            await updateMedicine(orderItem.id, { boxCount, looseTablets, stockQuantity: (boxCount * (orderItem.tabletsPerBox ?? 0)) + looseTablets })
           } else {
-            await updateMedicine(orderItem.id, {
-              stockQuantity: Math.max(0, (orderItem.stockQuantity ?? 0) - qty)
-            })
+            await updateMedicine(orderItem.id, { stockQuantity: Math.max(0, (orderItem.stockQuantity ?? 0) - qty) })
           }
-
         } else {
-          // Store item
           if (isFood(orderItem)) {
             let kgToDeduct = unit === 'sack' ? qty * (orderItem.kgPerSack ?? 0) : qty
             let looseKg = orderItem.looseKg ?? 0
             let sacksCount = orderItem.sacksCount ?? 0
-
             if (kgToDeduct <= looseKg) {
               looseKg -= kgToDeduct
             } else {
-              kgToDeduct -= looseKg
-              looseKg = 0
+              kgToDeduct -= looseKg; looseKg = 0
               const sacksNeeded = Math.ceil(kgToDeduct / (orderItem.kgPerSack ?? 1))
               sacksCount = Math.max(0, sacksCount - sacksNeeded)
               looseKg = (sacksNeeded * (orderItem.kgPerSack ?? 0)) - kgToDeduct
             }
-            await updateStoreItem(orderItem.id, {
-              sacksCount,
-              looseKg,
-              stockQuantity: (sacksCount * (orderItem.kgPerSack ?? 0)) + looseKg
-            })
-
+            await updateStoreItem(orderItem.id, { sacksCount, looseKg, stockQuantity: (sacksCount * (orderItem.kgPerSack ?? 0)) + looseKg })
           } else {
-            await updateStoreItem(orderItem.id, {
-              stockQuantity: Math.max(0, (orderItem.stockQuantity ?? 0) - qty)
-            })
+            await updateStoreItem(orderItem.id, { stockQuantity: Math.max(0, (orderItem.stockQuantity ?? 0) - qty) })
           }
         }
       }
-
       alert('Sale completed successfully!')
       setOrder([])
+      setShowCart(false)
       loadItems()
     } catch (error) {
       console.error('Error processing sale:', error)
@@ -352,22 +294,142 @@ function PetStore() {
     }
   }
 
+  // ── Cart Panel (shared between mobile modal and desktop sidebar) ──
+  const CartPanel = () => (
+    <>
+      <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm text-gray-900">Shopping Cart</h3>
+          <p className="text-xs text-gray-600">{order.length} items</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <FiShoppingBag className="w-5 h-5 text-gray-400" />
+          {/* Close button on mobile only */}
+          <button onClick={() => setShowCart(false)} className="md:hidden text-gray-500 hover:text-gray-700">
+            <FiX className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        {order.length === 0 ? (
+          <p className="text-center text-gray-400 text-xs mt-8">Cart is empty</p>
+        ) : order.map(orderItem => {
+          const itemTotal = calculateItemTotal(orderItem)
+          const step = (orderItem.sellUnit === 'ml' || orderItem.sellUnit === 'kg') ? 0.5 : 1
+          return (
+            <div key={`${orderItem._type}-${orderItem.id}`} className="bg-gray-50 rounded-lg p-2 border border-gray-200">
+              <div className="flex justify-between items-start mb-1.5">
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 text-xs">{orderItem.itemName}</p>
+                  <p className="text-xs text-gray-500">{orderItem.category} · {getTypeLabel(orderItem)}</p>
+                </div>
+                <button onClick={() => handleRemoveFromOrder(orderItem.id, orderItem._type)} className="text-red-600 hover:text-red-700">
+                  <FiX className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {((orderItem._type === 'medicine' && (orderItem.medicineType === 'syrup' || orderItem.medicineType === 'tablet')) ||
+                (orderItem._type === 'store' && isFood(orderItem))) && (
+                <div className="mb-1.5">
+                  <select
+                    value={orderItem.sellUnit}
+                    onChange={(e) => handleSellUnitChange(orderItem.id, orderItem._type, e.target.value)}
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
+                  >
+                    {orderItem._type === 'medicine' && orderItem.medicineType === 'syrup' && (<><option value="ml">per ml</option><option value="bottle">per bottle</option></>)}
+                    {orderItem._type === 'medicine' && orderItem.medicineType === 'tablet' && (<><option value="tablet">per tablet</option><option value="box">per box</option></>)}
+                    {orderItem._type === 'store' && isFood(orderItem) && (<><option value="kg">per kg</option><option value="sack">per sack</option></>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleUpdateQuantity(orderItem.id, orderItem._type, -step)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
+                    <FiMinus className="w-3 h-3" />
+                  </button>
+                  <input
+                    type="number"
+                    step={step}
+                    min={step}
+                    value={orderItem.quantity}
+                    onChange={(e) => handleQuantityInput(orderItem.id, orderItem._type, e.target.value)}
+                    className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-600">{orderItem.sellUnit}</span>
+                  <button onClick={() => handleUpdateQuantity(orderItem.id, orderItem._type, step)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
+                    <FiPlus className="w-3 h-3" />
+                  </button>
+                </div>
+                <p className="text-xs font-semibold text-gray-900">₱{itemTotal.toLocaleString()}</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-1.5 mt-1">
+                {orderItem.editingPrice ? (
+                  <>
+                    <span className="text-xs text-gray-400">₱</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={orderItem.pricePerUnit}
+                      onChange={(e) => handlePriceEdit(orderItem.id, orderItem._type, e.target.value)}
+                      className="w-20 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
+                      autoFocus
+                    />
+                    <span className="text-xs text-gray-400">/{orderItem.sellUnit}</span>
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-500">₱{orderItem.pricePerUnit?.toLocaleString()}/{orderItem.sellUnit}</span>
+                )}
+                <button
+                  onClick={() => handleToggleEditPrice(orderItem.id, orderItem._type)}
+                  className={`text-xs px-1.5 py-0.5 rounded transition-colors ${orderItem.editingPrice ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                  {orderItem.editingPrice ? 'Done' : 'Edit'}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="p-3 border-t bg-gray-50">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-xs font-medium text-gray-700">Total:</span>
+          <span className="text-xl font-bold text-gray-900">₱{getTotalAmount().toLocaleString()}</span>
+        </div>
+        <button
+          onClick={handleCheckout}
+          disabled={order.length === 0}
+          className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+        >
+          <FiShoppingBag className="w-4 h-4" />
+          Checkout
+        </button>
+      </div>
+    </>
+  )
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Pet Store</h1>
-          <button
-            onClick={() => navigate('/sales-history')}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm"
-          >
-            <FiClock className="w-4 h-4" />
-            View Sales History
-          </button>
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/sales-history')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-xs md:text-sm"
+            >
+              <FiClock className="w-4 h-4" />
+              <span className="hidden sm:inline">Sales History</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -378,19 +440,21 @@ function PetStore() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="All">All Types</option>
-            <option value="store">Store Items</option>
-            <option value="medicine">Medicines</option>
-          </select>
-          <select value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[180px]">
-            {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="All">All Types</option>
+              <option value="store">Store</option>
+              <option value="medicine">Medicine</option>
+            </select>
+            <select value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)} className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+              {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+      <div className="flex-1 flex gap-4 p-3 md:p-4 overflow-hidden">
 
         {/* Items Table */}
         <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col">
@@ -413,13 +477,13 @@ function PetStore() {
               <table className="w-full text-xs">
                 <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Item</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Brand</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Type</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Price</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider">Action</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Item</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden sm:table-cell">Brand</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden md:table-cell">Type</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden md:table-cell">Category</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Stock</th>
+                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Price</th>
+                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wider">Add</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -429,24 +493,23 @@ function PetStore() {
                       <tr key={`${item._type}-${item.id}`} className={`hover:bg-gray-50 transition-colors ${out ? 'opacity-50' : ''}`}>
                         <td className="px-3 py-1.5">
                           <span className={`font-medium ${out ? 'text-red-500' : 'text-gray-900'}`}>{item.itemName || 'N/A'}</span>
+                          {/* Show brand/category on mobile inline */}
+                          <p className="text-gray-400 sm:hidden text-xs">{item.brand || item.category}</p>
                         </td>
-                        <td className="px-3 py-1.5 text-gray-900">
+                        <td className="px-3 py-1.5 text-gray-900 hidden sm:table-cell">
                           {item.brand || <span className="text-gray-400 italic">—</span>}
                         </td>
-                        <td className="px-3 py-1.5 text-gray-900 whitespace-nowrap">{getTypeLabel(item)}</td>
-                        <td className="px-3 py-1.5 text-gray-900">{item.category || 'N/A'}</td>
+                        <td className="px-3 py-1.5 text-gray-900 hidden md:table-cell">{getTypeLabel(item)}</td>
+                        <td className="px-3 py-1.5 text-gray-900 hidden md:table-cell">{item.category || 'N/A'}</td>
                         <td className="px-3 py-1.5">
-                          {out
-                            ? <span className="text-red-500 font-medium">Out of Stock</span>
-                            : getStockDisplay(item)
-                          }
+                          {out ? <span className="text-red-500 font-medium">Out</span> : getStockDisplay(item)}
                         </td>
                         <td className="px-3 py-1.5">{getPriceDisplay(item)}</td>
                         <td className="px-3 py-1.5 text-right">
                           <button
-                            onClick={() => handleAddToOrder(item)}
+                            onClick={() => { handleAddToOrder(item); setShowCart(true) }}
                             disabled={out}
-                            className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors"
+                            className="px-2.5 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors"
                           >
                             Add
                           </button>
@@ -470,104 +533,36 @@ function PetStore() {
           </div>
         </div>
 
-        {/* Cart Sidebar */}
-        <div className="w-96 bg-white rounded-lg border border-gray-200 flex flex-col">
-          <div className="p-3 border-b bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-sm text-gray-900">Shopping Cart</h3>
-                <p className="text-xs text-gray-600">{order.length} items</p>
-              </div>
-              <FiShoppingBag className="w-5 h-5 text-gray-400" />
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-            {order.length === 0 ? (
-              <p className="text-center text-gray-400 text-xs mt-8">Cart is empty</p>
-            ) : order.map(orderItem => {
-              const itemTotal = calculateItemTotal(orderItem)
-              const step = (orderItem.sellUnit === 'ml' || orderItem.sellUnit === 'kg') ? 0.5 : 1
-
-              return (
-                <div key={`${orderItem._type}-${orderItem.id}`} className="bg-gray-50 rounded-lg p-2 border border-gray-200">
-                  <div className="flex justify-between items-start mb-1.5">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900 text-xs">{orderItem.itemName}</p>
-                      <p className="text-xs text-gray-500">{orderItem.category} · {getTypeLabel(orderItem)}</p>
-                    </div>
-                    <button onClick={() => handleRemoveFromOrder(orderItem.id, orderItem._type)} className="text-red-600 hover:text-red-700">
-                      <FiX className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Sell unit selector for syrup / tablet / food */}
-                  {((orderItem._type === 'medicine' && (orderItem.medicineType === 'syrup' || orderItem.medicineType === 'tablet')) ||
-                    (orderItem._type === 'store' && isFood(orderItem))) && (
-                    <div className="flex gap-1 mb-1.5">
-                      {orderItem._type === 'medicine' && orderItem.medicineType === 'syrup' && (
-                        <>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'ml')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'ml' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per ml</button>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'bottle')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'bottle' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per bottle</button>
-                        </>
-                      )}
-                      {orderItem._type === 'medicine' && orderItem.medicineType === 'tablet' && (
-                        <>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'tablet')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'tablet' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per tablet</button>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'box')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'box' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per box</button>
-                        </>
-                      )}
-                      {orderItem._type === 'store' && isFood(orderItem) && (
-                        <>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'kg')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'kg' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per kg</button>
-                          <button onClick={() => handleSellUnitChange(orderItem.id, orderItem._type, 'sack')} className={`flex-1 py-0.5 text-xs rounded border transition-colors ${orderItem.sellUnit === 'sack' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300 text-gray-700'}`}>per sack</button>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleUpdateQuantity(orderItem.id, orderItem._type, -step)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
-                        <FiMinus className="w-3 h-3" />
-                      </button>
-                      <input
-                        type="number"
-                        step={step}
-                        min={step}
-                        value={orderItem.quantity}
-                        onChange={(e) => handleQuantityInput(orderItem.id, orderItem._type, e.target.value)}
-                        className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                      <span className="text-xs text-gray-600">{orderItem.sellUnit}</span>
-                      <button onClick={() => handleUpdateQuantity(orderItem.id, orderItem._type, step)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
-                        <FiPlus className="w-3 h-3" />
-                      </button>
-                    </div>
-                    <p className="text-xs font-semibold text-gray-900">₱{itemTotal.toLocaleString()}</p>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5 text-right">₱{orderItem.pricePerUnit?.toLocaleString()}/{orderItem.sellUnit}</p>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="p-3 border-t bg-gray-50">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-medium text-gray-700">Total:</span>
-              <span className="text-xl font-bold text-gray-900">₱{getTotalAmount().toLocaleString()}</span>
-            </div>
-            <button
-              onClick={handleCheckout}
-              disabled={order.length === 0}
-              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
-            >
-              <FiShoppingBag className="w-4 h-4" />
-              Checkout
-            </button>
-          </div>
+        {/* Cart — Desktop Sidebar */}
+        <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col">
+          <CartPanel />
         </div>
       </div>
+
+      {/* Mobile Cart FAB */}
+      <div className="md:hidden fixed bottom-5 right-5 z-40">
+        <button
+          onClick={() => setShowCart(true)}
+          className="relative w-14 h-14 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-green-700 active:scale-95 transition-all"
+        >
+          <FiShoppingCart className="w-6 h-6" />
+          {order.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+              {order.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Mobile Cart Drawer */}
+      {showCart && (
+        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
+          <div className="relative bg-white rounded-t-2xl flex flex-col max-h-[85vh]">
+            <CartPanel />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
