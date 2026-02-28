@@ -512,3 +512,104 @@ export const deleteExpense = async (expenseId) => {
     throw error;
   }
 };
+
+export const savePetActivity = async (activityData) => {
+  const { collection, addDoc } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  const docRef = await addDoc(collection(db, 'petActivities'), {
+    ...activityData,
+    createdAt: new Date().toISOString()
+  })
+  return { id: docRef.id, ...activityData }
+}
+
+export const saveConsultationSession = async (consultationId, { clientId, clientName, date, petIds }) => {
+  const { collection, addDoc } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  await addDoc(collection(db, 'consultations'), {
+    consultationId,
+    clientId,
+    clientName,
+    date,
+    petIds,
+    createdAt: new Date().toISOString()
+  })
+}
+
+export const getConsultations = async () => {
+  const { collection, getDocs, orderBy, query } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  const q = query(collection(db, 'consultations'), orderBy('createdAt', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+}
+
+export const deleteConsultation = async (id) => {
+  const { doc, deleteDoc } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  await deleteDoc(doc(db, 'consultations', id))
+}
+
+export const deductMedicineStock = async (medicineId, quantity, unit, medicine) => {
+  const { doc, updateDoc } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  const ref = doc(db, 'medicines', medicineId)
+
+  let updates = {}
+
+  if (medicine.medicineType === 'syrup') {
+    if (unit === 'bottle') {
+      const totalMl = quantity * (medicine.mlPerBottle ?? 0)
+      let looseMl = (medicine.looseMl ?? 0) - totalMl
+      let bottleCount = medicine.bottleCount ?? 0
+      while (looseMl < 0 && bottleCount > 0) {
+        bottleCount -= 1
+        looseMl += medicine.mlPerBottle ?? 0
+      }
+      updates = { bottleCount: Math.max(0, bottleCount), looseMl: Math.max(0, looseMl) }
+    } else {
+      // per ml
+      let looseMl = (medicine.looseMl ?? 0) - quantity
+      let bottleCount = medicine.bottleCount ?? 0
+      while (looseMl < 0 && bottleCount > 0) {
+        bottleCount -= 1
+        looseMl += medicine.mlPerBottle ?? 0
+      }
+      updates = { bottleCount: Math.max(0, bottleCount), looseMl: Math.max(0, looseMl) }
+    }
+  } else if (medicine.medicineType === 'tablet') {
+    if (unit === 'box') {
+      const totalTabs = quantity * (medicine.tabletsPerBox ?? 0)
+      let looseTablets = (medicine.looseTablets ?? 0) - totalTabs
+      let boxCount = medicine.boxCount ?? 0
+      while (looseTablets < 0 && boxCount > 0) {
+        boxCount -= 1
+        looseTablets += medicine.tabletsPerBox ?? 0
+      }
+      updates = { boxCount: Math.max(0, boxCount), looseTablets: Math.max(0, looseTablets) }
+    } else {
+      // per tablet
+      let looseTablets = (medicine.looseTablets ?? 0) - quantity
+      let boxCount = medicine.boxCount ?? 0
+      while (looseTablets < 0 && boxCount > 0) {
+        boxCount -= 1
+        looseTablets += medicine.tabletsPerBox ?? 0
+      }
+      updates = { boxCount: Math.max(0, boxCount), looseTablets: Math.max(0, looseTablets) }
+    }
+  } else {
+    updates = { stockQuantity: Math.max(0, (medicine.stockQuantity ?? 0) - quantity) }
+  }
+
+  await updateDoc(ref, updates)
+}
+
+export const saveSalesRecord = async (saleData) => {
+  const { collection, addDoc } = await import('firebase/firestore')
+  const { db } = await import('./config')
+  const docRef = await addDoc(collection(db, 'sales'), {
+    ...saleData,
+    createdAt: new Date().toISOString()
+  })
+  return { id: docRef.id, ...saleData }
+}

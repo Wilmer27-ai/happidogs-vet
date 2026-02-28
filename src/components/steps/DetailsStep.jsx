@@ -775,9 +775,12 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                       <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
                         <input type="checkbox"
                           checked={selectedActivities.length === activities.length && activities.length > 0}
-                          onChange={() => selectedActivities.length === activities.length ? setSelectedActivities([]) : setSelectedActivities(activities.map(a => a.id))}
+                          onChange={() => selectedActivities.length === activities.length
+                            ? setSelectedActivities([])
+                            : setSelectedActivities(activities.map(a => a.id))}
                           className="w-3.5 h-3.5 rounded" />
                       </th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Pet</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Date</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Type</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600 hidden md:table-cell">Vitals</th>
@@ -790,11 +793,11 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   <tbody>
                     {selectedPets.map((pet) => {
                       const petActivities = activities.filter(a => a.petId === pet.id)
-                      if (petActivities.length === 0) return null
                       return (
                         <>
-                          <tr key={`pet-header-${pet.id}`}>
-                            <td colSpan="8" className="px-3 py-1.5 bg-gray-100 border border-gray-300">
+                          {/* Pet group header */}
+                          <tr key={`header-${pet.id}`}>
+                            <td colSpan="9" className="px-3 py-1.5 bg-gray-100 border border-gray-300">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{pet.name}</span>
                                 <span className="text-xs text-gray-400">{pet.species} · {pet.breed}</span>
@@ -802,60 +805,75 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                               </div>
                             </td>
                           </tr>
-                          {petActivities.map((activity, index) => (
-                            <tr key={activity.id} onClick={() => toggleActivitySelection(activity.id)}
-                              className={`cursor-pointer transition-colors ${selectedActivities.includes(activity.id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
-                              <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
-                                <input type="checkbox" checked={selectedActivities.includes(activity.id)} onChange={() => toggleActivitySelection(activity.id)} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
-                                {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200">
-                                <span className="text-xs font-medium text-gray-800">{activity.activityType}</span>
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden md:table-cell">
-                                {activity.weight && <div>Wt: {activity.weight} kg</div>}
-                                {activity.temperature && <div>Temp: {activity.temperature}°C</div>}
-                                {!activity.weight && !activity.temperature && <span className="text-gray-400">—</span>}
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden lg:table-cell max-w-[180px]">
-                                {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
-                                {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
-                                {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">—</span>}
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden xl:table-cell">
-                                {activity.medicines?.length > 0 ? activity.medicines.map((med, idx) => (
-                                  <div key={idx}>
-                                    <span className="font-medium text-gray-800">{med.medicineName}</span>
-                                    <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
-                                  </div>
-                                )) : <span className="text-gray-400">—</span>}
-                              </td>
-                              <td className="px-3 py-2.5 border border-gray-200 hidden sm:table-cell">
-                                {activity.followUpDate ? (
-                                  <div>
-                                    <p className="whitespace-nowrap font-medium text-gray-800">
-                                      {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </p>
-                                    {activity.followUpNote
-                                      ? <p className="text-xs text-gray-500 mt-0.5 max-w-[160px]" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{activity.followUpNote}</p>
-                                      : <p className="text-xs text-gray-400 mt-0.5">No notes</p>
-                                    }
-                                  </div>
-                                ) : <span className="text-gray-400">—</span>}
-                              </td>
-                              <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
-                                <button
-                                  onClick={() => handleDeleteActivity(activity.id)}
-                                  className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"
-                                  title="Delete activity"
-                                >
-                                  <FiTrash2 className="w-3.5 h-3.5" />
-                                </button>
+
+                          {/* Activities for this pet */}
+                          {petActivities.length === 0 ? (
+                            <tr key={`empty-${pet.id}`}>
+                              <td colSpan="9" className="px-3 py-2.5 text-center text-gray-400 border border-gray-200">
+                                No activities yet
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            petActivities.map((activity, index) => (
+                              <tr key={activity.id || `${pet.id}-${index}`}
+                                className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors cursor-pointer`}
+                                onClick={() => toggleActivitySelection(activity.id)}>
+                                <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                                  <input type="checkbox"
+                                    checked={selectedActivities.includes(activity.id)}
+                                    onChange={() => toggleActivitySelection(activity.id)}
+                                    className="w-3.5 h-3.5 text-blue-600 rounded" />
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">{pet.name}</td>
+                                <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
+                                  {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200">
+                                  <span className="text-xs font-medium text-gray-800">{activity.activityType}</span>
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden md:table-cell">
+                                  {activity.weight && <div>Wt: {activity.weight} kg</div>}
+                                  {activity.temperature && <div>Temp: {activity.temperature}°C</div>}
+                                  {!activity.weight && !activity.temperature && <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden lg:table-cell max-w-[180px]">
+                                  {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
+                                  {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
+                                  {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden xl:table-cell">
+                                  {activity.medicines?.length > 0
+                                    ? activity.medicines.map((med, idx) => (
+                                      <div key={idx}>
+                                        <span className="font-medium text-gray-800">{med.medicineName}</span>
+                                        <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
+                                      </div>
+                                    ))
+                                    : <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-3 py-2.5 border border-gray-200 hidden sm:table-cell">
+                                  {activity.followUpDate ? (
+                                    <div>
+                                      <p className="whitespace-nowrap font-medium text-gray-800">
+                                        {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      </p>
+                                      {activity.followUpNote
+                                        ? <p className="text-xs text-gray-500 mt-0.5 max-w-[160px] break-words">{activity.followUpNote}</p>
+                                        : <p className="text-xs text-gray-400 mt-0.5">No notes</p>}
+                                    </div>
+                                  ) : <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => handleDeleteActivity(activity.id)}
+                                    className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"
+                                    title="Delete activity">
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </>
                       )
                     })}
@@ -875,8 +893,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
         <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
         <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
-      </div>
+      </div> {/* end flex-1 flex */}
 
+      {/* Only keep these ONCE — remove the duplicates below */}
       <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
       <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
     </div>
