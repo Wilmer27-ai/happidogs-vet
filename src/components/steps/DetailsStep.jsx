@@ -1,7 +1,7 @@
 // src/components/steps/DetailsStep.jsx
 import { useState, useEffect } from 'react'
-import { FiPlus, FiSearch, FiX, FiPackage, FiMinus } from 'react-icons/fi'
-import { getClients, getPets, addPetActivity, getPetActivities, getMedicines } from '../../firebase/services'
+import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2 } from 'react-icons/fi'
+import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
 
@@ -97,37 +97,35 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
               <p className="text-sm text-gray-400">{search ? 'No medicines found' : 'No medicines available'}</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-2 w-10"></th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide">Medicine</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide hidden sm:table-cell">Category</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide hidden sm:table-cell">Stock</th>
+                  <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
+                    <input type="checkbox"
+                      checked={checked.length === filtered.length && filtered.length > 0}
+                      onChange={() => checked.length === filtered.length ? setChecked([]) : setChecked(filtered.map(m => m.id))}
+                      className="w-3.5 h-3.5 rounded" />
+                  </th>
+                  <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Medicine</th>
+                  <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Type</th>
+                  <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Category</th>
+                  <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Stock</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map(med => {
-                  const isChecked = checked.includes(med.id)
-                  return (
-                    <tr key={med.id} onClick={() => toggleCheck(med.id)}
-                      className={`cursor-pointer transition-colors ${isChecked ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                      <td className="px-4 py-2.5 text-center">
-                        <input type="checkbox" checked={isChecked} onChange={() => toggleCheck(med.id)}
-                          onClick={e => e.stopPropagation()}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300" />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <p className="font-medium text-gray-900 text-sm">{med.medicineName}</p>
-                        <p className="text-xs text-gray-500 capitalize">{med.medicineType}</p>
-                      </td>
-                      <td className="px-4 py-2.5 hidden sm:table-cell">
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">{med.category}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-gray-500 hidden sm:table-cell">{getStockLabel(med)}</td>
-                    </tr>
-                  )
-                })}
+              <tbody>
+                {filtered.map((med, index) => (
+                  <tr key={med.id}
+                    onClick={() => toggleCheck(med.id)}
+                    className={`cursor-pointer transition-colors ${checked.includes(med.id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                    <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={checked.includes(med.id)} onChange={() => toggleCheck(med.id)} className="w-3.5 h-3.5 text-blue-600 rounded" />
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">{med.medicineName}</td>
+                    <td className="px-3 py-2.5 border border-gray-200 text-gray-600 capitalize">{med.medicineType}</td>
+                    <td className="px-3 py-2.5 border border-gray-200 text-gray-600">{med.category}</td>
+                    <td className="px-3 py-2.5 border border-gray-200 text-gray-600">{getStockLabel(med)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -360,6 +358,18 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const toggleActivitySelection = (id) =>
     setSelectedActivities(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
+  const handleDeleteActivity = async (activityId) => {
+    if (!window.confirm('Are you sure you want to delete this activity?')) return
+    try {
+      await deletePetActivity(activityId)
+      setActivities(prev => prev.filter(a => a.id !== activityId))
+      setSelectedActivities(prev => prev.filter(id => id !== activityId))
+    } catch (e) {
+      console.error(e)
+      alert('Failed to delete activity.')
+    }
+  }
+
   const activityTypeColors = {
     Consultation: 'text-black',
     Vaccination: 'text-black',
@@ -402,7 +412,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   onChange={(e) => { setClientSearchQuery(e.target.value); setShowClientDropdown(true); if (!e.target.value) onSelectClient(null) }}
                   onFocus={() => setShowClientDropdown(true)}
                   placeholder="Search client..."
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8" />
+                {selectedClient && (
+                  <button type="button"
+                    onClick={() => { onSelectClient(null); setClientSearchQuery('') }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                    <FiX className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {showClientDropdown && (
                   <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto" style={{ zIndex: 51 }}>
                     <button type="button" onClick={() => { setIsAddClientModalOpen(true); setShowClientDropdown(false) }}
@@ -419,17 +436,6 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </div>
                 )}
               </div>
-              {selectedClient && (
-                <div className="mt-1 flex items-center justify-between bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md">
-                  <div>
-                    <p className="text-xs font-semibold text-blue-900">{selectedClient.firstName} {selectedClient.lastName}</p>
-                    <p className="text-xs text-blue-600">{selectedClient.phoneNumber}</p>
-                  </div>
-                  <button type="button" onClick={() => { onSelectClient(null); setClientSearchQuery('') }} className="text-gray-400 hover:text-red-500">
-                    <FiX className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Pets */}
@@ -437,13 +443,26 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Select Pets {selectedPets.length > 0 && <span className="text-gray-400 font-normal">({selectedPets.length})</span>}
               </label>
-              <div className="relative">
+              <div className={`border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 ${!selectedClient ? 'bg-gray-100' : 'bg-white'}`}>
+                {/* Selected pet tags inside the box */}
+                {selectedPets.length > 0 && (
+                  <div className="flex flex-wrap gap-1 px-2 pt-2">
+                    {selectedPets.map(pet => (
+                      <span key={pet.id} className="inline-flex items-center gap-1 bg-blue-100 border border-blue-200 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
+                        {pet.name}
+                        <button type="button" onClick={() => togglePetSelection(pet)} className="text-blue-400 hover:text-red-500">
+                          <FiX className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <input type="text" value={petSearchQuery}
                   onChange={(e) => { setPetSearchQuery(e.target.value); setShowPetDropdown(true) }}
                   onFocus={() => { if (selectedClient) setShowPetDropdown(true) }}
                   disabled={!selectedClient}
-                  placeholder={selectedClient ? 'Search and select pets...' : 'Select an owner first'}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400" />
+                  placeholder={selectedClient ? selectedPets.length > 0 ? 'Add more pets...' : 'Search and select pets...' : 'Select an owner first'}
+                  className="w-full px-3 py-1.5 text-sm bg-transparent focus:outline-none disabled:cursor-not-allowed disabled:text-gray-400" />
                 {showPetDropdown && selectedClient && (
                   <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto" style={{ zIndex: 41 }}>
                     <button type="button" onClick={() => { setIsAddPetModalOpen(true); setShowPetDropdown(false) }}
@@ -464,18 +483,6 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </div>
                 )}
               </div>
-              {selectedPets.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {selectedPets.map(pet => (
-                    <span key={pet.id} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-md">
-                      {pet.name}
-                      <button type="button" onClick={() => togglePetSelection(pet)} className="text-blue-400 hover:text-red-500">
-                        <FiX className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {selectedClient && selectedPets.length > 0 && (
@@ -501,26 +508,41 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 {/* Vitals */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Vitals</label>
-                  <div className="space-y-1.5">
-                    {selectedPets.map(pet => (
-                      <div key={pet.id} className="bg-gray-50 border border-gray-200 rounded-md p-2.5">
-                        <p className="text-xs font-semibold text-gray-800 mb-1.5">{pet.name}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Weight (kg)</label>
-                            <input type="number" step="0.1" min="0" value={petVitals[pet.id]?.weight || ''}
-                              onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="0.0" />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-0.5">Temp (°C)</label>
-                            <input type="number" step="0.1" min="0" value={petVitals[pet.id]?.temperature || ''}
-                              onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="0.0" />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="border border-gray-200 rounded-md overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100 border-b border-gray-200">
+                        <tr>
+                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Pet</th>
+                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Weight (kg)</th>
+                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Temp (°C)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPets.map((pet, index) => (
+                          <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-2.5 py-1.5 font-semibold text-gray-800 whitespace-nowrap">{pet.name}</td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number" step="0.1" min="0"
+                                value={petVitals[pet.id]?.weight || ''}
+                                onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
+                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number" step="0.1" min="0"
+                                value={petVitals[pet.id]?.temperature || ''}
+                                onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
+                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -717,8 +739,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         </div>
 
         {/* ── RIGHT PANEL — Activities ── */}
-        <div className={`${!showForm ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50 min-w-0`}>
-          <div className="px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
+        <div className={`${!showForm ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50 min-w-0 overflow-hidden`}>
+          <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="font-semibold text-gray-900">Pet Consultations</h3>
               {selectedPets.length > 0 && activities.length > 0 && (
@@ -732,7 +754,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
             )}
           </div>
 
-          <div className="flex-1 p-6 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {!selectedClient || selectedPets.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-gray-400 text-sm">Select owner and pet(s) to view activities</p>
@@ -746,89 +768,113 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <p className="text-gray-400 text-sm">No activities yet. Add one using the form.</p>
               </div>
             ) : (
-              <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
-                <div className="overflow-auto h-full">
-                  <table className="w-full text-xs">
-                      <thead className="bg-gray-900 text-white sticky top-0 z-10">
-                        <tr>
-                          <th className="px-2 py-2.5 text-center w-8">
-                            <input type="checkbox"
-                              checked={selectedActivities.length === activities.length && activities.length > 0}
-                              onChange={() => selectedActivities.length === activities.length ? setSelectedActivities([]) : setSelectedActivities(activities.map(a => a.id))}
-                              className="w-3.5 h-3.5 rounded" />
-                          </th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Pet</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Date</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Type</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide hidden md:table-cell">Vitals</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide hidden lg:table-cell">Details</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide hidden xl:table-cell">Medicines</th>
-                          <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide hidden sm:table-cell">Follow-up</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {activities.map((activity) => (
-                          <tr key={activity.id} onClick={() => toggleActivitySelection(activity.id)}
-                            className={`cursor-pointer transition-colors ${selectedActivities.includes(activity.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                            <td className="px-2 py-2.5 text-center" onClick={e => e.stopPropagation()}>
-                              <input type="checkbox" checked={selectedActivities.includes(activity.id)} onChange={() => toggleActivitySelection(activity.id)} className="w-3.5 h-3.5 text-blue-600 rounded" />
-                            </td>
-                            <td className="px-3 py-2.5 font-medium text-gray-900">{activity.petName}</td>
-                            <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">
-                              {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${activityTypeColors[activity.activityType] ?? 'bg-gray-100 text-gray-700'}`}>
-                                {activity.activityType}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-gray-600 hidden md:table-cell">
-                              {activity.weight && <div>Wt: {activity.weight} kg</div>}
-                              {activity.temperature && <div>Temp: {activity.temperature}°C</div>}
-                              {!activity.weight && !activity.temperature && <span className="text-gray-400">—</span>}
-                            </td>
-                            <td className="px-3 py-2.5 text-gray-600 hidden lg:table-cell max-w-[180px]">
-                              {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
-                              {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
-                              {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">—</span>}
-                            </td>
-                            <td className="px-3 py-2.5 text-gray-600 hidden xl:table-cell">
-                              {activity.medicines?.length > 0 ? activity.medicines.map((med, idx) => (
-                                <div key={idx}>
-                                  <span className="font-medium text-gray-800">{med.medicineName}</span>
-                                  <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
-                                </div>
-                              )) : <span className="text-gray-400">—</span>}
-                            </td>
-                            <td className="px-3 py-2.5 hidden sm:table-cell">
-                              {activity.followUpDate ? (
-                                <div>
-                                  <p className="whitespace-nowrap font-medium text-gray-800">
-                                    {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  </p>
-                                  {activity.followUpNote
-                                    ? <p className="text-xs text-gray-500 mt-0.5 max-w-[160px]" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{activity.followUpNote}</p>
-                                    : <p className="text-xs text-gray-400 mt-0.5">No notes</p>
-                                  }
-                                </div>
-                              ) : <span className="text-gray-400">—</span>}
+              <div className="flex-1 overflow-auto min-h-0">
+                <table className="w-full text-xs border-collapse">
+                  <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
+                    <tr>
+                      <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
+                        <input type="checkbox"
+                          checked={selectedActivities.length === activities.length && activities.length > 0}
+                          onChange={() => selectedActivities.length === activities.length ? setSelectedActivities([]) : setSelectedActivities(activities.map(a => a.id))}
+                          className="w-3.5 h-3.5 rounded" />
+                      </th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Date</th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Type</th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600 hidden md:table-cell">Vitals</th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600 hidden lg:table-cell">Details</th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600 hidden xl:table-cell">Medicines</th>
+                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600 hidden sm:table-cell">Follow-up</th>
+                      <th className="px-2 py-2.5 text-center border border-gray-600 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedPets.map((pet) => {
+                      const petActivities = activities.filter(a => a.petId === pet.id)
+                      if (petActivities.length === 0) return null
+                      return (
+                        <>
+                          <tr key={`pet-header-${pet.id}`}>
+                            <td colSpan="8" className="px-3 py-1.5 bg-gray-100 border border-gray-300">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{pet.name}</span>
+                                <span className="text-xs text-gray-400">{pet.species} · {pet.breed}</span>
+                                <span className="ml-auto text-xs text-gray-400">{petActivities.length} record{petActivities.length !== 1 ? 's' : ''}</span>
+                              </div>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                </div>
+                          {petActivities.map((activity, index) => (
+                            <tr key={activity.id} onClick={() => toggleActivitySelection(activity.id)}
+                              className={`cursor-pointer transition-colors ${selectedActivities.includes(activity.id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                              <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                                <input type="checkbox" checked={selectedActivities.includes(activity.id)} onChange={() => toggleActivitySelection(activity.id)} className="w-3.5 h-3.5 text-blue-600 rounded" />
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
+                                {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200">
+                                <span className="text-xs font-medium text-gray-800">{activity.activityType}</span>
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden md:table-cell">
+                                {activity.weight && <div>Wt: {activity.weight} kg</div>}
+                                {activity.temperature && <div>Temp: {activity.temperature}°C</div>}
+                                {!activity.weight && !activity.temperature && <span className="text-gray-400">—</span>}
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden lg:table-cell max-w-[180px]">
+                                {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
+                                {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
+                                {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">—</span>}
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden xl:table-cell">
+                                {activity.medicines?.length > 0 ? activity.medicines.map((med, idx) => (
+                                  <div key={idx}>
+                                    <span className="font-medium text-gray-800">{med.medicineName}</span>
+                                    <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
+                                  </div>
+                                )) : <span className="text-gray-400">—</span>}
+                              </td>
+                              <td className="px-3 py-2.5 border border-gray-200 hidden sm:table-cell">
+                                {activity.followUpDate ? (
+                                  <div>
+                                    <p className="whitespace-nowrap font-medium text-gray-800">
+                                      {new Date(activity.followUpDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </p>
+                                    {activity.followUpNote
+                                      ? <p className="text-xs text-gray-500 mt-0.5 max-w-[160px]" style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{activity.followUpNote}</p>
+                                      : <p className="text-xs text-gray-400 mt-0.5">No notes</p>
+                                    }
+                                  </div>
+                                ) : <span className="text-gray-400">—</span>}
+                              </td>
+                              <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => handleDeleteActivity(activity.id)}
+                                  className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"
+                                  title="Delete activity"
+                                >
+                                  <FiTrash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
-          <div className="px-6 py-3 bg-white border-t border-gray-200">
+          <div className="px-4 py-3 bg-white border-t border-gray-200 flex-shrink-0">
             <button onClick={handleContinue} disabled={selectedActivities.length === 0}
               className="w-full px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed">
               {selectedActivities.length === 0 ? 'Select activities to continue' : `Continue to Summary (${selectedActivities.length} selected)`}
             </button>
           </div>
         </div>
+
+        <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
+        <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
       </div>
 
       <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />

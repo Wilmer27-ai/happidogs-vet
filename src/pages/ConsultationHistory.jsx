@@ -137,18 +137,7 @@ function ConsultationHistory() {
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">Consultation History</h1>
-          
-          {/* Statistics */}
-          <div className="flex gap-6">
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Total Consultations</p>
-              <p className="text-lg font-semibold text-gray-900">{totalConsultations}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Total Revenue</p>
-              <p className="text-lg font-semibold text-green-600">₱{totalRevenue.toLocaleString()}</p>
-            </div>
-          </div>
+        
         </div>
 
         {/* Search & Filters */}

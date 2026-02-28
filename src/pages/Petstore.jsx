@@ -24,6 +24,13 @@ function PetStore() {
 
   const isFood = (item) => foodCategories.includes(item?.category)
 
+  const getTypeLabel = (item) => {
+    if (item._type === 'medicine') {
+      return item.medicineType ? item.medicineType.charAt(0).toUpperCase() + item.medicineType.slice(1) : 'Medicine'
+    }
+    return isFood(item) ? 'Food' : 'Store'
+  }
+
   useEffect(() => { loadItems() }, [])
 
   const loadItems = async () => {
@@ -58,50 +65,64 @@ function PetStore() {
 
   const getStockDisplay = (item) => {
     if (item._type === 'medicine') {
-      if (item.medicineType === 'syrup') {
-        return <span className="text-gray-900">{item.bottleCount ?? 0}btl <span className="text-gray-300">|</span> {item.looseMl ?? 0}ml</span>
-      }
-      if (item.medicineType === 'tablet') {
-        return <span className="text-gray-900">{item.boxCount ?? 0}box <span className="text-gray-300">|</span> {item.looseTablets ?? 0}tab</span>
-      }
-      return <span className="text-gray-900">{item.stockQuantity ?? 0} {item.unit ?? ''}</span>
+      if (item.medicineType === 'syrup') return (
+        <div className="text-xs space-y-0.5">
+          <div className="flex gap-1 items-center">
+            <span className="text-gray-900 font-medium">{item.bottleCount ?? 0}btl</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-900 font-medium">{item.looseMl ?? 0}ml</span>
+          </div>
+          <div className="text-gray-400">Total: {((item.bottleCount ?? 0) * (item.mlPerBottle ?? 0)) + (item.looseMl ?? 0)}ml</div>
+        </div>
+      )
+      if (item.medicineType === 'tablet') return (
+        <div className="text-xs space-y-0.5">
+          <div className="flex gap-1 items-center">
+            <span className="text-gray-900 font-medium">{item.boxCount ?? 0}box</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-900 font-medium">{item.looseTablets ?? 0}tab</span>
+          </div>
+          <div className="text-gray-400">Total: {((item.boxCount ?? 0) * (item.tabletsPerBox ?? 0)) + (item.looseTablets ?? 0)}tab</div>
+        </div>
+      )
+      return <span className="text-xs text-gray-900 font-medium">{item.stockQuantity ?? 0} {item.unit ?? ''}</span>
     }
-    if (isFood(item)) {
-      return <span className="text-gray-900">{item.sacksCount ?? 0}sk <span className="text-gray-300">|</span> {item.looseKg ?? 0}kg</span>
-    }
-    return <span className="text-gray-900">{item.stockQuantity ?? 0} {item.unit ?? 'pcs'}</span>
-  }
-
-  const getTypeLabel = (item) => {
-    if (item._type === 'medicine') {
-      return item.medicineType ? item.medicineType.charAt(0).toUpperCase() + item.medicineType.slice(1) : 'Medicine'
-    }
-    return isFood(item) ? 'Food' : 'Store'
+    if (isFood(item)) return (
+      <div className="text-xs space-y-0.5">
+        <div className="flex gap-1 items-center">
+          <span className="text-gray-900 font-medium">{item.sacksCount ?? 0}sk</span>
+          <span className="text-gray-300">|</span>
+          <span className="text-gray-900 font-medium">{item.looseKg ?? 0}kg</span>
+        </div>
+        <div className="text-gray-400">Total: {((item.sacksCount ?? 0) * (item.kgPerSack ?? 0)) + (item.looseKg ?? 0)}kg</div>
+      </div>
+    )
+    return <span className="text-xs text-gray-900 font-medium">{item.stockQuantity ?? 0} {item.unit ?? 'pcs'}</span>
   }
 
   const getPriceDisplay = (item) => {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return (
-        <div className="leading-tight">
-          <p className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/ml</p>
-          <p className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/btl</p>
+        <div className="text-xs space-y-0.5">
+          <div className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/ml</div>
+          <div className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/btl</div>
         </div>
       )
       if (item.medicineType === 'tablet') return (
-        <div className="leading-tight">
-          <p className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tab</p>
-          <p className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/box</p>
+        <div className="text-xs space-y-0.5">
+          <div className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tab</div>
+          <div className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/box</div>
         </div>
       )
-      return <p className="text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit}</p>
+      return <span className="text-xs text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit}</span>
     }
     if (isFood(item)) return (
-      <div className="leading-tight">
-        <p className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/kg</p>
-        <p className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/sack</p>
+      <div className="text-xs space-y-0.5">
+        <div className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/kg</div>
+        <div className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/sack</div>
       </div>
     )
-    return <p className="text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit ?? 'pcs'}</p>
+    return <span className="text-xs text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit ?? 'pcs'}</span>
   }
 
   const getDefaultSellUnit = (item) => {
@@ -294,7 +315,6 @@ function PetStore() {
     }
   }
 
-  // ── Cart Panel (shared between mobile modal and desktop sidebar) ──
   const CartPanel = () => (
     <>
       <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
@@ -304,7 +324,6 @@ function PetStore() {
         </div>
         <div className="flex items-center gap-2">
           <FiShoppingBag className="w-5 h-5 text-gray-400" />
-          {/* Close button on mobile only */}
           <button onClick={() => setShowCart(false)} className="md:hidden text-gray-500 hover:text-gray-700">
             <FiX className="w-5 h-5" />
           </button>
@@ -414,7 +433,6 @@ function PetStore() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
@@ -453,10 +471,7 @@ function PetStore() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex gap-4 p-3 md:p-4 overflow-hidden">
-
-        {/* Items Table */}
         <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col">
           <div className="overflow-auto flex-1">
             {loading ? (
@@ -474,38 +489,44 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <table className="w-full text-xs">
+              <table className="w-full text-xs border-collapse">
                 <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Item</th>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden sm:table-cell">Brand</th>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden md:table-cell">Type</th>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider hidden md:table-cell">Category</th>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Stock</th>
-                    <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider">Price</th>
-                    <th className="px-3 py-2 text-right font-semibold uppercase tracking-wider">Add</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Item</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden sm:table-cell">Brand</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden md:table-cell">Type</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden md:table-cell">Category</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Stock</th>
+                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Price</th>
+                    <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wider border border-gray-600">Add</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {displayedItems.map((item) => {
+                <tbody>
+                  {displayedItems.map((item, index) => {
                     const out = isOutOfStock(item)
                     return (
-                      <tr key={`${item._type}-${item.id}`} className={`hover:bg-gray-50 transition-colors ${out ? 'opacity-50' : ''}`}>
-                        <td className="px-3 py-1.5">
-                          <span className={`font-medium ${out ? 'text-red-500' : 'text-gray-900'}`}>{item.itemName || 'N/A'}</span>
-                          {/* Show brand/category on mobile inline */}
-                          <p className="text-gray-400 sm:hidden text-xs">{item.brand || item.category}</p>
+                      <tr
+                        key={`${item._type}-${item.id}`}
+                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${out ? 'opacity-50' : ''}`}
+                      >
+                        <td className="px-3 py-2 border border-gray-200 align-middle">
+                          <span className={`font-semibold ${out ? 'text-red-500' : 'text-gray-900'}`}>{item.itemName || 'N/A'}</span>
+                          <p className="text-gray-400 sm:hidden">{item.brand || '—'}</p>
+                          <p className="text-gray-400 md:hidden">{item.category || '—'}</p>
                         </td>
-                        <td className="px-3 py-1.5 text-gray-900 hidden sm:table-cell">
+                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-900 hidden sm:table-cell">
                           {item.brand || <span className="text-gray-400 italic">—</span>}
                         </td>
-                        <td className="px-3 py-1.5 text-gray-900 hidden md:table-cell">{getTypeLabel(item)}</td>
-                        <td className="px-3 py-1.5 text-gray-900 hidden md:table-cell">{item.category || 'N/A'}</td>
-                        <td className="px-3 py-1.5">
-                          {out ? <span className="text-red-500 font-medium">Out</span> : getStockDisplay(item)}
+                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-700 hidden md:table-cell">{getTypeLabel(item)}</td>
+                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-700 hidden md:table-cell">{item.category || '—'}</td>
+                        <td className="px-3 py-2 border border-gray-200 align-middle">
+                          {out
+                            ? <span className="text-red-500 font-semibold">Out of Stock</span>
+                            : getStockDisplay(item)
+                          }
                         </td>
-                        <td className="px-3 py-1.5">{getPriceDisplay(item)}</td>
-                        <td className="px-3 py-1.5 text-right">
+                        <td className="px-3 py-2 border border-gray-200 align-middle">{getPriceDisplay(item)}</td>
+                        <td className="px-3 py-2 border border-gray-200 align-middle text-center">
                           <button
                             onClick={() => { handleAddToOrder(item); setShowCart(true) }}
                             disabled={out}
@@ -519,7 +540,7 @@ function PetStore() {
                   })}
                   {hasMore && (
                     <tr ref={observerTarget}>
-                      <td colSpan="7" className="px-4 py-3 text-center">
+                      <td colSpan="7" className="px-4 py-3 text-center border border-gray-200">
                         <div className="flex items-center justify-center gap-2 text-gray-500">
                           <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
                           <span className="text-xs">Loading more...</span>
@@ -533,13 +554,11 @@ function PetStore() {
           </div>
         </div>
 
-        {/* Cart — Desktop Sidebar */}
         <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col">
           <CartPanel />
         </div>
       </div>
 
-      {/* Mobile Cart FAB */}
       <div className="md:hidden fixed bottom-5 right-5 z-40">
         <button
           onClick={() => setShowCart(true)}
@@ -554,7 +573,6 @@ function PetStore() {
         </button>
       </div>
 
-      {/* Mobile Cart Drawer */}
       {showCart && (
         <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
