@@ -4,7 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import Layout from './layout.jsx'
 import { AuthProvider } from './pages/AuthContext'
-import ProtectedRoute from './pages/ProtectedRoute'
+import ProtectedRoute from './pages/ProtectedRoute.jsx'
 
 // Import pages
 import Login from './pages/Login.jsx'
@@ -23,7 +23,6 @@ import Petstore from './pages/Petstore.jsx'
 import Reports from './pages/Reports.jsx'
 import SalesHistory from './pages/SalesHistory.jsx'
 import Suppliers from './pages/Suppliers.jsx'
-import ProtectedRoute from './pages/ProtectedRoute.jsx'
 
 const router = createBrowserRouter([
   {
