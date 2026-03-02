@@ -1,21 +1,20 @@
-// src/components/steps/DetailsStep.jsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2 } from 'react-icons/fi'
 import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
+import React from 'react'
 
-// ── Medicine Picker Modal ──────────────────────────────────────────────────────
-function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedicines }) {
+const ACTIVITY_TYPES = ['Consultation', 'Vaccination', 'Deworming']
+const DISPLAY_STEP = 20
+
+// ── Medicine Picker Modal ─────────────────────────────────────────────────────
+function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [checked, setChecked] = useState([])
-
-  const getMedicineFilter = () => {
-    if (activityType === 'Vaccination') return ['Vaccine']
-    if (activityType === 'Deworming') return ['Dewormer']
-    return null
-  }
+  const [displayCount, setDisplayCount] = useState(DISPLAY_STEP)
+  const observerTarget = useRef(null)
 
   const categories = ['All', 'Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
 
@@ -25,23 +24,44 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
     return `${med.stockQuantity ?? 0} ${med.unit ?? ''}`
   }
 
+  // Show ALL medicines — no activity type filter
   const filtered = allMedicines.filter(med => {
-    const categoryFilter = getMedicineFilter()
-    const matchesCategory = !categoryFilter || categoryFilter.includes(med.category)
     const matchesFilter = activeFilter === 'All' || med.category === activeFilter
-    const matchesSearch = med.medicineName?.toLowerCase().includes(search.toLowerCase())
-    return matchesCategory && matchesFilter && matchesSearch
+    const matchesSearch = !search || med.medicineName?.toLowerCase().includes(search.toLowerCase())
+    return matchesFilter && matchesSearch
   })
 
-  const toggleCheck = (id) => setChecked(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const displayed = filtered.slice(0, displayCount)
+  const hasMore = displayCount < filtered.length
+
+  // Reset display count when search or filter changes
+  useEffect(() => { setDisplayCount(DISPLAY_STEP) }, [search, activeFilter])
+
+  // Lazy loading observer
+  useEffect(() => {
+    if (!isOpen) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore) {
+          setDisplayCount(prev => prev + DISPLAY_STEP)
+        }
+      },
+      { threshold: 0.1 }
+    )
+    if (observerTarget.current) observer.observe(observerTarget.current)
+    return () => observer.disconnect()
+  }, [hasMore, isOpen])
+
+  const toggleCheck = (id) =>
+    setChecked(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
   const handleConfirm = () => {
     onConfirm(allMedicines.filter(m => checked.includes(m.id)))
-    setSearch(''); setChecked([]); setActiveFilter('All')
+    setSearch(''); setChecked([]); setActiveFilter('All'); setDisplayCount(DISPLAY_STEP)
   }
 
   const handleClose = () => {
-    setSearch(''); setChecked([]); setActiveFilter('All')
+    setSearch(''); setChecked([]); setActiveFilter('All'); setDisplayCount(DISPLAY_STEP)
     onClose()
   }
 
@@ -49,52 +69,42 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '85vh' }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ height: '80vh', maxHeight: '80vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
           <div>
             <h3 className="font-semibold text-gray-900">Select Medicines</h3>
-            {activityType !== 'Consultation' && (
-              <p className="text-xs text-gray-500 mt-0.5">
-                {activityType === 'Vaccination' ? 'Showing vaccines only' : 'Showing dewormers only'}
-              </p>
-            )}
+            <p className="text-xs text-gray-500 mt-0.5">
+              {filtered.length} medicine{filtered.length !== 1 ? 's' : ''} available
+              {checked.length > 0 && <span className="ml-2 text-blue-600 font-medium">· {checked.length} selected</span>}
+            </p>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
             <FiX className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Search + Filter row */}
-        <div className="px-5 py-3 border-b border-gray-100 flex gap-2">
+        {/* Search + Filter */}
+        <div className="px-5 py-3 border-b border-gray-100 flex gap-2 flex-shrink-0">
           <div className="relative flex-1">
             <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search medicine name..."
               className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
+              autoFocus />
           </div>
-          {activityType === 'Consultation' && (
-            <select
-              value={activeFilter}
-              onChange={(e) => setActiveFilter(e.target.value)}
-              className="w-44 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
-            >
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          )}
+          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}
+            className="w-44 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
         </div>
 
-        {/* Medicine list */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Table — fixed height, scrollable */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {filtered.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <p className="text-sm text-gray-400">{search ? 'No medicines found' : 'No medicines available'}</p>
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-gray-400">{search ? 'No medicines match your search' : 'No medicines available'}</p>
             </div>
           ) : (
             <table className="w-full text-sm border-collapse">
@@ -103,7 +113,9 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
                   <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
                     <input type="checkbox"
                       checked={checked.length === filtered.length && filtered.length > 0}
-                      onChange={() => checked.length === filtered.length ? setChecked([]) : setChecked(filtered.map(m => m.id))}
+                      onChange={() => checked.length === filtered.length
+                        ? setChecked([])
+                        : setChecked(filtered.map(m => m.id))}
                       className="w-3.5 h-3.5 rounded" />
                   </th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Medicine</th>
@@ -113,12 +125,12 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((med, index) => (
-                  <tr key={med.id}
-                    onClick={() => toggleCheck(med.id)}
+                {displayed.map((med, index) => (
+                  <tr key={med.id} onClick={() => toggleCheck(med.id)}
                     className={`cursor-pointer transition-colors ${checked.includes(med.id) ? 'bg-blue-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
                     <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={checked.includes(med.id)} onChange={() => toggleCheck(med.id)} className="w-3.5 h-3.5 text-blue-600 rounded" />
+                      <input type="checkbox" checked={checked.includes(med.id)} onChange={() => toggleCheck(med.id)}
+                        className="w-3.5 h-3.5 text-blue-600 rounded" />
                     </td>
                     <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">{med.medicineName}</td>
                     <td className="px-3 py-2.5 border border-gray-200 text-gray-600 capitalize">{med.medicineType}</td>
@@ -126,26 +138,33 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, activityType, allMedi
                     <td className="px-3 py-2.5 border border-gray-200 text-gray-600">{getStockLabel(med)}</td>
                   </tr>
                 ))}
+                {/* Lazy load trigger row */}
+                {hasMore && (
+                  <tr ref={observerTarget}>
+                    <td colSpan="5" className="px-3 py-3 text-center border border-gray-200">
+                      <div className="flex items-center justify-center gap-2 text-gray-400">
+                        <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                        <span className="text-xs">Loading more...</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between gap-3">
-          <p className="text-sm">
-            {checked.length > 0
-              ? <span className="font-medium text-blue-600">{checked.length} medicine{checked.length > 1 ? 's' : ''} selected</span>
-              : <span className="text-gray-400">No medicines selected</span>}
+        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between gap-3 flex-shrink-0">
+          <p className="text-xs text-gray-400">
+            Showing {displayed.length} of {filtered.length}
           </p>
           <div className="flex gap-2">
             <button type="button" onClick={handleClose}
-              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
-              Cancel
-            </button>
+              className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancel</button>
             <button type="button" onClick={handleConfirm} disabled={checked.length === 0}
               className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium">
-              Add Selected
+              Add {checked.length > 0 ? `${checked.length} Selected` : 'Selected'}
             </button>
           </div>
         </div>
@@ -176,6 +195,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [showForm, setShowForm] = useState(true)
   const [successMessage, setSuccessMessage] = useState('')
   const [allMedicines, setAllMedicines] = useState([])
+  const [medicinesLoaded, setMedicinesLoaded] = useState(false)
   const [selectedMedicines, setSelectedMedicines] = useState([])
   const [showMedModal, setShowMedModal] = useState(false)
 
@@ -185,45 +205,72 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const [formData, setFormData] = useState({
-    activityType: 'Consultation', date: getCurrentDate(), diagnosis: '', treatment: '',
+    activityTypes: ['Consultation'],
+    date: getCurrentDate(),
+    diagnosis: '', treatment: '',
     hasFollowUp: false, followUpDate: '', followUpNote: ''
   })
   const [petVitals, setPetVitals] = useState({})
 
-  useEffect(() => { loadClients(); loadAllMedicines() }, [])
+  useEffect(() => { loadClients() }, [])
+
   useEffect(() => {
     if (selectedClient) loadPets()
     else { setPets([]); setSelectedPets([]); onSelectPets([]) }
   }, [selectedClient])
-  useEffect(() => { if (selectedPets.length > 0) loadActivities(); else setActivities([]) }, [selectedPets])
+
+  useEffect(() => {
+    if (selectedPets.length > 0) loadActivities()
+    else setActivities([])
+  }, [selectedPets])
+
   useEffect(() => { onSelectPets(selectedPets) }, [selectedPets])
+
   useEffect(() => {
     const v = {}
     selectedPets.forEach(p => { v[p.id] = petVitals[p.id] || { weight: '', temperature: '' } })
     setPetVitals(v)
   }, [selectedPets])
-  useEffect(() => { setSelectedMedicines([]) }, [formData.activityType])
 
   const loadClients = async () => {
-    try { setClients(await getClients()) } catch (e) { console.error(e) } finally { setLoadingClients(false) }
+    try { setClients(await getClients()) }
+    catch (e) { console.error(e) }
+    finally { setLoadingClients(false) }
   }
+
   const loadPets = async () => {
     setLoadingPets(true)
-    try { const all = await getPets(); setPets(all.filter(p => p.clientId === selectedClient.id)) }
-    catch (e) { console.error(e) } finally { setLoadingPets(false) }
+    try {
+      const all = await getPets()
+      setPets(all.filter(p => p.clientId === selectedClient.id))
+    } catch (e) { console.error(e) }
+    finally { setLoadingPets(false) }
   }
+
   const loadActivities = async () => {
     setLoading(true)
     try {
       const all = []
-      for (const pet of selectedPets) { const a = await getPetActivities(pet.id); all.push(...a) }
+      for (const pet of selectedPets) {
+        const a = await getPetActivities(pet.id)
+        all.push(...a)
+      }
       all.sort((a, b) => new Date(b.date) - new Date(a.date))
       setActivities(all)
-    } catch (e) { console.error(e) } finally { setLoading(false) }
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }
-  const loadAllMedicines = async () => {
-    try { const d = await getMedicines(); setAllMedicines(d.filter(m => getTotalStock(m) > 0)) }
-    catch (e) { console.error(e) }
+
+  // ← Load medicines ONCE only when modal is first opened
+  const handleOpenMedModal = async () => {
+    if (!medicinesLoaded) {
+      try {
+        const d = await getMedicines()
+        setAllMedicines(d.filter(m => getTotalStock(m) > 0))
+        setMedicinesLoaded(true)
+      } catch (e) { console.error(e) }
+    }
+    setShowMedModal(true)
   }
 
   const getTotalStock = (med) => {
@@ -231,15 +278,30 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     if (med.medicineType === 'tablet') return ((med.boxCount ?? 0) * (med.tabletsPerBox ?? 0)) + (med.looseTablets ?? 0)
     return med.stockQuantity ?? 0
   }
+
   const getPricePerUnit = (med, unit) => {
     if (med.medicineType === 'syrup') return unit === 'bottle' ? (med.sellingPricePerBottle ?? 0) : (med.sellingPricePerMl ?? 0)
     if (med.medicineType === 'tablet') return unit === 'box' ? (med.sellingPricePerBox ?? 0) : (med.sellingPricePerTablet ?? 0)
     return med.sellingPrice ?? 0
   }
+
   const getDefaultUnit = (med) => {
     if (med.medicineType === 'syrup') return 'ml'
     if (med.medicineType === 'tablet') return 'tablet'
     return med.unit ?? 'unit'
+  }
+
+  const toggleActivityType = (type) => {
+    setFormData(prev => {
+      const exists = prev.activityTypes.includes(type)
+      if (exists && prev.activityTypes.length === 1) return prev
+      return {
+        ...prev,
+        activityTypes: exists
+          ? prev.activityTypes.filter(t => t !== type)
+          : [...prev.activityTypes, type]
+      }
+    })
   }
 
   const handleMedicineModalConfirm = (newMeds) => {
@@ -247,16 +309,23 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     const built = toAdd.map(med => {
       const defaultUnit = getDefaultUnit(med)
       const pricePerUnit = getPricePerUnit(med, defaultUnit)
-      return { ...med, quantity: 1, sellUnit: defaultUnit, pricePerUnit, subtotal: pricePerUnit,
-        mlPerBottle: med.mlPerBottle ?? null, tabletsPerBox: med.tabletsPerBox ?? null,
-        bottleCount: med.bottleCount ?? 0, looseMl: med.looseMl ?? 0,
-        boxCount: med.boxCount ?? 0, looseTablets: med.looseTablets ?? 0 }
+      return {
+        ...med, quantity: 1, sellUnit: defaultUnit, pricePerUnit,
+        subtotal: pricePerUnit,
+        mlPerBottle: med.mlPerBottle ?? null,
+        tabletsPerBox: med.tabletsPerBox ?? null,
+        bottleCount: med.bottleCount ?? 0,
+        looseMl: med.looseMl ?? 0,
+        boxCount: med.boxCount ?? 0,
+        looseTablets: med.looseTablets ?? 0
+      }
     })
     setSelectedMedicines(prev => [...prev, ...built])
     setShowMedModal(false)
   }
 
-  const handleRemoveMedicine = (id) => setSelectedMedicines(prev => prev.filter(m => m.id !== id))
+  const handleRemoveMedicine = (id) =>
+    setSelectedMedicines(prev => prev.filter(m => m.id !== id))
 
   const handleMedQty = (id, delta) => {
     setSelectedMedicines(prev => prev.map(m => {
@@ -285,23 +354,35 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const handleAddClient = async (data) => {
-    setClients([...clients, data]); onSelectClient(data)
+    setClients(prev => [...prev, data])
+    onSelectClient(data)
     setClientSearchQuery(`${data.firstName} ${data.lastName}`)
     setIsAddClientModalOpen(false)
   }
-  const handleAddPet = async (data) => { setPets([...pets, data]); setIsAddPetModalOpen(false) }
+
+  const handleAddPet = async (data) => {
+    setPets(prev => [...prev, data])
+    setIsAddPetModalOpen(false)
+  }
+
   const handleClientSelect = (client) => {
     onSelectClient(client)
     setClientSearchQuery(`${client.firstName} ${client.lastName}`)
     setShowClientDropdown(false)
   }
+
   const togglePetSelection = (pet) => {
-    setSelectedPets(prev => prev.some(p => p.id === pet.id) ? prev.filter(p => p.id !== pet.id) : [...prev, pet])
+    setSelectedPets(prev =>
+      prev.some(p => p.id === pet.id)
+        ? prev.filter(p => p.id !== pet.id)
+        : [...prev, pet]
+    )
   }
 
   const filteredClients = clients.filter(c =>
     `${c.firstName} ${c.lastName} ${c.phoneNumber}`.toLowerCase().includes(clientSearchQuery.toLowerCase())
   ).slice(0, 50)
+
   const filteredPets = pets.filter(p =>
     `${p.name} ${p.species} ${p.breed}`.toLowerCase().includes(petSearchQuery.toLowerCase())
   ).slice(0, 50)
@@ -311,43 +392,84 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedClient || selectedPets.length === 0) { alert('Please select a client and at least one pet'); return }
+    if (!selectedClient || selectedPets.length === 0) {
+      alert('Please select a client and at least one pet')
+      return
+    }
     setSavingActivity(true)
     try {
-      await Promise.all(selectedPets.map(pet => {
-        const vitals = petVitals[pet.id] || { weight: '', temperature: '' }
-        return addPetActivity({
-          petId: pet.id, petName: pet.name, clientId: selectedClient.id,
-          clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-          activityType: formData.activityType, date: formData.date,
-          weight: vitals.weight || '', temperature: vitals.temperature || '',
-          diagnosis: formData.diagnosis || '', treatment: formData.treatment || '',
-          followUpDate: formData.hasFollowUp ? (formData.followUpDate || '') : '',
-          followUpNote: formData.hasFollowUp ? (formData.followUpNote || '') : '',
-          medicines: selectedMedicines.map(med => ({
-            medicineId: med.id, medicineName: med.medicineName, quantity: med.quantity,
-            unit: med.sellUnit ?? med.unit, price: med.pricePerUnit ?? med.sellingPrice ?? 0, subtotal: med.subtotal ?? 0
-          }))
+      await Promise.all(
+        selectedPets.flatMap(pet => {
+          const vitals = petVitals[pet.id] || { weight: '', temperature: '' }
+          return formData.activityTypes.map(activityType =>
+            addPetActivity({
+              petId: pet.id,
+              petName: pet.name,
+              clientId: selectedClient.id,
+              clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
+              activityType,
+              date: formData.date,
+              weight: vitals.weight || '',
+              temperature: vitals.temperature || '',
+              diagnosis: formData.activityTypes.includes('Consultation') ? (formData.diagnosis || '') : '',
+              treatment: formData.activityTypes.includes('Consultation') ? (formData.treatment || '') : '',
+              followUpDate: formData.hasFollowUp ? (formData.followUpDate || '') : '',
+              followUpNote: formData.hasFollowUp ? (formData.followUpNote || '') : '',
+              medicines: selectedMedicines.map(med => ({
+                medicineId: med.id,
+                medicineName: med.medicineName,
+                quantity: med.quantity,
+                unit: med.sellUnit ?? med.unit,
+                price: med.pricePerUnit ?? med.sellingPrice ?? 0,
+                subtotal: med.subtotal ?? 0
+              }))
+            })
+          )
         })
-      }))
-      setFormData({ activityType: 'Consultation', date: getCurrentDate(), diagnosis: '', treatment: '', followUpDate: '' })
-      setPetVitals({}); setSelectedMedicines([])
-      setSuccessMessage(`Activity added for ${selectedPets.length} pet(s)`)
+      )
+
+      setFormData({
+        activityTypes: ['Consultation'],
+        date: getCurrentDate(),
+        diagnosis: '', treatment: '',
+        hasFollowUp: false, followUpDate: '', followUpNote: ''
+      })
+      setPetVitals({})
+      setSelectedMedicines([])
+      setSuccessMessage(
+        `${formData.activityTypes.length} activity type${formData.activityTypes.length > 1 ? 's' : ''} saved for ${selectedPets.length} pet${selectedPets.length > 1 ? 's' : ''}`
+      )
       setTimeout(() => setSuccessMessage(''), 3000)
       await loadActivities()
-    } catch (e) { console.error(e); alert('Failed to add activity.') }
-    finally { setSavingActivity(false) }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to add activity.')
+    } finally {
+      setSavingActivity(false)
+    }
   }
 
   const handleContinue = () => {
-    if (selectedActivities.length === 0) { alert('Please select at least one activity to continue'); return }
+    if (selectedActivities.length === 0) {
+      alert('Please select at least one activity to continue')
+      return
+    }
     const objs = activities.filter(a => selectedActivities.includes(a.id))
-    const allMeds = []; const seen = new Set()
+    const allMeds = []
+    const seen = new Set()
     objs.forEach(act => (act.medicines || []).forEach(med => {
       if (!seen.has(med.medicineId)) {
         seen.add(med.medicineId)
-        allMeds.push({ id: med.medicineId, medicineName: med.medicineName, quantity: med.quantity,
-          sellUnit: med.unit, unit: med.unit, pricePerUnit: med.price, sellingPrice: med.price, subtotal: med.subtotal })
+        allMeds.push({
+          id: med.medicineId,
+          medicineName: med.medicineName,
+          quantity: med.quantity,
+          sellUnit: med.unit,
+          unit: med.unit,
+          pricePerUnit: med.price,
+          sellingPrice: med.price,
+          subtotal: med.subtotal
+        })
       }
     }))
     setConsultationData(objs)
@@ -356,7 +478,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const toggleActivitySelection = (id) =>
-    setSelectedActivities(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    setSelectedActivities(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
 
   const handleDeleteActivity = async (activityId) => {
     if (!window.confirm('Are you sure you want to delete this activity?')) return
@@ -370,28 +494,34 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     }
   }
 
-  const activityTypeColors = {
-    Consultation: 'text-black',
-    Vaccination: 'text-black',
-    Deworming: 'text-black',
-  }
-
   const medicinesTotalAmount = selectedMedicines.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
 
       {(showClientDropdown || showPetDropdown) && (
-        <div className="fixed inset-0 z-40" onClick={() => { setShowClientDropdown(false); setShowPetDropdown(false) }} />
+        <div className="fixed inset-0 z-40"
+          onClick={() => { setShowClientDropdown(false); setShowPetDropdown(false) }} />
       )}
 
-      <MedicinePickerModal isOpen={showMedModal} onClose={() => setShowMedModal(false)}
-        onConfirm={handleMedicineModalConfirm} activityType={formData.activityType} allMedicines={allMedicines} />
+      {/* Medicine Modal — no activityTypes prop anymore */}
+      <MedicinePickerModal
+        isOpen={showMedModal}
+        onClose={() => setShowMedModal(false)}
+        onConfirm={handleMedicineModalConfirm}
+        allMedicines={allMedicines}
+      />
 
       {/* Mobile tabs */}
       <div className="lg:hidden flex border-b border-gray-200 bg-white flex-shrink-0">
-        <button onClick={() => setShowForm(true)} className={`flex-1 py-3 text-sm font-semibold transition-colors ${showForm ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}>Form</button>
-        <button onClick={() => setShowForm(false)} className={`flex-1 py-3 text-sm font-semibold transition-colors ${!showForm ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}>Activities</button>
+        <button onClick={() => setShowForm(true)}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${showForm ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}>
+          Form
+        </button>
+        <button onClick={() => setShowForm(false)}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${!showForm ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-700'}`}>
+          Activities
+        </button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
@@ -409,7 +539,11 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               <label className="block text-xs font-medium text-gray-700 mb-1">Owner Name</label>
               <div className="relative">
                 <input type="text" value={clientSearchQuery}
-                  onChange={(e) => { setClientSearchQuery(e.target.value); setShowClientDropdown(true); if (!e.target.value) onSelectClient(null) }}
+                  onChange={(e) => {
+                    setClientSearchQuery(e.target.value)
+                    setShowClientDropdown(true)
+                    if (!e.target.value) onSelectClient(null)
+                  }}
                   onFocus={() => setShowClientDropdown(true)}
                   placeholder="Search client..."
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8" />
@@ -421,18 +555,25 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </button>
                 )}
                 {showClientDropdown && (
-                  <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto" style={{ zIndex: 51 }}>
-                    <button type="button" onClick={() => { setIsAddClientModalOpen(true); setShowClientDropdown(false) }}
+                  <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto"
+                    style={{ zIndex: 51 }}>
+                    <button type="button"
+                      onClick={() => { setIsAddClientModalOpen(true); setShowClientDropdown(false) }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium">
                       <FiPlus className="w-4 h-4" /> Add New Client
                     </button>
-                    {filteredClients.length > 0 ? filteredClients.map(client => (
-                      <button key={client.id} type="button" onClick={() => handleClientSelect(client)}
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                        <div className="font-medium text-gray-900">{client.firstName} {client.lastName}</div>
-                        <div className="text-xs text-gray-500">{client.phoneNumber}</div>
-                      </button>
-                    )) : <div className="px-3 py-2 text-sm text-gray-400">{clientSearchQuery ? 'No clients found' : 'Type to search...'}</div>}
+                    {filteredClients.length > 0
+                      ? filteredClients.map(client => (
+                        <button key={client.id} type="button" onClick={() => handleClientSelect(client)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
+                          <div className="font-medium text-gray-900">{client.firstName} {client.lastName}</div>
+                          <div className="text-xs text-gray-500">{client.phoneNumber}</div>
+                        </button>
+                      ))
+                      : <div className="px-3 py-2 text-sm text-gray-400">
+                        {clientSearchQuery ? 'No clients found' : 'Type to search...'}
+                      </div>
+                    }
                   </div>
                 )}
               </div>
@@ -441,16 +582,18 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
             {/* Pets */}
             <div className="relative" style={{ zIndex: 40 }}>
               <label className="block text-xs font-medium text-gray-700 mb-1">
-                Select Pets {selectedPets.length > 0 && <span className="text-gray-400 font-normal">({selectedPets.length})</span>}
+                Select Pets {selectedPets.length > 0 &&
+                  <span className="text-gray-400 font-normal">({selectedPets.length})</span>}
               </label>
-              <div className={`border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 ${!selectedClient ? 'bg-gray-100' : 'bg-white'}`}>
-                {/* Selected pet tags inside the box */}
+              <div className={`border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-blue-500 ${!selectedClient ? 'bg-gray-100' : 'bg-white'}`}>
                 {selectedPets.length > 0 && (
                   <div className="flex flex-wrap gap-1 px-2 pt-2">
                     {selectedPets.map(pet => (
-                      <span key={pet.id} className="inline-flex items-center gap-1 bg-blue-100 border border-blue-200 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
+                      <span key={pet.id}
+                        className="inline-flex items-center gap-1 bg-blue-100 border border-blue-200 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">
                         {pet.name}
-                        <button type="button" onClick={() => togglePetSelection(pet)} className="text-blue-400 hover:text-red-500">
+                        <button type="button" onClick={() => togglePetSelection(pet)}
+                          className="text-blue-400 hover:text-red-500">
                           <FiX className="w-3 h-3" />
                         </button>
                       </span>
@@ -461,25 +604,37 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   onChange={(e) => { setPetSearchQuery(e.target.value); setShowPetDropdown(true) }}
                   onFocus={() => { if (selectedClient) setShowPetDropdown(true) }}
                   disabled={!selectedClient}
-                  placeholder={selectedClient ? selectedPets.length > 0 ? 'Add more pets...' : 'Search and select pets...' : 'Select an owner first'}
+                  placeholder={selectedClient
+                    ? selectedPets.length > 0 ? 'Add more pets...' : 'Search and select pets...'
+                    : 'Select an owner first'}
                   className="w-full px-3 py-1.5 text-sm bg-transparent focus:outline-none disabled:cursor-not-allowed disabled:text-gray-400" />
                 {showPetDropdown && selectedClient && (
-                  <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto" style={{ zIndex: 41 }}>
-                    <button type="button" onClick={() => { setIsAddPetModalOpen(true); setShowPetDropdown(false) }}
+                  <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-52 overflow-y-auto"
+                    style={{ zIndex: 41 }}>
+                    <button type="button"
+                      onClick={() => { setIsAddPetModalOpen(true); setShowPetDropdown(false) }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200 text-blue-600 font-medium">
                       <FiPlus className="w-4 h-4" /> Add New Pet
                     </button>
-                    {loadingPets ? <div className="px-3 py-2 text-sm text-gray-400">Loading...</div>
-                      : filteredPets.length > 0 ? filteredPets.map(pet => (
-                        <button key={pet.id} type="button" onClick={() => togglePetSelection(pet)}
-                          className={`w-full px-3 py-2 text-left text-sm border-b border-gray-100 last:border-0 flex items-center gap-2 ${selectedPets.some(p => p.id === pet.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                          <input type="checkbox" readOnly checked={selectedPets.some(p => p.id === pet.id)} className="w-4 h-4 text-blue-600 rounded pointer-events-none" />
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm">{pet.name}</div>
-                            <div className="text-xs text-gray-500">{pet.species} · {pet.breed}</div>
-                          </div>
-                        </button>
-                      )) : <div className="px-3 py-2 text-sm text-gray-400">{petSearchQuery ? 'No pets found' : 'Type to search...'}</div>}
+                    {loadingPets
+                      ? <div className="px-3 py-2 text-sm text-gray-400">Loading...</div>
+                      : filteredPets.length > 0
+                        ? filteredPets.map(pet => (
+                          <button key={pet.id} type="button" onClick={() => togglePetSelection(pet)}
+                            className={`w-full px-3 py-2 text-left text-sm border-b border-gray-100 last:border-0 flex items-center gap-2 ${selectedPets.some(p => p.id === pet.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                            <input type="checkbox" readOnly
+                              checked={selectedPets.some(p => p.id === pet.id)}
+                              className="w-4 h-4 text-blue-600 rounded pointer-events-none" />
+                            <div>
+                              <div className="font-medium text-gray-900 text-sm">{pet.name}</div>
+                              <div className="text-xs text-gray-500">{pet.species} · {pet.breed}</div>
+                            </div>
+                          </button>
+                        ))
+                        : <div className="px-3 py-2 text-sm text-gray-400">
+                          {petSearchQuery ? 'No pets found' : 'Type to search...'}
+                        </div>
+                    }
                   </div>
                 )}
               </div>
@@ -487,20 +642,33 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
             {selectedClient && selectedPets.length > 0 && (
               <>
-                {/* Activity Type + Date */}
+                {/* Activity Type (multi-checkbox) + Date */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Activity Type</label>
-                    <select value={formData.activityType} onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
-                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                      <option value="Consultation">Consultation</option>
-                      <option value="Vaccination">Vaccination</option>
-                      <option value="Deworming">Deworming</option>
-                    </select>
+                    <div className="border border-gray-300 rounded-md px-3 py-2 space-y-1.5 bg-white">
+                      {ACTIVITY_TYPES.map(type => (
+                        <label key={type} className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={formData.activityTypes.includes(type)}
+                            onChange={() => toggleActivityType(type)}
+                            className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="text-xs font-medium text-gray-800">{type}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {formData.activityTypes.length > 1 && (
+                      <p className="text-xs text-blue-600 mt-1">
+                        {formData.activityTypes.length} types — saves {formData.activityTypes.length} records per pet
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    <input type="date" value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
@@ -520,24 +688,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                       <tbody>
                         {selectedPets.map((pet, index) => (
                           <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-2.5 py-1.5 font-semibold text-gray-800 whitespace-nowrap">{pet.name}</td>
+                            <td className="px-2.5 py-1.5 font-semibold text-gray-800">{pet.name}</td>
                             <td className="px-2 py-1">
-                              <input
-                                type="number" step="0.1" min="0"
+                              <input type="number" step="0.1" min="0"
                                 value={petVitals[pet.id]?.weight || ''}
                                 onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
                                 className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                placeholder="0"
-                              />
+                                placeholder="0" />
                             </td>
                             <td className="px-2 py-1">
-                              <input
-                                type="number" step="0.1" min="0"
+                              <input type="number" step="0.1" min="0"
                                 value={petVitals[pet.id]?.temperature || ''}
                                 onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
                                 className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                placeholder="0"
-                              />
+                                placeholder="0" />
                             </td>
                           </tr>
                         ))}
@@ -546,18 +710,24 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </div>
                 </div>
 
-                {/* Diagnosis & Treatment */}
-                {formData.activityType === 'Consultation' && (
-                  <div className="grid grid-cols-1 gap-2">
+                {/* Diagnosis & Treatment — only when Consultation is checked */}
+                {formData.activityTypes.includes('Consultation') && (
+                  <div className="space-y-2">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Diagnosis</label>
-                      <textarea value={formData.diagnosis} onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
-                        rows="2" className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Enter diagnosis..." />
+                      <textarea value={formData.diagnosis}
+                        onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                        rows="2"
+                        className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Enter diagnosis..." />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Treatment</label>
-                      <textarea value={formData.treatment} onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
-                        rows="2" className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Enter treatment plan..." />
+                      <textarea value={formData.treatment}
+                        onChange={(e) => setFormData({ ...formData, treatment: e.target.value })}
+                        rows="2"
+                        className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        placeholder="Enter treatment plan..." />
                     </div>
                   </div>
                 )}
@@ -566,49 +736,39 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <div className="border border-gray-200 rounded-md p-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-gray-700">Follow-up</label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, hasFollowUp: !prev.hasFollowUp, followUpDate: '', followUpNote: '' }))}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${formData.hasFollowUp ? 'bg-blue-600' : 'bg-gray-300'}`}
-                    >
+                    <button type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev, hasFollowUp: !prev.hasFollowUp,
+                        followUpDate: '', followUpNote: ''
+                      }))}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${formData.hasFollowUp ? 'bg-blue-600' : 'bg-gray-300'}`}>
                       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${formData.hasFollowUp ? 'translate-x-4' : 'translate-x-0.5'}`} />
                     </button>
                   </div>
-
                   {formData.hasFollowUp && (
                     <div className="mt-2.5 space-y-2">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">Follow-up Date</label>
-                        <input
-                          type="date"
-                          value={formData.followUpDate}
+                        <input type="date" value={formData.followUpDate}
                           onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Notes <span className="text-gray-400">(e.g. 2nd shot, recheck wound)</span></label>
-                        <textarea
-                          value={formData.followUpNote}
+                        <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                        <textarea value={formData.followUpNote}
                           onChange={(e) => setFormData({ ...formData, followUpNote: e.target.value })}
-                          rows="2"
-                          placeholder="Enter follow-up details..."
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        />
+                          rows="2" placeholder="e.g. 2nd shot, recheck wound..."
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* ── Medicines ── */}
+                {/* Medicines */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-gray-700">
-                      Medicines
-                      {formData.activityType === 'Vaccination' && <span className="ml-1 text-gray-400 font-normal">(Vaccines only)</span>}
-                      {formData.activityType === 'Deworming' && <span className="ml-1 text-gray-400 font-normal">(Dewormers only)</span>}
-                    </label>
-                    <button type="button" onClick={() => setShowMedModal(true)}
+                    <label className="text-xs font-medium text-gray-700">Medicines</label>
+                    <button type="button" onClick={handleOpenMedModal}
                       className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
                       <FiPackage className="w-3 h-3" /> Browse
                     </button>
@@ -617,7 +777,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   {selectedMedicines.length === 0 ? (
                     <div className="border border-dashed border-gray-300 rounded-md px-4 py-4 text-center">
                       <p className="text-xs text-gray-400">No medicines added yet</p>
-                      <button type="button" onClick={() => setShowMedModal(true)} className="mt-1 text-xs text-blue-600 hover:underline font-medium">
+                      <button type="button" onClick={handleOpenMedModal}
+                        className="mt-1 text-xs text-blue-600 hover:underline font-medium">
                         + Browse and add medicines
                       </button>
                     </div>
@@ -625,8 +786,6 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     <div className="space-y-1.5">
                       {selectedMedicines.map(med => (
                         <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
-
-                          {/* Row 1: Name + remove */}
                           <div className="flex items-start justify-between mb-1.5">
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
@@ -638,7 +797,6 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             </button>
                           </div>
 
-                          {/* Row 2: Unit toggle (if needed) */}
                           {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
                             <div className="flex gap-1 mb-1.5">
                               {med.medicineType === 'syrup' && (
@@ -668,44 +826,38 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             </div>
                           )}
 
-                          {/* Row 3: Qty controls + price — all in one line */}
                           <div className="flex items-center justify-between gap-2">
-                            {/* − qty + unit */}
                             <div className="flex items-center gap-1">
                               <button type="button" onClick={() => handleMedQty(med.id, -1)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex-shrink-0">
+                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0">
                                 <FiMinus className="w-3 h-3" />
                               </button>
-                              <input
-                                type="number"
+                              <input type="number"
                                 min={med.sellUnit === 'ml' ? '0.5' : '1'}
                                 step={med.sellUnit === 'ml' ? '0.5' : '1'}
                                 value={med.quantity}
                                 onChange={(e) => handleMedQtyInput(med.id, e.target.value)}
-                                className="w-12 py-0.5 text-xs text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              />
+                                className="w-12 py-0.5 text-xs text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
                               <button type="button" onClick={() => handleMedQty(med.id, 1)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors flex-shrink-0">
+                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0">
                                 <FiPlus className="w-3 h-3" />
                               </button>
                               <span className="text-xs text-gray-500">{med.sellUnit ?? med.unit}</span>
                             </div>
-                            {/* Price */}
                             <div className="text-right flex-shrink-0">
-                              <p className="text-xs font-bold text-gray-900">₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}</p>
-                              <p className="text-xs text-gray-400">₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}</p>
+                              <p className="text-xs font-bold text-gray-900">
+                                ₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                              </p>
                             </div>
                           </div>
-
                         </div>
                       ))}
-
-                      {/* Total row */}
                       <div className="flex items-center justify-between pt-0.5">
-                        <button type="button" onClick={() => setShowMedModal(true)}
-                          className="text-xs text-blue-600 hover:underline font-medium">
-                          + Add more
-                        </button>
+                        <button type="button" onClick={handleOpenMedModal}
+                          className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Total</span>
                           <span className="text-sm font-bold text-gray-900">₱{medicinesTotalAmount.toLocaleString()}</span>
@@ -729,22 +881,32 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               <button onClick={handleSubmit} disabled={savingActivity}
                 className="w-full py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
                 {savingActivity ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving...</>
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
                 ) : (
-                  <><FiPlus className="w-4 h-4" />Add Activity for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}</>
+                  <>
+                    <FiPlus className="w-4 h-4" />
+                    Add {formData.activityTypes.length > 1
+                      ? `${formData.activityTypes.length} Activities`
+                      : 'Activity'} for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}
+                  </>
                 )}
               </button>
             </div>
           )}
         </div>
 
-        {/* ── RIGHT PANEL — Activities ── */}
+        {/* ── RIGHT PANEL — Activities Table ── */}
         <div className={`${!showForm ? 'flex' : 'hidden'} lg:flex flex-1 flex-col bg-gray-50 min-w-0 overflow-hidden`}>
           <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="font-semibold text-gray-900">Pet Consultations</h3>
               {selectedPets.length > 0 && activities.length > 0 && (
-                <p className="text-xs text-gray-500 mt-0.5">{activities.length} record{activities.length !== 1 ? 's' : ''} found</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {activities.length} record{activities.length !== 1 ? 's' : ''} found
+                </p>
               )}
             </div>
             {selectedActivities.length > 0 && (
@@ -794,21 +956,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     {selectedPets.map((pet) => {
                       const petActivities = activities.filter(a => a.petId === pet.id)
                       return (
-                        <>
-                          {/* Pet group header */}
-                          <tr key={`header-${pet.id}`}>
+                        <React.Fragment key={pet.id}>
+                          <tr>
                             <td colSpan="9" className="px-3 py-1.5 bg-gray-100 border border-gray-300">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{pet.name}</span>
                                 <span className="text-xs text-gray-400">{pet.species} · {pet.breed}</span>
-                                <span className="ml-auto text-xs text-gray-400">{petActivities.length} record{petActivities.length !== 1 ? 's' : ''}</span>
+                                <span className="ml-auto text-xs text-gray-400">
+                                  {petActivities.length} record{petActivities.length !== 1 ? 's' : ''}
+                                </span>
                               </div>
                             </td>
                           </tr>
-
-                          {/* Activities for this pet */}
                           {petActivities.length === 0 ? (
-                            <tr key={`empty-${pet.id}`}>
+                            <tr>
                               <td colSpan="9" className="px-3 py-2.5 text-center text-gray-400 border border-gray-200">
                                 No activities yet
                               </td>
@@ -826,7 +987,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 </td>
                                 <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">{pet.name}</td>
                                 <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
-                                  {new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  {new Date(activity.date).toLocaleDateString('en-US', {
+                                    month: 'short', day: 'numeric', year: 'numeric'
+                                  })}
                                 </td>
                                 <td className="px-3 py-2.5 border border-gray-200">
                                   <span className="text-xs font-medium text-gray-800">{activity.activityType}</span>
@@ -874,7 +1037,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                               </tr>
                             ))
                           )}
-                        </>
+                        </React.Fragment>
                       )
                     })}
                   </tbody>
@@ -891,13 +1054,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
           </div>
         </div>
 
-        <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
-        <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
-      </div> {/* end flex-1 flex */}
+      </div>
 
-      {/* Only keep these ONCE — remove the duplicates below */}
-      <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
-      <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)} onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
+      {/* Modals — only once */}
+      <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)}
+        onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
+      <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)}
+        onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
+
     </div>
   )
 }
