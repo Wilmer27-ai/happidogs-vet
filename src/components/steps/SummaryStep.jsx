@@ -1,125 +1,144 @@
 // src/components/steps/SummaryStep.jsx
 import { useState } from 'react'
-import { FiPrinter, FiArrowLeft } from 'react-icons/fi'
-import { savePetActivity, saveConsultationSession, deductMedicineStock, saveSalesRecord, getMedicines } from '../../firebase/services'
+import { FiPrinter, FiArrowLeft, FiCheckCircle } from 'react-icons/fi'
+import { deductMedicineStock, saveSalesRecord, getMedicines } from '../../firebase/services'
+import { addDoc, collection } from 'firebase/firestore'
+import { db } from '../../firebase/config'
 import { useNavigate } from 'react-router-dom'
 
 function SummaryStep({ selectedClient, selectedPets, consultationData, medicinesData, onBack, onSave }) {
   const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [savedGroup, setSavedGroup] = useState(null)
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
-  const getMedicinesForPet = (petId) =>
-    (medicinesData || []).filter(m => m.petId === petId || !m.petId)
-
-  const medicinesTotal = (medicinesData || []).reduce((sum, med) =>
-    sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)), 0)
+  // ── Use medicines from each activity directly ──
+  const allMeds = (consultationData || []).flatMap(a =>
+    (a.medicines || []).map(m => ({
+      ...m,
+      pricePerUnit: m.price ?? m.pricePerUnit ?? 0,
+    }))
+  )
+  const medicinesTotal = allMeds.reduce((sum, m) =>
+    sum + ((m.pricePerUnit ?? 0) * (m.quantity || 0)), 0)
   const consultationFee = 300 * (consultationData?.length || 0)
   const totalAmount = medicinesTotal + consultationFee
 
   const handleSave = async () => {
+    if (saving || saved) return
     setSaving(true)
     try {
       const consultationId = crypto.randomUUID()
-      const date = new Date().toISOString()
+      const date = new Date().toISOString().split('T')[0]
+      const clientName = `${selectedClient?.firstName} ${selectedClient?.lastName}`
 
-      // 1) Save each pet activity
-      await Promise.all(
-        consultationData.map(async (activity) => {
-          const petMedicines = (medicinesData || []).filter(m => m.petId === activity.petId || !m.petId)
-          await savePetActivity({
-            consultationId, date,
-            petId: activity.petId,
-            petName: activity.petName,
-            clientId: selectedClient?.id,
-            clientName: `${selectedClient?.firstName} ${selectedClient?.lastName}`,
-            activityType: activity.activityType,
-            weight: activity.weight || null,
-            temperature: activity.temperature || null,
-            diagnosis: activity.diagnosis || null,
-            treatment: activity.treatment || null,
-            followUpDate: activity.followUpDate || null,
-            followUpNote: activity.followUpNote || null,
-            medicines: petMedicines.map(m => ({
-              medicineId: m.medicineId || m.id,
-              medicineName: m.medicineName,
-              quantity: m.quantity,
-              unit: m.sellUnit ?? m.unit,
-              pricePerUnit: m.pricePerUnit ?? m.sellingPrice ?? 0
-            }))
-          })
-        })
-      )
+      // ── 1) Build snapshot from already-saved activities ──
+      // consultationData comes from DetailsStep which already saved to petActivities
+      // We only need to save the consultation GROUP document here
+      const snapshotActivities = (consultationData || []).map(activity => ({
+        petActivityId: activity.id,   // reference to already-saved petActivity doc
+        petId: activity.petId,
+        petName: activity.petName,
+        activityType: activity.activityType,
+        date: activity.date || date,
+        weight: activity.weight || '',
+        temperature: activity.temperature || '',
+        diagnosis: activity.diagnosis || '',
+        treatment: activity.treatment || '',
+        followUpDate: activity.followUpDate || '',
+        followUpNote: activity.followUpNote || '',
+        medicines: (activity.medicines || []).map(m => ({
+          medicineId: m.medicineId,
+          medicineName: m.medicineName,
+          quantity: m.quantity,
+          unit: m.unit,
+          pricePerUnit: m.price ?? m.pricePerUnit ?? 0,
+          subtotal: (m.price ?? m.pricePerUnit ?? 0) * (m.quantity || 0),
+        })),
+      }))
 
-      // 2) Save consultation session record
-      await saveConsultationSession(consultationId, {
+      // ── 2) Save ONE consultation GROUP document (for ConsultationHistory) ──
+      // This does NOT save petActivities again — DetailsStep already did that
+      await addDoc(collection(db, 'consultations'), {
+        consultationId,
         clientId: selectedClient?.id,
-        clientName: `${selectedClient?.firstName} ${selectedClient?.lastName}`,
+        clientName,
         date,
-        petIds: consultationData.map(a => a.petId)
+        activities: snapshotActivities,
+        consultationFee,
+        medicinesTotal,
+        totalAmount,
+        createdAt: new Date().toISOString(),
       })
 
-      // 3) Deduct medicine stocks
-      if (medicinesData && medicinesData.length > 0) {
-        // Get latest medicine data for accurate stock values
-        const allMedicines = await getMedicines()
-
-        // Aggregate same medicine across all pets to avoid double deduction
-        const aggregated = {}
-        medicinesData.forEach(m => {
-          const key = m.medicineId || m.id
-          if (!aggregated[key]) {
-            aggregated[key] = { ...m, totalQty: 0 }
-          }
+      // ── 3) Deduct medicine stocks — aggregate across all activities ──
+      const aggregated = {}
+      snapshotActivities.forEach(activity => {
+        (activity.medicines || []).forEach(m => {
+          const key = m.medicineId
+          if (!key) return
+          if (!aggregated[key]) aggregated[key] = { ...m, totalQty: 0 }
           aggregated[key].totalQty += m.quantity || 0
         })
+      })
 
+      if (Object.keys(aggregated).length > 0) {
+        const freshMedicines = await getMedicines()
         await Promise.all(
           Object.values(aggregated).map(async (med) => {
-            const medicineId = med.medicineId || med.id
-            const freshMed = allMedicines.find(m => m.id === medicineId)
+            const freshMed = freshMedicines.find(m => m.id === med.medicineId)
             if (!freshMed) return
-            await deductMedicineStock(
-              medicineId,
-              med.totalQty,
-              med.sellUnit ?? med.unit,
-              freshMed
-            )
+            await deductMedicineStock(med.medicineId, med.totalQty, med.unit, freshMed)
           })
         )
       }
 
-      // 4) Save sales record for reports & dashboard
-      const saleItems = (medicinesData || []).map(m => ({
-        medicineId: m.medicineId || m.id,
-        medicineName: m.medicineName,
-        quantity: m.quantity,
-        unit: m.sellUnit ?? m.unit,
-        pricePerUnit: m.pricePerUnit ?? m.sellingPrice ?? 0,
-        subtotal: (m.pricePerUnit ?? m.sellingPrice ?? 0) * (m.quantity || 0)
-      }))
+      // ── 4) Save sales record ──
+      const saleItems = snapshotActivities.flatMap(activity =>
+        (activity.medicines || []).map(m => ({
+          medicineId: m.medicineId,
+          medicineName: m.medicineName,
+          quantity: m.quantity,
+          unit: m.unit,
+          pricePerUnit: m.pricePerUnit ?? 0,
+          subtotal: (m.pricePerUnit ?? 0) * (m.quantity || 0),
+        }))
+      )
 
       await saveSalesRecord({
         consultationId,
         clientId: selectedClient?.id,
-        clientName: `${selectedClient?.firstName} ${selectedClient?.lastName}`,
+        clientName,
         date,
         type: 'consultation',
         consultationFee,
         medicinesTotal,
         totalAmount,
-        petCount: consultationData?.length || 0,
-        petNames: consultationData?.map(a => a.petName) || [],
-        activityTypes: [...new Set(consultationData?.map(a => a.activityType) || [])],
-        items: saleItems
+        petCount: snapshotActivities.length,
+        petNames: snapshotActivities.map(a => a.petName),
+        activityTypes: [...new Set(snapshotActivities.map(a => a.activityType))],
+        items: saleItems,
       })
 
+      // ── 5) Mark as saved ──
+      const group = {
+        consultationId,
+        clientName,
+        date,
+        activities: snapshotActivities,
+        consultationFee,
+        medicinesTotal,
+        totalAmount,
+      }
+      setSavedGroup(group)
+      setSaved(true)
       onSave?.()
-      navigate('/consultation-history')
+
     } catch (e) {
       console.error('Failed to save:', e)
       alert('Failed to save consultation.')
@@ -128,29 +147,62 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
     }
   }
 
+  const handleViewSummary = () => {
+    navigate('/consultation-summary', { state: { group: savedGroup } })
+  }
+
+  const handleGoToHistory = () => {
+    navigate('/consultation-history')
+  }
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
 
-      {/* Toolbar — hidden on print */}
+      {/* Toolbar */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-2 print:hidden flex-shrink-0">
-        <button onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
-          <FiArrowLeft className="w-3.5 h-3.5" /> Back
-        </button>
+        {!saved && (
+          <button onClick={onBack}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+            <FiArrowLeft className="w-3.5 h-3.5" /> Back
+          </button>
+        )}
         <button onClick={() => window.print()}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
           <FiPrinter className="w-3.5 h-3.5" /> Print
         </button>
-        <button onClick={handleSave} disabled={saving}
-          className="ml-auto px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
-          {saving ? 'Saving...' : 'Save & Complete'}
-        </button>
+
+        <div className="ml-auto flex items-center gap-2">
+          {saved ? (
+            <>
+              <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+                <FiCheckCircle className="w-4 h-4" />
+                Consultation saved!
+              </div>
+              <button onClick={handleViewSummary}
+                className="px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+                View Receipt
+              </button>
+              <button onClick={handleGoToHistory}
+                className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
+                Go to History
+              </button>
+            </>
+          ) : (
+            <button onClick={handleSave} disabled={saving}
+              className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5">
+              {saving ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : 'Save & Complete'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scrollable area */}
       <div className="flex-1 overflow-auto py-6 px-4 print:p-0 print:overflow-visible">
-
-        {/* A4 Paper */}
         <div className="bg-white mx-auto shadow print:shadow-none print:mx-0"
           style={{ width: '100%', maxWidth: '720px' }}>
           <div className="px-12 py-10 print:px-16 print:py-12">
@@ -167,7 +219,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
               </div>
             </div>
 
-            {/* Client Info Row */}
+            {/* Client Info */}
             <div className="flex justify-between text-xs mb-6 gap-4">
               <div className="space-y-1 flex-1">
                 <div className="flex gap-1">
@@ -193,15 +245,17 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
               </div>
             </div>
 
-            {/* Per Pet Section */}
-            {consultationData?.map((activity, index) => {
-              const petMeds = getMedicinesForPet(activity.petId)
+            {/* Per Activity */}
+            {(consultationData || []).map((activity, index) => {
+              const petMeds = (activity.medicines || []).map(m => ({
+                ...m,
+                pricePerUnit: m.price ?? m.pricePerUnit ?? 0,
+              }))
               const petMedsTotal = petMeds.reduce((sum, m) =>
                 sum + ((m.pricePerUnit ?? 0) * (m.quantity || 0)), 0)
 
               return (
-                <div key={index} className="mb-5">
-                  {/* Pet name bar */}
+                <div key={activity.id || index} className="mb-5">
                   <div className="flex items-center gap-3 bg-gray-900 text-white px-3 py-1.5 text-xs">
                     <span className="font-bold uppercase tracking-wider">{activity.petName}</span>
                     <span className="text-gray-300">·</span>
@@ -215,7 +269,6 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                     )}
                   </div>
 
-                  {/* Diagnosis / Treatment */}
                   {(activity.diagnosis || activity.treatment) && (
                     <div className="border border-t-0 border-gray-300 px-3 py-2 text-xs space-y-1">
                       {activity.diagnosis && (
@@ -233,7 +286,6 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                     </div>
                   )}
 
-                  {/* Medicines table */}
                   {petMeds.length > 0 && (
                     <table className="w-full border border-t-0 border-gray-300 text-xs border-collapse">
                       <thead>
@@ -248,9 +300,11 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                         {petMeds.map((med, i) => (
                           <tr key={i} className="border-b border-gray-200">
                             <td className="px-3 py-1.5 text-gray-900">{med.medicineName}</td>
-                            <td className="px-3 py-1.5 text-center text-gray-700">{med.quantity} {med.sellUnit ?? med.unit}</td>
+                            <td className="px-3 py-1.5 text-center text-gray-700">{med.quantity} {med.unit}</td>
                             <td className="px-3 py-1.5 text-right text-gray-700">₱{(med.pricePerUnit ?? 0).toLocaleString()}</td>
-                            <td className="px-3 py-1.5 text-right font-medium text-gray-900">₱{((med.pricePerUnit ?? 0) * (med.quantity || 0)).toLocaleString()}</td>
+                            <td className="px-3 py-1.5 text-right font-medium text-gray-900">
+                              ₱{((med.pricePerUnit ?? 0) * (med.quantity || 0)).toLocaleString()}
+                            </td>
                           </tr>
                         ))}
                         <tr className="bg-gray-50">
@@ -261,7 +315,6 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                     </table>
                   )}
 
-                  {/* Follow-up */}
                   {activity.followUpDate && (
                     <div className="border border-t-0 border-gray-300 px-3 py-1.5 text-xs text-gray-600 bg-gray-50">
                       <span className="font-medium text-gray-700">Follow-up:</span> {formatDate(activity.followUpDate)}
@@ -293,7 +346,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
               </div>
             </div>
 
-            {/* Signature line */}
+            {/* Signature */}
             <div className="mt-12 flex justify-end print:mt-14">
               <div className="text-center w-52">
                 <div className="border-t-2 border-gray-900 pt-2">
@@ -303,11 +356,9 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
               </div>
             </div>
 
-            {/* Footer */}
             <div className="mt-8 pt-3 border-t border-gray-300 text-center text-xs text-gray-400">
               This is a computer-generated document. Thank you for trusting Happi Dogs Veterinary Clinic.
             </div>
-
           </div>
         </div>
       </div>

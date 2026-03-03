@@ -20,7 +20,36 @@ function ConsultationSummary() {
     )
   }
 
-  const { activities, clientName, date } = group
+  // ── Safe fallback: support both old format (no activities array) and new snapshot format ──
+  const activities = group.activities || []
+  const clientName = group.clientName || 'Unknown'
+  const date = group.date || group.createdAt || ''
+
+  // Guard: if old record has no activities, show a fallback message
+  if (activities.length === 0) {
+    return (
+      <div className="h-screen flex flex-col bg-gray-100">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-2 print:hidden flex-shrink-0">
+          <button onClick={() => navigate('/consultation-history')}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50">
+            <FiArrowLeft className="w-3.5 h-3.5" /> Back
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500 text-sm font-medium">No activity details available</p>
+            <p className="text-gray-400 text-xs mt-1">
+              This consultation was saved before the new format — detailed data is not available.
+            </p>
+            <button onClick={() => navigate('/consultation-history')}
+              className="mt-4 px-4 py-2 bg-gray-900 text-white text-sm rounded-md hover:bg-gray-700">
+              Back to History
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
@@ -133,7 +162,7 @@ function ConsultationSummary() {
                   )}
 
                   {/* Medicines table */}
-                  {activity.medicines?.length > 0 && (
+                  {(activity.medicines || []).length > 0 && (
                     <table className="w-full border border-t-0 border-gray-300 text-xs border-collapse">
                       <thead>
                         <tr className="bg-gray-100 border-b border-gray-300">
@@ -149,7 +178,9 @@ function ConsultationSummary() {
                             <td className="px-3 py-1.5 text-gray-900">{med.medicineName}</td>
                             <td className="px-3 py-1.5 text-center text-gray-700">{med.quantity} {med.unit}</td>
                             <td className="px-3 py-1.5 text-right text-gray-700">₱{(med.pricePerUnit ?? 0).toLocaleString()}</td>
-                            <td className="px-3 py-1.5 text-right font-medium text-gray-900">₱{((med.pricePerUnit ?? 0) * (med.quantity || 0)).toLocaleString()}</td>
+                            <td className="px-3 py-1.5 text-right font-medium text-gray-900">
+                              ₱{((med.pricePerUnit ?? 0) * (med.quantity || 0)).toLocaleString()}
+                            </td>
                           </tr>
                         ))}
                         <tr className="bg-gray-50">

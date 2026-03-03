@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiSearch, FiCalendar, FiTrash2 } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
-import { getAllPetActivities, getConsultations, getClients, getPets, deleteConsultation } from '../firebase/services'
+import { getConsultations, getClients, deleteConsultation } from '../firebase/services'
 
 function ConsultationHistory() {
   const navigate = useNavigate()
   const [consultations, setConsultations] = useState([])
-  const [activities, setActivities] = useState([])
   const [clients, setClients] = useState([])
-  const [pets, setPets] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
@@ -20,31 +18,18 @@ function ConsultationHistory() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [consultationsData, activitiesData, clientsData, petsData] = await Promise.all([
+      // No longer need activities or pets — all data is in the consultation snapshot
+      const [consultationsData, clientsData] = await Promise.all([
         getConsultations(),
-        getAllPetActivities(),
         getClients(),
-        getPets()
       ])
       setConsultations(consultationsData)
-      setActivities(activitiesData)
       setClients(clientsData)
-      setPets(petsData)
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  const getClientName = (clientId) => {
-    const client = clients.find(c => c.id === clientId)
-    return client ? `${client.firstName} ${client.lastName}` : 'Unknown'
-  }
-
-  const getPetName = (petId) => {
-    const pet = pets.find(p => p.id === petId)
-    return pet ? pet.name : 'Unknown'
   }
 
   const formatDate = (dateString) => {
@@ -65,22 +50,12 @@ function ConsultationHistory() {
     }
   }
 
-  // Build groups from consultations collection + match activities by consultationId
-  const groupedConsultations = () => {
-    return consultations.map(consultation => {
-      const relatedActivities = activities.filter(a => a.consultationId === consultation.consultationId)
-      return {
-        ...consultation,
-        activities: relatedActivities
-      }
-    })
-  }
-
-  const filteredGroups = groupedConsultations().filter(group => {
-    const clientName = group.clientName || getClientName(group.clientId)
-    const petNames = group.activities.map(a => a.petName || getPetName(a.petId)).join(' ')
-    const activityTypes = group.activities.map(a => a.activityType).join(' ')
-    const diagnoses = group.activities.map(a => a.diagnosis || '').join(' ')
+  const filteredGroups = consultations.filter(group => {
+    // All data comes from the snapshot — no need to look up activities separately
+    const petNames = (group.activities || []).map(a => a.petName || '').join(' ')
+    const activityTypes = (group.activities || []).map(a => a.activityType || '').join(' ')
+    const diagnoses = (group.activities || []).map(a => a.diagnosis || '').join(' ')
+    const clientName = group.clientName || ''
 
     const matchesSearch =
       petNames.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -110,13 +85,13 @@ function ConsultationHistory() {
   useEffect(() => { setDisplayCount(20) }, [searchQuery, dateFilter])
 
   const handleViewConsultation = (group) => {
+    // Pass the snapshot directly — no re-fetching needed
     navigate('/consultation-summary', { state: { group } })
   }
 
   const handleDeleteConsultation = async (group) => {
     if (!window.confirm('Delete this consultation record from history?')) return
     try {
-      // Only deletes the consultation record — activities stay intact
       await deleteConsultation(group.id)
       setConsultations(prev => prev.filter(c => c.id !== group.id))
     } catch (e) {
@@ -135,28 +110,19 @@ function ConsultationHistory() {
         <div className="flex gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Search by pet, owner, or diagnosis..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <input type="text" placeholder="Search by pet, owner, or diagnosis..."
+              value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-          >
+          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="all">All Time</option>
             <option value="today">Today</option>
             <option value="week">Last 7 Days</option>
             <option value="month">Last 30 Days</option>
           </select>
-          <button
-            onClick={() => navigate('/new-consultation')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm whitespace-nowrap shadow-sm"
-          >
+          <button onClick={() => navigate('/new-consultation')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm whitespace-nowrap shadow-sm">
             New Consultation
           </button>
         </div>
@@ -195,18 +161,18 @@ function ConsultationHistory() {
               </thead>
               <tbody>
                 {displayedGroups.map((group, index) => {
-                  const clientName = group.clientName || getClientName(group.clientId)
-                  const petNames = [...new Set(group.activities.map(a => a.petName || getPetName(a.petId)))]
-                  const activityTypes = [...new Set(group.activities.map(a => a.activityType))]
+                  // Read directly from snapshot
+                  const petNames = [...new Set((group.activities || []).map(a => a.petName).filter(Boolean))]
+                  const activityTypes = [...new Set((group.activities || []).map(a => a.activityType).filter(Boolean))]
 
                   return (
-                    <tr key={group.consultationId}
+                    <tr key={group.id}
                       className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
                       <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
                         {formatDate(group.date)}
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">
-                        {clientName}
+                        {group.clientName}
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200 text-gray-700">
                         {petNames.join(', ')}
@@ -216,17 +182,13 @@ function ConsultationHistory() {
                       </td>
                       <td className="px-3 py-2.5 border border-gray-200 text-center" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleViewConsultation(group)}
-                            className="px-2.5 py-1 text-xs font-medium text-white bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-                          >
+                          <button onClick={() => handleViewConsultation(group)}
+                            className="px-2.5 py-1 text-xs font-medium text-white bg-gray-800 hover:bg-gray-700 rounded transition-colors">
                             View
                           </button>
-                          <button
-                            onClick={() => handleDeleteConsultation(group)}
+                          <button onClick={() => handleDeleteConsultation(group)}
                             className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"
-                            title="Delete"
-                          >
+                            title="Delete">
                             <FiTrash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
