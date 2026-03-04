@@ -1,7 +1,8 @@
 // MedicinesStocks.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiAlertCircle, FiPackage, FiX, FiSave, FiTrash2 } from 'react-icons/fi'
-import { getMedicines, getStoreItems, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem } from '../firebase/services'
+import { useNavigate } from 'react-router-dom'      // ← add this
+import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle } from 'react-icons/fi'   // ← add FiClock
+import { getMedicines, getStoreItems, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit } from '../firebase/services'
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
@@ -32,40 +33,42 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const data = { ...form }
-      delete data.id
-      delete data._type
-      delete data.itemName
+      // ── Build a diff of what changed ──
+      const changes = {}
+      Object.keys(form).forEach(key => {
+        if (JSON.stringify(form[key]) !== JSON.stringify(item[key])) {
+          changes[key] = { before: item[key], after: form[key] }
+        }
+      })
 
       if (item._type === 'medicine') {
-        if (isSyrup) {
-          data.stockQuantity = ((Number(form.bottleCount) || 0) * (Number(form.mlPerBottle) || 0)) + (Number(form.looseMl) || 0)
-        } else if (isTablet) {
-          data.stockQuantity = ((Number(form.boxCount) || 0) * (Number(form.tabletsPerBox) || 0)) + (Number(form.looseTablets) || 0)
-        }
-        await updateMedicine(item.id, data)
+        await updateMedicine(item.id, form)
       } else {
-        if (isFood(form.category)) {
-          data.stockQuantity = ((Number(form.sacksCount) || 0) * (Number(form.kgPerSack) || 0)) + (Number(form.looseKg) || 0)
-        }
-        await updateStoreItem(item.id, data)
+        await updateStoreItem(item.id, form)
       }
+
+      // ── Log the edit ──
+      await logStockEdit({
+        itemId: item.id,
+        itemName: item.itemName || item.medicineName || '',
+        itemType: item._type,
+        action: 'edit',
+        changes,
+        editedAt: new Date().toISOString(),
+      })
 
       onSave()
       onClose()
     } catch (err) {
-      console.error('Error saving:', err)
-      alert('Failed to save changes.')
+      console.error(err)
+      alert('Failed to save.')
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true)
-      return
-    }
+    if (!confirmDelete) { setConfirmDelete(true); return }
     setDeleting(true)
     try {
       if (item._type === 'medicine') {
@@ -73,14 +76,24 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
       } else {
         await deleteStoreItem(item.id)
       }
+
+      // ── Log the deletion ──
+      await logStockEdit({
+        itemId: item.id,
+        itemName: item.itemName || item.medicineName || '',
+        itemType: item._type,
+        action: 'delete',
+        changes: {},
+        editedAt: new Date().toISOString(),
+      })
+
       onDelete()
       onClose()
     } catch (err) {
-      console.error('Error deleting:', err)
-      alert('Failed to delete item.')
+      console.error(err)
+      alert('Failed to delete.')
     } finally {
       setDeleting(false)
-      setConfirmDelete(false)
     }
   }
 
@@ -390,6 +403,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 function MedicinesStocks() {
+  const navigate = useNavigate()   // ← add this
   const [medicines, setMedicines] = useState([])
   const [storeItems, setStoreItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -591,7 +605,18 @@ function MedicinesStocks() {
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold text-gray-900">Inventory Management</h1>
-          <div className="flex gap-6">
+          <div className="flex items-center gap-4">
+
+            {/* ── Edit History Button ── */}
+            <button
+              onClick={() => navigate('/stock-edit-history')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <FiClock className="w-4 h-4" />
+              Edit History
+            </button>
+
+            {/* ── Stat Badges ── */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">{lowStockCount}</span>

@@ -23,6 +23,7 @@ import Petstore from './pages/Petstore.jsx'
 import Reports from './pages/Reports.jsx'
 import SalesHistory from './pages/SalesHistory.jsx'
 import Suppliers from './pages/Suppliers.jsx'
+import StockEditHistory from './pages/StockEditHistory.jsx'
 
 const router = createBrowserRouter([
   {
@@ -100,6 +101,10 @@ const router = createBrowserRouter([
       {
         path: '/pet-activity',
         element: <PetActivityHistory />
+      },
+      {
+        path: '/stock-edit-history',
+        element: <StockEditHistory />
       }
     ]
   }

@@ -34,9 +34,13 @@ function ConsultationHistory() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric'
-    })
+    const parts = String(dateString).split('T')[0].split('-')
+    if (parts.length === 3) {
+      const [year, month, day] = parts
+      return new Date(Number(year), Number(month) - 1, Number(day))
+        .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    }
+    return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
   const getDateRange = (filter) => {

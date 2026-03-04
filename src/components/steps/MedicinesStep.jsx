@@ -399,7 +399,28 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                         min={step}
                         step={step}
                         value={medicine.quantity}
-                        onChange={(e) => handleQuantityInputChange(medicine.id, e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          if (raw === '' || raw === '-') {
+                            setSelectedMedicines(selectedMedicines.map(m =>
+                              m.id === medicine.id ? { ...m, quantity: raw } : m
+                            ))
+                            return
+                          }
+                          const num = parseFloat(raw)
+                          if (!isNaN(num) && num > 0) {
+                            handleQuantityInputChange(medicine.id, raw)
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const num = parseFloat(e.target.value)
+                          if (isNaN(num) || num <= 0) {
+                            setSelectedMedicines(selectedMedicines.map(m =>
+                              m.id === medicine.id ? { ...m, quantity: step } : m
+                            ))
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
                         className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       <span className="text-xs text-gray-600">{medicine.sellUnit ?? medicine.unit}</span>

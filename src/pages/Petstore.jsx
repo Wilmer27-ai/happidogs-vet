@@ -195,7 +195,11 @@ function PetStore() {
     const newOrder = order.map(i => {
       if (i.id !== id || i._type !== type) return i
       const newQty = Math.max(0.1, parseFloat((i.quantity + delta).toFixed(2)))
-      return { ...i, quantity: newQty }
+      return { 
+        ...i, 
+        quantity: newQty,
+        finalPrice: undefined   // ← reset final price override when qty changes
+      }
     }).filter(i => i.quantity > 0)
     setOrder(newOrder)
   }
@@ -204,7 +208,11 @@ function PetStore() {
     const num = parseFloat(value)
     if (isNaN(num) || num <= 0) return
     setOrder(order.map(i =>
-      (i.id === id && i._type === type) ? { ...i, quantity: num } : i
+      (i.id === id && i._type === type) ? { 
+        ...i, 
+        quantity: num,
+        finalPrice: undefined   // ← reset final price override when qty changes
+      } : i
     ))
   }
 
@@ -212,18 +220,33 @@ function PetStore() {
     setOrder(order.map(i => {
       if (i.id !== id || i._type !== type) return i
       const sourceItem = allItems.find(a => a.id === id && a._type === type)
-      return { ...i, sellUnit: newUnit, pricePerUnit: getPricePerUnit(sourceItem, newUnit), quantity: 1 }
+      return { 
+        ...i, 
+        sellUnit: newUnit, 
+        pricePerUnit: getPricePerUnit(sourceItem, newUnit), 
+        quantity: 1,
+        finalPrice: undefined   // ← reset final price override when unit changes
+      }
     }))
   }
 
-  const calculateItemTotal = (orderItem) => (orderItem.pricePerUnit ?? 0) * orderItem.quantity
+  const calculateItemTotal = (orderItem) => {
+    // ── Use finalPrice if manually set, otherwise calculate normally ──
+    if (orderItem.finalPrice !== undefined) return orderItem.finalPrice
+    return (orderItem.pricePerUnit ?? 0) * orderItem.quantity
+  }
+
   const getTotalAmount = () => order.reduce((sum, i) => sum + calculateItemTotal(i), 0)
 
   const handlePriceEdit = (id, type, value) => {
     const num = parseFloat(value)
     if (isNaN(num) || num < 0) return
     setOrder(order.map(i =>
-      (i.id === id && i._type === type) ? { ...i, pricePerUnit: num } : i
+      (i.id === id && i._type === type) ? { 
+        ...i, 
+        finalPrice: num,                                          // ← store final price
+        pricePerUnit: i.quantity > 0 ? num / i.quantity : 0      // ← back-calculate per unit
+      } : i
     ))
   }
 
@@ -239,7 +262,8 @@ function PetStore() {
       for (const orderItem of order) {
         const qty = orderItem.quantity
         const unit = orderItem.sellUnit
-        const totalAmount = calculateItemTotal(orderItem)
+        const totalAmount = calculateItemTotal(orderItem)   // ← uses finalPrice if set
+        const effectivePricePerUnit = totalAmount / qty     // ← back-calculated for sale record
 
         const saleData = {
           itemId: orderItem.id,
@@ -249,7 +273,7 @@ function PetStore() {
           brand: orderItem.brand || '',
           quantity: qty,
           unit,
-          sellingPrice: orderItem.pricePerUnit,
+          sellingPrice: effectivePricePerUnit,              // ← effective per-unit price
           totalAmount,
           profit: totalAmount - ((orderItem.purchasePrice ?? 0) * qty),
           saleDate: new Date().toISOString()
@@ -373,7 +397,34 @@ function PetStore() {
                     step={step}
                     min={step}
                     value={orderItem.quantity}
-                    onChange={(e) => handleQuantityInput(orderItem.id, orderItem._type, e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      // Allow empty string while typing — don't force a value
+                      if (raw === '' || raw === '-') {
+                        setOrder(order.map(i =>
+                          (i.id === orderItem.id && i._type === orderItem._type)
+                            ? { ...i, quantity: raw }
+                            : i
+                        ))
+                        return
+                      }
+                      const num = parseFloat(raw)
+                      if (!isNaN(num) && num > 0) {
+                        handleQuantityInput(orderItem.id, orderItem._type, raw)
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // On blur, if empty or invalid — reset to step minimum
+                      const num = parseFloat(e.target.value)
+                      if (isNaN(num) || num <= 0) {
+                        setOrder(order.map(i =>
+                          (i.id === orderItem.id && i._type === orderItem._type)
+                            ? { ...i, quantity: step }
+                            : i
+                        ))
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
                     className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <span className="text-xs text-gray-600">{orderItem.sellUnit}</span>
@@ -387,26 +438,34 @@ function PetStore() {
               <div className="flex items-center justify-end gap-1.5 mt-1">
                 {orderItem.editingPrice ? (
                   <>
-                    <span className="text-xs text-gray-400">₱</span>
+                    <span className="text-xs text-gray-400">Final: ₱</span>
                     <input
                       type="number"
                       min="0"
                       step="0.01"
-                      value={orderItem.pricePerUnit}
+                      value={orderItem.finalPrice !== undefined ? orderItem.finalPrice : calculateItemTotal(orderItem)}
                       onChange={(e) => handlePriceEdit(orderItem.id, orderItem._type, e.target.value)}
-                      className="w-20 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
+                      className="w-24 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-700"
                       autoFocus
                     />
-                    <span className="text-xs text-gray-400">/{orderItem.sellUnit}</span>
                   </>
                 ) : (
-                  <span className="text-xs text-gray-500">₱{orderItem.pricePerUnit?.toLocaleString()}/{orderItem.sellUnit}</span>
+                  <span className="text-xs text-gray-500">
+                    ₱{orderItem.pricePerUnit?.toLocaleString()}/{orderItem.sellUnit}
+                    {orderItem.finalPrice !== undefined && (
+                      <span className="ml-1 text-blue-600 font-medium">(edited)</span>
+                    )}
+                  </span>
                 )}
                 <button
                   onClick={() => handleToggleEditPrice(orderItem.id, orderItem._type)}
-                  className={`text-xs px-1.5 py-0.5 rounded transition-colors ${orderItem.editingPrice ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                  className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                    orderItem.editingPrice 
+                      ? 'bg-blue-100 text-blue-700 font-medium' 
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
                 >
-                  {orderItem.editingPrice ? 'Done' : 'Edit'}
+                  {orderItem.editingPrice ? 'Done' : 'Edit Price'}
                 </button>
               </div>
             </div>

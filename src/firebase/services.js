@@ -604,12 +604,39 @@ export const deductMedicineStock = async (medicineId, quantity, unit, medicine) 
   await updateDoc(ref, updates)
 }
 
-export const saveSalesRecord = async (saleData) => {
-  const { collection, addDoc } = await import('firebase/firestore')
-  const { db } = await import('./config')
-  const docRef = await addDoc(collection(db, 'sales'), {
-    ...saleData,
-    createdAt: new Date().toISOString()
-  })
-  return { id: docRef.id, ...saleData }
+export const saveSalesRecord = async (data) => {
+  try {
+    await addDoc(collection(db, 'sales'), {
+      ...data,
+      createdAt: new Date().toISOString(),
+    })
+  } catch (e) {
+    console.error('saveSalesRecord error:', e)
+    throw e
+  }
+}
+
+// ==================== STOCK EDIT HISTORY ====================
+export const logStockEdit = async (logData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'stockEditHistory'), {
+      ...logData,
+      createdAt: serverTimestamp(),
+    })
+    return { id: docRef.id, ...logData }
+  } catch (error) {
+    console.error('Error logging stock edit:', error)
+    throw error
+  }
+}
+
+export const getStockEditHistory = async () => {
+  try {
+    const q = query(collection(db, 'stockEditHistory'), orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  } catch (error) {
+    console.error('Error getting stock edit history:', error)
+    throw error
+  }
 }

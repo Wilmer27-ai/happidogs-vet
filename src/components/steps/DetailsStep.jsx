@@ -208,6 +208,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     activityTypes: ['Consultation'],
     date: getCurrentDate(),
     diagnosis: '', treatment: '',
+    note: '',                        // ← add this
     hasFollowUp: false, followUpDate: '', followUpNote: ''
   })
   const [petVitals, setPetVitals] = useState({})
@@ -413,6 +414,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               temperature: vitals.temperature || '',
               diagnosis: formData.activityTypes.includes('Consultation') ? (formData.diagnosis || '') : '',
               treatment: formData.activityTypes.includes('Consultation') ? (formData.treatment || '') : '',
+              note: (activityType === 'Vaccination' || activityType === 'Deworming') ? (formData.note || '') : '',   // ← add this
               followUpDate: formData.hasFollowUp ? (formData.followUpDate || '') : '',
               followUpNote: formData.hasFollowUp ? (formData.followUpNote || '') : '',
               medicines: selectedMedicines.map(med => ({
@@ -432,6 +434,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         activityTypes: ['Consultation'],
         date: getCurrentDate(),
         diagnosis: '', treatment: '',
+        note: '',                    // ← add this
         hasFollowUp: false, followUpDate: '', followUpNote: ''
       })
       setPetVitals({})
@@ -732,6 +735,29 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </div>
                 )}
 
+                {/* Note — only when Vaccination or Deworming is selected */}
+                {(formData.activityTypes.includes('Vaccination') || formData.activityTypes.includes('Deworming')) && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Note
+                      <span className="ml-1 text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      value={formData.note}
+                      onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                      rows="2"
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder={
+                        formData.activityTypes.includes('Vaccination') && formData.activityTypes.includes('Deworming')
+                          ? 'e.g. Vaccine brand, dewormer dose...'
+                          : formData.activityTypes.includes('Vaccination')
+                            ? 'e.g. 5-in-1, 1st dose...'
+                            : 'e.g. Pyrantel, 2nd dose...'
+                      }
+                    />
+                  </div>
+                )}
+
                 {/* Follow-up */}
                 <div className="border border-gray-200 rounded-md p-2.5">
                   <div className="flex items-center justify-between">
@@ -784,77 +810,159 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {selectedMedicines.map(med => (
-                        <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
-                          <div className="flex items-start justify-between mb-1.5">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
-                              <p className="text-xs text-gray-400 capitalize">{med.medicineType} · {med.category}</p>
-                            </div>
-                            <button type="button" onClick={() => handleRemoveMedicine(med.id)}
-                              className="text-gray-300 hover:text-red-500 ml-2 mt-0.5 flex-shrink-0">
-                              <FiX className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                      {selectedMedicines.map((med) => {
+                        const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1  // ← define step inside the map
 
-                          {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
-                            <div className="flex gap-1 mb-1.5">
-                              {med.medicineType === 'syrup' && (
-                                <>
-                                  <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
-                                    className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                    per ml
-                                  </button>
-                                  <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
-                                    className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                    per bottle
-                                  </button>
-                                </>
-                              )}
-                              {med.medicineType === 'tablet' && (
-                                <>
-                                  <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
-                                    className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                    per tablet
-                                  </button>
-                                  <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
-                                    className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                    per box
-                                  </button>
-                                </>
-                              )}
+                        return (
+                          <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
+                            <div className="flex items-start justify-between mb-1.5">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
+                                <p className="text-xs text-gray-400 capitalize">{med.medicineType} · {med.category}</p>
+                              </div>
+                              <button type="button" onClick={() => handleRemoveMedicine(med.id)}
+                                className="text-gray-300 hover:text-red-500 ml-2 mt-0.5 flex-shrink-0">
+                                <FiX className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          )}
 
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1">
-                              <button type="button" onClick={() => handleMedQty(med.id, -1)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0">
-                                <FiMinus className="w-3 h-3" />
-                              </button>
-                              <input type="number"
-                                min={med.sellUnit === 'ml' ? '0.5' : '1'}
-                                step={med.sellUnit === 'ml' ? '0.5' : '1'}
-                                value={med.quantity}
-                                onChange={(e) => handleMedQtyInput(med.id, e.target.value)}
-                                className="w-12 py-0.5 text-xs text-center border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                              <button type="button" onClick={() => handleMedQty(med.id, 1)}
-                                className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-700 flex-shrink-0">
-                                <FiPlus className="w-3 h-3" />
-                              </button>
-                              <span className="text-xs text-gray-500">{med.sellUnit ?? med.unit}</span>
+                            {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                              <div className="flex gap-1 mb-1.5">
+                                {med.medicineType === 'syrup' && (
+                                  <>
+                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
+                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                                      per ml
+                                    </button>
+                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
+                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                                      per bottle
+                                    </button>
+                                  </>
+                                )}
+                                {med.medicineType === 'tablet' && (
+                                  <>
+                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
+                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                                      per tablet
+                                    </button>
+                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
+                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                                      per box
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedQty(med.id, -step)}
+                                  className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                                >
+                                  <FiMinus className="w-3 h-3" />
+                                </button>
+                                <input
+                                  type="number"
+                                  min={step}
+                                  step={step}
+                                  value={med.quantity}
+                                  onChange={(e) => {
+                                    const raw = e.target.value
+                                    if (raw === '' || raw === '-') {
+                                      setSelectedMedicines(prev => prev.map(m =>
+                                        m.id === med.id ? { ...m, quantity: raw } : m
+                                      ))
+                                      return
+                                    }
+                                    const num = parseFloat(raw)
+                                    if (!isNaN(num) && num > 0) {
+                                      handleMedQtyInput(med.id, raw)
+                                    }
+                                  }}
+                                  onBlur={(e) => {
+                                    const num = parseFloat(e.target.value)
+                                    if (isNaN(num) || num <= 0) {
+                                      setSelectedMedicines(prev => prev.map(m =>
+                                        m.id === med.id ? { ...m, quantity: step } : m
+                                      ))
+                                    }
+                                  }}
+                                  onFocus={(e) => e.target.select()}
+                                  className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                />
+                                <span className="text-xs text-gray-600">{med.sellUnit ?? med.unit}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedQty(med.id, step)}
+                                  className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
+                                >
+                                  <FiPlus className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs font-bold text-gray-900">
+                                  ₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                                </p>
+                              </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs font-bold text-gray-900">
-                                ₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
-                              </p>
+
+                            {/* Edit final price */}
+                            <div className="flex items-center justify-end gap-1.5 mt-1">
+                              {med.editingPrice ? (
+                                <>
+                                  <span className="text-xs text-gray-400">Final: ₱</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={med.finalPrice !== undefined ? med.finalPrice : (med.pricePerUnit ?? 0) * med.quantity}
+                                    onChange={(e) => {
+                                      const num = parseFloat(e.target.value)
+                                      if (isNaN(num) || num < 0) return
+                                      setSelectedMedicines(prev => prev.map(m =>
+                                        m.id === med.id ? {
+                                          ...m,
+                                          finalPrice: num,
+                                          pricePerUnit: med.quantity > 0 ? num / med.quantity : 0
+                                        } : m
+                                      ))
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-24 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                    autoFocus
+                                  />
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-500">
+                                  ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                                  {med.finalPrice !== undefined && (
+                                    <span className="ml-1 text-blue-600 font-medium">(edited)</span>
+                                  )}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedMedicines(prev => prev.map(m =>
+                                  m.id === med.id ? { ...m, editingPrice: !m.editingPrice } : m
+                                ))}
+                                className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
+                                  med.editingPrice
+                                    ? 'bg-blue-100 text-blue-700 font-medium'
+                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                }`}
+                              >
+                                {med.editingPrice ? 'Done' : 'Edit Price'}
+                              </button>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                       <div className="flex items-center justify-between pt-0.5">
                         <button type="button" onClick={handleOpenMedModal}
                           className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
@@ -1002,7 +1110,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden lg:table-cell max-w-[180px]">
                                   {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
                                   {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
-                                  {!activity.diagnosis && !activity.treatment && <span className="text-gray-400">—</span>}
+                                  {activity.note && <div className="truncate text-gray-500 italic" title={activity.note}>Note: {activity.note}</div>}
+                                  {!activity.diagnosis && !activity.treatment && !activity.note && <span className="text-gray-400">—</span>}
                                 </td>
                                 <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden xl:table-cell">
                                   {activity.medicines?.length > 0
