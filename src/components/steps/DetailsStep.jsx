@@ -858,361 +858,277 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 </div>
 
                 {/* Medicines */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-gray-700">Medicines</label>
+                <div className="border border-gray-200 rounded-md bg-white overflow-hidden">
+
+                  {/* Header row */}
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      {/* Per-pet toggle — only when 2+ pets selected */}
+                      <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Medicines</span>
+                      {(() => {
+                        const count = perPetMode
+                          ? selectedPets.reduce((n, p) => n + (petMedicines[p.id]?.length || 0), 0)
+                          : selectedMedicines.length
+                        return count > 0 ? (
+                          <span className="text-xs font-semibold bg-gray-800 text-white px-1.5 py-0.5 rounded-full leading-none">{count}</span>
+                        ) : null
+                      })()}
+                    </div>
+                    <div className="flex items-center gap-2">
                       {selectedPets.length > 1 && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-400">{perPetMode ? 'Per pet' : 'Same for all'}</span>
-                          <button
-                            type="button"
-                            onClick={() => setPerPetMode(v => !v)}
-                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${perPetMode ? 'bg-blue-600' : 'bg-gray-300'}`}
-                            title="Toggle per-pet medicine selection"
-                          >
-                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${perPetMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <span className={`text-xs font-medium transition-colors ${perPetMode ? 'text-gray-700' : 'text-gray-400'}`}>Per pet</span>
+                          <button type="button" onClick={() => setPerPetMode(v => !v)}
+                            className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none ${perPetMode ? 'bg-gray-800' : 'bg-gray-300'}`}>
+                            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${perPetMode ? 'left-4' : 'left-0.5'}`} />
                           </button>
-                        </div>
+                        </label>
                       )}
                       {!perPetMode && (
                         <button type="button" onClick={handleOpenMedModal}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                          <FiPackage className="w-3 h-3" /> Browse
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
+                          <FiPlus className="w-3 h-3" /> Add
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* ── Shared mode (default) ── */}
-                  {!perPetMode && (selectedMedicines.length === 0 ? (
-                    <div className="border border-dashed border-gray-300 rounded-md px-4 py-4 text-center">
-                      <p className="text-xs text-gray-400">No medicines added yet</p>
+                  {/* ── Shared mode ── */}
+                  {!perPetMode && (
+                    selectedMedicines.length === 0 ? (
                       <button type="button" onClick={handleOpenMedModal}
-                        className="mt-1 text-xs text-blue-600 hover:underline font-medium">
-                        + Browse and add medicines
+                        className="w-full py-4 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors group">
+                        <FiPlus className="w-3.5 h-3.5 group-hover:text-gray-600" />
+                        <span className="text-xs">No medicines yet — click to add</span>
                       </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {selectedMedicines.map((med) => {
-                        const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1  // ← define step inside the map
-
-                        return (
-                          <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
-                            <div className="flex items-start justify-between mb-1.5">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
-                                <p className="text-xs text-gray-400 capitalize">{med.medicineType} · {med.category}</p>
-                              </div>
-                              <button type="button" onClick={() => handleRemoveMedicine(med.id)}
-                                className="text-gray-300 hover:text-red-500 ml-2 mt-0.5 flex-shrink-0">
-                                <FiX className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-
-                            {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
-                              <div className="flex gap-1 mb-1.5">
-                                {med.medicineType === 'syrup' && (
-                                  <>
-                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
-                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                      per ml
-                                    </button>
-                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
-                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                      per bottle
-                                    </button>
-                                  </>
-                                )}
-                                {med.medicineType === 'tablet' && (
-                                  <>
-                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
-                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                      per tablet
-                                    </button>
-                                    <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
-                                      className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                                      per box
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMedQty(med.id, -step)}
-                                  className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                                >
-                                  <FiMinus className="w-3 h-3" />
-                                </button>
-                                <input
-                                  type="number"
-                                  min={step}
-                                  step={step}
-                                  value={med.quantity}
-                                  onChange={(e) => {
-                                    const raw = e.target.value
-                                    if (raw === '' || raw === '-') {
-                                      setSelectedMedicines(prev => prev.map(m =>
-                                        m.id === med.id ? { ...m, quantity: raw } : m
-                                      ))
-                                      return
-                                    }
-                                    const num = parseFloat(raw)
-                                    if (!isNaN(num) && num > 0) {
-                                      handleMedQtyInput(med.id, raw)
-                                    }
-                                  }}
-                                  onBlur={(e) => {
-                                    const num = parseFloat(e.target.value)
-                                    if (isNaN(num) || num <= 0) {
-                                      setSelectedMedicines(prev => prev.map(m =>
-                                        m.id === med.id ? { ...m, quantity: step } : m
-                                      ))
-                                    }
-                                  }}
-                                  onFocus={(e) => e.target.select()}
-                                  className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                />
-                                <span className="text-xs text-gray-600">{med.sellUnit ?? med.unit}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMedQty(med.id, step)}
-                                  className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
-                                >
-                                  <FiPlus className="w-3 h-3" />
-                                </button>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <p className="text-xs font-bold text-gray-900">
-                                  ₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}
-                                  {selectedPets.length > 1 && (
-                                    <span className="ml-1 font-normal text-gray-400">× {selectedPets.length} pets</span>
-                                  )}
-                                </p>
-                                <p className="text-xs text-gray-400">
-                                  ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Per-pet hint when multiple pets are selected */}
-                            {selectedPets.length > 1 && (
-                              <div className="mt-1.5 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                                <span className="text-xs text-amber-700">
-                                  <strong>{med.quantity} {med.sellUnit ?? med.unit} per pet</strong>
-                                  {' '}× {selectedPets.length} pets
-                                  {' '}= <strong>{parseFloat((med.quantity * selectedPets.length).toFixed(2))} {med.sellUnit ?? med.unit} total</strong>
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Edit final price */}
-                            <div className="flex items-center justify-end gap-1.5 mt-1">
-                              {med.editingPrice ? (
-                                <>
-                                  <span className="text-xs text-gray-400">Final: ₱</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={med.finalPrice !== undefined ? med.finalPrice : (med.pricePerUnit ?? 0) * med.quantity}
+                    ) : (
+                      <div>
+                        {selectedMedicines.map((med, idx) => {
+                          const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
+                          const subtotal = (med.pricePerUnit ?? 0) * med.quantity
+                          return (
+                            <div key={med.id} className={`px-3 py-2 ${idx < selectedMedicines.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                              {/* Row: name | stepper | price | × */}
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5">
+                                    ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                                    {selectedPets.length > 1 && <span className="text-amber-500 ml-1">× {selectedPets.length}</span>}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button type="button" onClick={() => handleMedQty(med.id, -step)}
+                                    className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                    <FiMinus className="w-2.5 h-2.5" />
+                                  </button>
+                                  <input type="text" inputMode="decimal" value={med.quantity}
                                     onChange={(e) => {
-                                      const num = parseFloat(e.target.value)
-                                      if (isNaN(num) || num < 0) return
-                                      setSelectedMedicines(prev => prev.map(m =>
-                                        m.id === med.id ? {
-                                          ...m,
-                                          finalPrice: num,
-                                          pricePerUnit: med.quantity > 0 ? num / med.quantity : 0
-                                        } : m
-                                      ))
+                                      const raw = e.target.value
+                                      if (raw === '' || raw === '-') { setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, quantity: raw } : m)); return }
+                                      const num = parseFloat(raw)
+                                      if (!isNaN(num) && num > 0) handleMedQtyInput(med.id, raw)
                                     }}
+                                    onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, quantity: step } : m)) }}
                                     onFocus={(e) => e.target.select()}
-                                    className="w-24 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                    autoFocus
-                                  />
-                                </>
-                              ) : (
-                                <span className="text-xs text-gray-500">
-                                  ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
-                                  {med.finalPrice !== undefined && (
-                                    <span className="ml-1 text-blue-600 font-medium">(edited)</span>
+                                    className="w-10 text-center text-xs border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white" />
+                                  <button type="button" onClick={() => handleMedQty(med.id, step)}
+                                    className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                    <FiPlus className="w-2.5 h-2.5" />
+                                  </button>
+                                  <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {med.editingPrice ? (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-gray-400">₱</span>
+                                      <input type="number" min="0" step="0.01"
+                                        value={med.finalPrice !== undefined ? med.finalPrice : subtotal}
+                                        onChange={(e) => {
+                                          const num = parseFloat(e.target.value)
+                                          if (isNaN(num) || num < 0) return
+                                          setSelectedMedicines(prev => prev.map(m =>
+                                            m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m
+                                          ))
+                                        }}
+                                        onFocus={(e) => e.target.select()}
+                                        className="w-16 text-xs text-right border-b border-gray-400 focus:outline-none focus:border-blue-500 bg-transparent"
+                                        autoFocus />
+                                      <button type="button"
+                                        onClick={() => setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, editingPrice: false } : m))}
+                                        className="text-xs font-medium text-gray-500 hover:text-gray-800">✓</button>
+                                    </div>
+                                  ) : (
+                                    <button type="button" title="Click to edit price"
+                                      onClick={() => setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, editingPrice: true } : m))}
+                                      className="text-right hover:opacity-70 transition-opacity">
+                                      <p className="text-xs font-bold text-gray-900 tabular-nums">₱{subtotal.toLocaleString()}</p>
+                                      {selectedPets.length > 1 && <p className="text-xs text-gray-400 tabular-nums">₱{(subtotal * selectedPets.length).toLocaleString()} total</p>}
+                                    </button>
                                   )}
-                                </span>
+                                  <button type="button" onClick={() => handleRemoveMedicine(med.id)}
+                                    className="text-gray-300 hover:text-red-500 transition-colors">
+                                    <FiX className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                              {/* Unit toggle for syrup/tablet */}
+                              {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                                <div className="flex gap-1 mt-1.5">
+                                  {med.medicineType === 'syrup' ? (
+                                    <>
+                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
+                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>ml</button>
+                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
+                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>bottle</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
+                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>tablet</button>
+                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
+                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>box</button>
+                                    </>
+                                  )}
+                                </div>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => setSelectedMedicines(prev => prev.map(m =>
-                                  m.id === med.id ? { ...m, editingPrice: !m.editingPrice } : m
-                                ))}
-                                className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
-                                  med.editingPrice
-                                    ? 'bg-blue-100 text-blue-700 font-medium'
-                                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                                }`}
-                              >
-                                {med.editingPrice ? 'Done' : 'Edit Price'}
-                              </button>
                             </div>
+                          )
+                        })}
+                        {/* Footer */}
+                        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 bg-gray-50">
+                          <button type="button" onClick={handleOpenMedModal}
+                            className="text-xs font-medium text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors">
+                            <FiPlus className="w-3 h-3" /> Add more
+                          </button>
+                          <div className="text-right">
+                            <span className="text-xs text-gray-500 mr-1.5">{selectedPets.length > 1 ? `${selectedPets.length} pets` : ''}</span>
+                            <span className="text-sm font-bold text-gray-900">₱{medicinesTotalAmount.toLocaleString()}</span>
                           </div>
-                        )
-                      })}
-                      <div className="flex items-center justify-between pt-0.5">
-                        <button type="button" onClick={handleOpenMedModal}
-                          className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">
-                            {selectedPets.length > 1 ? `Total (${selectedPets.length} pets)` : 'Total'}
-                          </span>
-                          <span className="text-sm font-bold text-gray-900">₱{medicinesTotalAmount.toLocaleString()}</span>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
 
-                  {/* ── Per-pet mode (toggle on, 2+ pets) ── */}
+                  {/* ── Per-pet mode ── */}
                   {perPetMode && (
-                    <div className="space-y-2">
-                      {selectedPets.map(pet => {
+                    <div>
+                      {selectedPets.map((pet, petIdx) => {
                         const meds = petMedicines[pet.id] || []
                         const petTotal = meds.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
                         return (
-                          <div key={pet.id} className="border border-gray-200 rounded-md overflow-hidden">
-                            {/* Pet header */}
-                            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-                              <div className="flex items-center gap-2">
+                          <div key={pet.id} className={petIdx > 0 ? 'border-t border-gray-200' : ''}>
+                            {/* Pet row */}
+                            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-b border-gray-100">
+                              <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-semibold text-gray-800">{pet.name}</span>
                                 <span className="text-xs text-gray-400">{pet.species}</span>
                                 {meds.length > 0 && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 font-medium px-1.5 py-0.5 rounded">
-                                    {meds.length} item{meds.length !== 1 ? 's' : ''}
-                                  </span>
+                                  <span className="text-xs text-gray-500">· {meds.length} item{meds.length !== 1 ? 's' : ''}</span>
                                 )}
                               </div>
-                              <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
-                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                                <FiPackage className="w-3 h-3" />
-                                {meds.length > 0 ? '+ Add' : 'Browse'}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                {meds.length > 0 && <span className="text-xs font-bold text-gray-800">₱{petTotal.toLocaleString()}</span>}
+                                <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
+                                  className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
+                                  <FiPlus className="w-3 h-3" /> Add
+                                </button>
+                              </div>
                             </div>
-
-                            <div className="px-3 py-2 space-y-1.5 bg-white">
-                              {meds.length === 0 ? (
-                                <div className="border border-dashed border-gray-200 rounded px-3 py-3 text-center">
-                                  <p className="text-xs text-gray-400">No medicines for {pet.name}</p>
-                                  <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
-                                    className="mt-0.5 text-xs text-blue-600 hover:underline font-medium">+ Browse and add</button>
-                                </div>
-                              ) : (
-                                <>
-                                  {meds.map(med => {
-                                    const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
-                                    return (
-                                      <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
-                                        <div className="flex items-start justify-between mb-1.5">
-                                          <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
-                                            <p className="text-xs text-gray-400 capitalize">{med.medicineType} · {med.category}</p>
-                                          </div>
-                                          <button type="button" onClick={() => handleRemovePetMedicine(pet.id, med.id)}
-                                            className="text-gray-300 hover:text-red-500 ml-2 mt-0.5 flex-shrink-0">
-                                            <FiX className="w-3.5 h-3.5" />
+                            {/* Medicines for this pet */}
+                            {meds.length === 0 ? (
+                              <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
+                                className="w-full py-2.5 flex items-center justify-center gap-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+                                <FiPlus className="w-3 h-3" />
+                                <span className="text-xs">Add medicines for {pet.name}</span>
+                              </button>
+                            ) : (
+                              <div>
+                                {meds.map((med, medIdx) => {
+                                  const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
+                                  const subtotal = (med.pricePerUnit ?? 0) * med.quantity
+                                  return (
+                                    <div key={med.id} className={`px-3 py-2 ${medIdx < meds.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
+                                          <p className="text-xs text-gray-400 mt-0.5">₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                          <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, -step)}
+                                            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                            <FiMinus className="w-2.5 h-2.5" />
                                           </button>
+                                          <input type="text" inputMode="decimal" value={med.quantity}
+                                            onChange={(e) => {
+                                              const raw = e.target.value
+                                              if (raw === '' || raw === '-') { setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: raw } : m) })); return }
+                                              const num = parseFloat(raw)
+                                              if (!isNaN(num) && num > 0) handlePetMedQtyInput(pet.id, med.id, raw)
+                                            }}
+                                            onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: step } : m) })) }}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-10 text-center text-xs border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white" />
+                                          <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, step)}
+                                            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                            <FiPlus className="w-2.5 h-2.5" />
+                                          </button>
+                                          <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>
                                         </div>
-                                        {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
-                                          <div className="flex gap-1 mb-1.5">
-                                            {med.medicineType === 'syrup' && (
-                                              <>
-                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'ml')}
-                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per ml</button>
-                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'bottle')}
-                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per bottle</button>
-                                              </>
-                                            )}
-                                            {med.medicineType === 'tablet' && (
-                                              <>
-                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'tablet')}
-                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per tablet</button>
-                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'box')}
-                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per box</button>
-                                              </>
-                                            )}
-                                          </div>
-                                        )}
-                                        <div className="flex items-center justify-between gap-2">
-                                          <div className="flex items-center gap-1">
-                                            <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, -1)}
-                                              className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
-                                              <FiMinus className="w-3 h-3" />
-                                            </button>
-                                            <input type="number" min={step} step={step} value={med.quantity}
-                                              onChange={(e) => {
-                                                const raw = e.target.value
-                                                if (raw === '' || raw === '-') { setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: raw } : m) })); return }
-                                                const num = parseFloat(raw)
-                                                if (!isNaN(num) && num > 0) handlePetMedQtyInput(pet.id, med.id, raw)
-                                              }}
-                                              onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: step } : m) })) }}
-                                              onFocus={(e) => e.target.select()}
-                                              className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
-                                            <span className="text-xs text-gray-600">{med.sellUnit ?? med.unit}</span>
-                                            <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, 1)}
-                                              className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
-                                              <FiPlus className="w-3 h-3" />
-                                            </button>
-                                          </div>
-                                          <div className="text-right flex-shrink-0">
-                                            <p className="text-xs font-bold text-gray-900">₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}</p>
-                                            <p className="text-xs text-gray-400">₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}</p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center justify-end gap-1.5 mt-1">
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {med.editingPrice ? (
-                                            <>
-                                              <span className="text-xs text-gray-400">Final: ₱</span>
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-xs text-gray-400">₱</span>
                                               <input type="number" min="0" step="0.01"
-                                                value={med.finalPrice !== undefined ? med.finalPrice : (med.pricePerUnit ?? 0) * med.quantity}
+                                                value={med.finalPrice !== undefined ? med.finalPrice : subtotal}
                                                 onChange={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num < 0) return; setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m) })) }}
                                                 onFocus={(e) => e.target.select()}
-                                                className="w-24 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
-                                                autoFocus />
-                                            </>
+                                                className="w-16 text-xs text-right border-b border-gray-400 focus:outline-none focus:border-blue-500 bg-transparent" autoFocus />
+                                              <button type="button"
+                                                onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: false } : m) }))}
+                                                className="text-xs font-medium text-gray-500 hover:text-gray-800">✓</button>
+                                            </div>
                                           ) : (
-                                            <span className="text-xs text-gray-500">
-                                              ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
-                                              {med.finalPrice !== undefined && <span className="ml-1 text-blue-600 font-medium">(edited)</span>}
-                                            </span>
+                                            <button type="button" title="Click to edit price"
+                                              onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: true } : m) }))}
+                                              className="text-xs font-bold text-gray-900 tabular-nums hover:opacity-70 transition-opacity">
+                                              ₱{subtotal.toLocaleString()}
+                                            </button>
                                           )}
-                                          <button type="button"
-                                            onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: !m.editingPrice } : m) }))}
-                                            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${med.editingPrice ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                                            {med.editingPrice ? 'Done' : 'Edit Price'}
+                                          <button type="button" onClick={() => handleRemovePetMedicine(pet.id, med.id)}
+                                            className="text-gray-300 hover:text-red-500 transition-colors">
+                                            <FiX className="w-4 h-4" />
                                           </button>
                                         </div>
                                       </div>
-                                    )
-                                  })}
-                                  <div className="flex items-center justify-between pt-0.5">
-                                    <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
-                                      className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs text-gray-500">{pet.name} total</span>
-                                      <span className="text-sm font-bold text-gray-900">₱{petTotal.toLocaleString()}</span>
+                                      {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                                        <div className="flex gap-1 mt-1.5">
+                                          {med.medicineType === 'syrup' ? (
+                                            <>
+                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'ml')}
+                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>ml</button>
+                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'bottle')}
+                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>bottle</button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'tablet')}
+                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>tablet</button>
+                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'box')}
+                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>box</button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                                  )
+                                })}
+                              </div>
+                            )}
                           </div>
                         )
                       })}
-                      <div className="flex items-center justify-between pt-0.5">
+                      {/* Grand total */}
+                      <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 bg-gray-50">
                         <span className="text-xs text-gray-500">All pets total</span>
                         <span className="text-sm font-bold text-gray-900">
                           ₱{selectedPets.reduce((sum, pet) =>
