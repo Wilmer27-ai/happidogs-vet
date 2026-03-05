@@ -198,6 +198,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [medicinesLoaded, setMedicinesLoaded] = useState(false)
   const [selectedMedicines, setSelectedMedicines] = useState([])
   const [showMedModal, setShowMedModal] = useState(false)
+  const [perPetMode, setPerPetMode] = useState(false)
+  const [petMedicines, setPetMedicines] = useState({})
+  const [activeMedPetId, setActiveMedPetId] = useState(null)
 
   const getCurrentDate = () => {
     const d = new Date()
@@ -271,6 +274,19 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         setMedicinesLoaded(true)
       } catch (e) { console.error(e) }
     }
+    setActiveMedPetId(null)
+    setShowMedModal(true)
+  }
+
+  const handleOpenPetMedModal = async (petId) => {
+    if (!medicinesLoaded) {
+      try {
+        const d = await getMedicines()
+        setAllMedicines(d.filter(m => getTotalStock(m) > 0))
+        setMedicinesLoaded(true)
+      } catch (e) { console.error(e) }
+    }
+    setActiveMedPetId(petId)
     setShowMedModal(true)
   }
 
@@ -305,24 +321,34 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     })
   }
 
+  const buildMedEntry = (med) => {
+    const defaultUnit = getDefaultUnit(med)
+    const pricePerUnit = getPricePerUnit(med, defaultUnit)
+    return {
+      ...med, quantity: 1, sellUnit: defaultUnit, pricePerUnit,
+      subtotal: pricePerUnit,
+      mlPerBottle: med.mlPerBottle ?? null,
+      tabletsPerBox: med.tabletsPerBox ?? null,
+      bottleCount: med.bottleCount ?? 0,
+      looseMl: med.looseMl ?? 0,
+      boxCount: med.boxCount ?? 0,
+      looseTablets: med.looseTablets ?? 0
+    }
+  }
+
   const handleMedicineModalConfirm = (newMeds) => {
-    const toAdd = newMeds.filter(med => !selectedMedicines.some(m => m.id === med.id))
-    const built = toAdd.map(med => {
-      const defaultUnit = getDefaultUnit(med)
-      const pricePerUnit = getPricePerUnit(med, defaultUnit)
-      return {
-        ...med, quantity: 1, sellUnit: defaultUnit, pricePerUnit,
-        subtotal: pricePerUnit,
-        mlPerBottle: med.mlPerBottle ?? null,
-        tabletsPerBox: med.tabletsPerBox ?? null,
-        bottleCount: med.bottleCount ?? 0,
-        looseMl: med.looseMl ?? 0,
-        boxCount: med.boxCount ?? 0,
-        looseTablets: med.looseTablets ?? 0
-      }
-    })
-    setSelectedMedicines(prev => [...prev, ...built])
+    if (perPetMode && activeMedPetId) {
+      setPetMedicines(prev => {
+        const existing = prev[activeMedPetId] || []
+        const toAdd = newMeds.filter(med => !existing.some(m => m.id === med.id)).map(buildMedEntry)
+        return { ...prev, [activeMedPetId]: [...existing, ...toAdd] }
+      })
+    } else {
+      const toAdd = newMeds.filter(med => !selectedMedicines.some(m => m.id === med.id)).map(buildMedEntry)
+      setSelectedMedicines(prev => [...prev, ...toAdd])
+    }
     setShowMedModal(false)
+    setActiveMedPetId(null)
   }
 
   const handleRemoveMedicine = (id) =>
@@ -352,6 +378,44 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     setSelectedMedicines(prev => prev.map(m =>
       m.id === id ? { ...m, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice } : m
     ))
+  }
+
+  const handleRemovePetMedicine = (petId, id) =>
+    setPetMedicines(prev => ({ ...prev, [petId]: (prev[petId] || []).filter(m => m.id !== id) }))
+
+  const handlePetMedQty = (petId, id, delta) => {
+    setPetMedicines(prev => ({
+      ...prev,
+      [petId]: (prev[petId] || []).map(m => {
+        if (m.id !== id) return m
+        const step = m.sellUnit === 'ml' ? 0.5 : 1
+        const newQty = Math.max(step, parseFloat((m.quantity + delta * step).toFixed(2)))
+        return { ...m, quantity: newQty, subtotal: newQty * (m.pricePerUnit ?? 0) }
+      })
+    }))
+  }
+
+  const handlePetMedQtyInput = (petId, id, value) => {
+    const num = parseFloat(value)
+    if (isNaN(num) || num <= 0) return
+    setPetMedicines(prev => ({
+      ...prev,
+      [petId]: (prev[petId] || []).map(m =>
+        m.id === id ? { ...m, quantity: num, subtotal: num * (m.pricePerUnit ?? 0) } : m
+      )
+    }))
+  }
+
+  const handlePetMedUnitChange = (petId, id, newUnit) => {
+    const src = allMedicines.find(m => m.id === id)
+    if (!src) return
+    const newPrice = getPricePerUnit(src, newUnit)
+    setPetMedicines(prev => ({
+      ...prev,
+      [petId]: (prev[petId] || []).map(m =>
+        m.id === id ? { ...m, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice } : m
+      )
+    }))
   }
 
   const handleAddClient = async (data) => {
@@ -402,6 +466,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       await Promise.all(
         selectedPets.flatMap(pet => {
           const vitals = petVitals[pet.id] || { weight: '', temperature: '' }
+          const meds = perPetMode ? (petMedicines[pet.id] || []) : selectedMedicines
           return formData.activityTypes.map(activityType =>
             addPetActivity({
               petId: pet.id,
@@ -417,7 +482,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               note: (activityType === 'Vaccination' || activityType === 'Deworming') ? (formData.note || '') : '',   // ← add this
               followUpDate: formData.hasFollowUp ? (formData.followUpDate || '') : '',
               followUpNote: formData.hasFollowUp ? (formData.followUpNote || '') : '',
-              medicines: selectedMedicines.map(med => ({
+              medicines: meds.map(med => ({
                 medicineId: med.id,
                 medicineName: med.medicineName,
                 quantity: med.quantity,
@@ -439,6 +504,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       })
       setPetVitals({})
       setSelectedMedicines([])
+      setPetMedicines({})
       setSuccessMessage(
         `${formData.activityTypes.length} activity type${formData.activityTypes.length > 1 ? 's' : ''} saved for ${selectedPets.length} pet${selectedPets.length > 1 ? 's' : ''}`
       )
@@ -497,7 +563,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     }
   }
 
-  const medicinesTotalAmount = selectedMedicines.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
+  const medicinesPerPetAmount = selectedMedicines.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
+  const medicinesTotalAmount = medicinesPerPetAmount * (selectedPets.length || 1)
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -794,13 +861,32 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium text-gray-700">Medicines</label>
-                    <button type="button" onClick={handleOpenMedModal}
-                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                      <FiPackage className="w-3 h-3" /> Browse
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Per-pet toggle — only when 2+ pets selected */}
+                      {selectedPets.length > 1 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-400">{perPetMode ? 'Per pet' : 'Same for all'}</span>
+                          <button
+                            type="button"
+                            onClick={() => setPerPetMode(v => !v)}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${perPetMode ? 'bg-blue-600' : 'bg-gray-300'}`}
+                            title="Toggle per-pet medicine selection"
+                          >
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${perPetMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                          </button>
+                        </div>
+                      )}
+                      {!perPetMode && (
+                        <button type="button" onClick={handleOpenMedModal}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                          <FiPackage className="w-3 h-3" /> Browse
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {selectedMedicines.length === 0 ? (
+                  {/* ── Shared mode (default) ── */}
+                  {!perPetMode && (selectedMedicines.length === 0 ? (
                     <div className="border border-dashed border-gray-300 rounded-md px-4 py-4 text-center">
                       <p className="text-xs text-gray-400">No medicines added yet</p>
                       <button type="button" onClick={handleOpenMedModal}
@@ -905,12 +991,26 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                               <div className="text-right flex-shrink-0">
                                 <p className="text-xs font-bold text-gray-900">
                                   ₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}
+                                  {selectedPets.length > 1 && (
+                                    <span className="ml-1 font-normal text-gray-400">× {selectedPets.length} pets</span>
+                                  )}
                                 </p>
                                 <p className="text-xs text-gray-400">
                                   ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
                                 </p>
                               </div>
                             </div>
+
+                            {/* Per-pet hint when multiple pets are selected */}
+                            {selectedPets.length > 1 && (
+                              <div className="mt-1.5 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                <span className="text-xs text-amber-700">
+                                  <strong>{med.quantity} {med.sellUnit ?? med.unit} per pet</strong>
+                                  {' '}× {selectedPets.length} pets
+                                  {' '}= <strong>{parseFloat((med.quantity * selectedPets.length).toFixed(2))} {med.sellUnit ?? med.unit} total</strong>
+                                </span>
+                              </div>
+                            )}
 
                             {/* Edit final price */}
                             <div className="flex items-center justify-end gap-1.5 mt-1">
@@ -967,9 +1067,158 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                         <button type="button" onClick={handleOpenMedModal}
                           className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Total</span>
+                          <span className="text-xs text-gray-500">
+                            {selectedPets.length > 1 ? `Total (${selectedPets.length} pets)` : 'Total'}
+                          </span>
                           <span className="text-sm font-bold text-gray-900">₱{medicinesTotalAmount.toLocaleString()}</span>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* ── Per-pet mode (toggle on, 2+ pets) ── */}
+                  {perPetMode && (
+                    <div className="space-y-2">
+                      {selectedPets.map(pet => {
+                        const meds = petMedicines[pet.id] || []
+                        const petTotal = meds.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
+                        return (
+                          <div key={pet.id} className="border border-gray-200 rounded-md overflow-hidden">
+                            {/* Pet header */}
+                            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-gray-800">{pet.name}</span>
+                                <span className="text-xs text-gray-400">{pet.species}</span>
+                                {meds.length > 0 && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 font-medium px-1.5 py-0.5 rounded">
+                                    {meds.length} item{meds.length !== 1 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                              <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                                <FiPackage className="w-3 h-3" />
+                                {meds.length > 0 ? '+ Add' : 'Browse'}
+                              </button>
+                            </div>
+
+                            <div className="px-3 py-2 space-y-1.5 bg-white">
+                              {meds.length === 0 ? (
+                                <div className="border border-dashed border-gray-200 rounded px-3 py-3 text-center">
+                                  <p className="text-xs text-gray-400">No medicines for {pet.name}</p>
+                                  <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
+                                    className="mt-0.5 text-xs text-blue-600 hover:underline font-medium">+ Browse and add</button>
+                                </div>
+                              ) : (
+                                <>
+                                  {meds.map(med => {
+                                    const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
+                                    return (
+                                      <div key={med.id} className="border border-gray-200 rounded-md p-2.5 bg-white">
+                                        <div className="flex items-start justify-between mb-1.5">
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
+                                            <p className="text-xs text-gray-400 capitalize">{med.medicineType} · {med.category}</p>
+                                          </div>
+                                          <button type="button" onClick={() => handleRemovePetMedicine(pet.id, med.id)}
+                                            className="text-gray-300 hover:text-red-500 ml-2 mt-0.5 flex-shrink-0">
+                                            <FiX className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                        {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                                          <div className="flex gap-1 mb-1.5">
+                                            {med.medicineType === 'syrup' && (
+                                              <>
+                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'ml')}
+                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per ml</button>
+                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'bottle')}
+                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per bottle</button>
+                                              </>
+                                            )}
+                                            {med.medicineType === 'tablet' && (
+                                              <>
+                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'tablet')}
+                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per tablet</button>
+                                                <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'box')}
+                                                  className={`flex-1 py-0.5 text-xs rounded border font-medium transition-colors ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>per box</button>
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-1">
+                                            <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, -1)}
+                                              className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
+                                              <FiMinus className="w-3 h-3" />
+                                            </button>
+                                            <input type="number" min={step} step={step} value={med.quantity}
+                                              onChange={(e) => {
+                                                const raw = e.target.value
+                                                if (raw === '' || raw === '-') { setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: raw } : m) })); return }
+                                                const num = parseFloat(raw)
+                                                if (!isNaN(num) && num > 0) handlePetMedQtyInput(pet.id, med.id, raw)
+                                              }}
+                                              onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: step } : m) })) }}
+                                              onFocus={(e) => e.target.select()}
+                                              className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                                            <span className="text-xs text-gray-600">{med.sellUnit ?? med.unit}</span>
+                                            <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, 1)}
+                                              className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
+                                              <FiPlus className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                          <div className="text-right flex-shrink-0">
+                                            <p className="text-xs font-bold text-gray-900">₱{((med.pricePerUnit ?? 0) * med.quantity).toLocaleString()}</p>
+                                            <p className="text-xs text-gray-400">₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1.5 mt-1">
+                                          {med.editingPrice ? (
+                                            <>
+                                              <span className="text-xs text-gray-400">Final: ₱</span>
+                                              <input type="number" min="0" step="0.01"
+                                                value={med.finalPrice !== undefined ? med.finalPrice : (med.pricePerUnit ?? 0) * med.quantity}
+                                                onChange={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num < 0) return; setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m) })) }}
+                                                onFocus={(e) => e.target.select()}
+                                                className="w-24 px-1.5 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                                                autoFocus />
+                                            </>
+                                          ) : (
+                                            <span className="text-xs text-gray-500">
+                                              ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                                              {med.finalPrice !== undefined && <span className="ml-1 text-blue-600 font-medium">(edited)</span>}
+                                            </span>
+                                          )}
+                                          <button type="button"
+                                            onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: !m.editingPrice } : m) }))}
+                                            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${med.editingPrice ? 'bg-blue-100 text-blue-700 font-medium' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                            {med.editingPrice ? 'Done' : 'Edit Price'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                  <div className="flex items-center justify-between pt-0.5">
+                                    <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
+                                      className="text-xs text-blue-600 hover:underline font-medium">+ Add more</button>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-500">{pet.name} total</span>
+                                      <span className="text-sm font-bold text-gray-900">₱{petTotal.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div className="flex items-center justify-between pt-0.5">
+                        <span className="text-xs text-gray-500">All pets total</span>
+                        <span className="text-sm font-bold text-gray-900">
+                          ₱{selectedPets.reduce((sum, pet) =>
+                            sum + (petMedicines[pet.id] || []).reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0), 0
+                          ).toLocaleString()}
+                        </span>
                       </div>
                     </div>
                   )}
