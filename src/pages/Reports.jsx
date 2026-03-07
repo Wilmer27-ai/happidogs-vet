@@ -3,7 +3,7 @@ import {
   FiDownload,
   FiPrinter
 } from 'react-icons/fi'
-import { getSales, getExpenses, getAllPetActivities, getMedicines, getStoreItems, getClients, getPets } from '../firebase/services'
+import { getSales, getExpenses, getAllPetActivities, getMedicines, getStoreItems, getClients, getPets, getStockEditHistory } from '../firebase/services'
 
 function Reports() {
   const [loading, setLoading] = useState(true)
@@ -22,7 +22,8 @@ function Reports() {
     medicines: [],
     storeItems: [],
     clients: [],
-    pets: []
+    pets: [],
+    stockHistory: []
   })
 
   useEffect(() => {
@@ -32,17 +33,18 @@ function Reports() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const [sales, expenses, activities, medicines, storeItems, clients, pets] = await Promise.all([
+      const [sales, expenses, activities, medicines, storeItems, clients, pets, stockHistory] = await Promise.all([
         getSales(),
         getExpenses(),
-        getAllPetActivities(), // Changed from getConsultations
+        getAllPetActivities(),
         getMedicines(),
         getStoreItems(),
         getClients(),
-        getPets()
+        getPets(),
+        getStockEditHistory()
       ])
       
-      setData({ sales, expenses, consultations: activities, medicines, storeItems, clients, pets })
+      setData({ sales, expenses, consultations: activities, medicines, storeItems, clients, pets, stockHistory })
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -84,7 +86,17 @@ function Reports() {
     })
   }
 
-  const filteredSales = filterByDate(data.sales, 'saleDate')
+  // filteredSales: handle both consultation sales ('date' field) and POS sales ('saleDate' field)
+  const filteredSales = (() => {
+    const rangeStart = getDateRangeFilter()
+    if (!rangeStart) return data.sales
+    return data.sales.filter(s => {
+      const d = s.type === 'consultation'
+        ? new Date((s.date || '') + 'T00:00:00')
+        : (s.saleDate?.toDate ? s.saleDate.toDate() : new Date(s.saleDate || s.createdAt))
+      return !isNaN(d) && d >= rangeStart
+    })
+  })()
   const filteredExpenses = filterByDate(data.expenses, 'expenseDate')
   const filteredConsultations = filterByDate(data.consultations, 'createdAt')
 
@@ -99,7 +111,63 @@ function Reports() {
   const allInventory = [...data.medicines, ...data.storeItems]
   const lowStockItems = allInventory.filter(item => item.stockQuantity > 0 && item.stockQuantity <= 10).length
   const outOfStockItems = allInventory.filter(item => item.stockQuantity === 0).length
-  const inventoryValue = allInventory.reduce((sum, item) => sum + (item.sellingPrice * item.stockQuantity), 0)
+
+  const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
+  const calcItemValue = (item) => {
+    if (item.medicineType === 'syrup') {
+      return (item.bottleCount || 0) * (item.sellingPricePerBottle || 0)
+           + (item.looseMl || 0) * (item.sellingPricePerMl || 0)
+    }
+    if (item.medicineType === 'tablet') {
+      return (item.boxCount || 0) * (item.sellingPricePerBox || 0)
+           + (item.looseTablets || 0) * (item.sellingPricePerTablet || 0)
+    }
+    if (item.itemName && foodCategories.includes(item.category)) {
+      return (item.sacksCount || 0) * (item.sellingPricePerSack || 0)
+           + (item.looseKg || 0) * (item.sellingPricePerKg || 0)
+    }
+    return (item.stockQuantity || 0) * (item.sellingPrice || 0)
+  }
+  const inventoryValue = allInventory.reduce((sum, item) => sum + calcItemValue(item), 0)
+
+  const consultationRevenue = filteredSales.filter(s => s.type === 'consultation').reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+  const storeRevenue = filteredSales.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+
+  const getStockDisplay = (item) => {
+    if (item.medicineType === 'syrup') {
+      const parts = []
+      if (item.bottleCount) parts.push(`${item.bottleCount} bot`)
+      if (item.looseMl) parts.push(`${item.looseMl} ml`)
+      return parts.join(' + ') || '0'
+    }
+    if (item.medicineType === 'tablet') {
+      const parts = []
+      if (item.boxCount) parts.push(`${item.boxCount} box`)
+      if (item.looseTablets) parts.push(`${item.looseTablets} tab`)
+      return parts.join(' + ') || '0'
+    }
+    if (item.itemName && foodCategories.includes(item.category)) {
+      const parts = []
+      if (item.sacksCount) parts.push(`${item.sacksCount} sack`)
+      if (item.looseKg) parts.push(`${item.looseKg} kg`)
+      return parts.join(' + ') || '0'
+    }
+    return `${item.stockQuantity || 0} ${item.unit || ''}`
+  }
+
+  const getPriceDisplay = (item) => {
+    if (item.medicineType === 'syrup') return item.sellingPricePerBottle ? `₱${item.sellingPricePerBottle.toLocaleString('en-US', { minimumFractionDigits: 2 })}/bot` : '—'
+    if (item.medicineType === 'tablet') return item.sellingPricePerBox ? `₱${item.sellingPricePerBox.toLocaleString('en-US', { minimumFractionDigits: 2 })}/box` : '—'
+    if (item.itemName && foodCategories.includes(item.category)) return item.sellingPricePerSack ? `₱${item.sellingPricePerSack.toLocaleString('en-US', { minimumFractionDigits: 2 })}/sack` : '—'
+    return item.sellingPrice ? `₱${item.sellingPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'
+  }
+
+  const getPrimaryStock = (item) => {
+    if (item.medicineType === 'syrup') return item.bottleCount || 0
+    if (item.medicineType === 'tablet') return item.boxCount || 0
+    if (item.itemName && foodCategories.includes(item.category)) return item.sacksCount || 0
+    return item.stockQuantity || 0
+  }
 
   const salesByCategory = filteredSales.reduce((acc, sale) => {
     sale.items?.forEach(item => {
@@ -127,52 +195,23 @@ function Reports() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
 
-  const getMonthlyTrend = () => {
-    const months = []
-    const now = new Date()
-    
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      
-      const monthSales = data.sales.filter(s => {
-        const saleDate = s.saleDate?.toDate ? s.saleDate.toDate() : new Date(s.saleDate)
-        return saleDate.getMonth() === date.getMonth() && saleDate.getFullYear() === date.getFullYear()
-      })
-      
-      const monthExpenses = data.expenses.filter(e => {
-        const expDate = e.expenseDate?.toDate ? e.expenseDate.toDate() : new Date(e.expenseDate)
-        return expDate.getMonth() === date.getMonth() && expDate.getFullYear() === date.getFullYear()
-      })
-      
-      const revenue = monthSales.reduce((sum, s) => sum + (s.totalAmount || 0), 0)
-      const expenses = monthExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
-      
-      months.push({
-        month: monthName,
-        revenue,
-        expenses,
-        profit: revenue - expenses
-      })
-    }
-    
-    return months
-  }
-
-  const monthlyTrend = getMonthlyTrend()
-  const maxValue = Math.max(...monthlyTrend.map(m => Math.max(m.revenue, m.expenses)))
-
   // Audit Trail Data
   const getAuditTrail = () => {
+    const rangeStart = getDateRangeFilter()
     const auditEvents = []
     
-    // Sales activities
+    // Sales (both consultation and POS)
     filteredSales.forEach(sale => {
+      const saleDate = sale.type === 'consultation'
+        ? new Date((sale.date || '') + 'T00:00:00')
+        : (sale.saleDate?.toDate ? sale.saleDate.toDate() : new Date(sale.saleDate || sale.createdAt))
       auditEvents.push({
-        date: sale.saleDate?.toDate ? sale.saleDate.toDate() : new Date(sale.saleDate),
-        type: 'Sale',
-        description: `Sale transaction - ${sale.items?.length || 0} items`,
-        amount: sale.totalAmount,
+        date: isNaN(saleDate) ? new Date() : saleDate,
+        type: sale.type === 'consultation' ? 'Consultation' : 'Sale',
+        description: sale.type === 'consultation'
+          ? `Consultation — ${sale.clientName || 'Client'}${sale.petNames?.length ? ' (' + sale.petNames.join(', ') + ')' : ''}`
+          : `POS Sale — ${sale.itemName || (sale.items?.length ? sale.items.length + ' items' : 'items')}`,
+        amount: sale.totalAmount || 0,
         reference: sale.id
       })
     })
@@ -182,20 +221,22 @@ function Reports() {
       auditEvents.push({
         date: exp.expenseDate?.toDate ? exp.expenseDate.toDate() : new Date(exp.expenseDate),
         type: 'Expense',
-        description: `${exp.category} - ${exp.expenseName}`,
-        amount: -parseFloat(exp.amount),
+        description: `${exp.category || 'Expense'} — ${exp.expenseName || ''}`,
+        amount: -parseFloat(exp.amount || 0),
         reference: exp.id
       })
     })
     
-    // Consultation activities
-    filteredConsultations.forEach(con => {
+    // Stock edit history
+    data.stockHistory.forEach(log => {
+      const logDate = log.createdAt?.toDate ? log.createdAt.toDate() : new Date(log.editedAt || log.createdAt)
+      if (rangeStart && logDate < rangeStart) return
       auditEvents.push({
-        date: con.createdAt?.toDate ? con.createdAt.toDate() : new Date(con.createdAt),
-        type: 'Consultation',
-        description: `Consultation for ${con.petName || 'Pet'}`,
-        amount: con.totalCost || 0,
-        reference: con.id
+        date: logDate,
+        type: 'Stock Edit',
+        description: `${log.action === 'delete' ? 'Deleted' : 'Edited'} ${log.itemType === 'medicine' ? 'medicine' : 'store item'}: ${log.itemName || ''}`,
+        amount: 0,
+        reference: log.id
       })
     })
     
@@ -236,7 +277,99 @@ function Reports() {
   useEffect(() => { setDisplayCountAudit(20) }, [dateRange])
 
   const handleExportCSV = () => {
-    alert('CSV export functionality - Coming soon!')
+    const esc = (v) => {
+      if (v === null || v === undefined) return ''
+      const s = String(v)
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
+      return s
+    }
+    const row = (cols) => cols.map(esc).join(',')
+    const dateLabel = { today: 'Today', week: 'Last 7 Days', month: 'Last 30 Days', year: 'Last Year', all: 'All Time' }[dateRange] || dateRange
+    const fmtDate = (d) => {
+      try { return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) } catch { return '' }
+    }
+    const fmtAmt = (n) => Number(n || 0).toFixed(2)
+
+    const sections = []
+
+    // ── OVERVIEW SUMMARY ──
+    sections.push('OVERVIEW SUMMARY')
+    sections.push(row(['Period', dateLabel]))
+    sections.push(row(['Total Revenue', fmtAmt(totalRevenue)]))
+    sections.push(row(['Consultation Revenue', fmtAmt(consultationRevenue)]))
+    sections.push(row(['Store Revenue', fmtAmt(storeRevenue)]))
+    sections.push(row(['Total Expenses', fmtAmt(totalExpenses)]))
+    sections.push(row(['Net Profit', fmtAmt(totalProfit)]))
+    sections.push(row(['Profit Margin (%)', profitMargin]))
+    sections.push(row(['Total Inventory Value', fmtAmt(inventoryValue)]))
+    sections.push(row(['Total Clients', data.clients.length]))
+    sections.push(row(['Total Pets', data.pets.length]))
+    sections.push(row(['Total Consultations', totalConsultations]))
+    sections.push(row(['Medicines in Stock', data.medicines.length]))
+    sections.push(row(['Store Items in Stock', data.storeItems.length]))
+    sections.push(row(['Low Stock Items', lowStockItems]))
+    sections.push(row(['Out of Stock Items', outOfStockItems]))
+    sections.push('')
+
+    // ── SALES ──
+    sections.push('SALES')
+    sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount']))
+    filteredSales.forEach(s => {
+      const d = s.type === 'consultation'
+        ? fmtDate((s.date || '') + 'T00:00:00')
+        : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
+      const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
+      const client = s.clientName || ''
+      const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
+      const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
+      sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount)]))
+    })
+    sections.push('')
+
+    // ── EXPENSES ──
+    sections.push('EXPENSES')
+    sections.push(row(['Date', 'Category', 'Description', 'Amount']))
+    filteredExpenses.forEach(e => {
+      const d = fmtDate(e.expenseDate?.toDate ? e.expenseDate.toDate() : e.expenseDate)
+      sections.push(row([d, e.category || '', e.expenseName || '', fmtAmt(e.amount)]))
+    })
+    sections.push('')
+
+    // ── INVENTORY ──
+    sections.push('INVENTORY')
+    sections.push(row(['Name', 'Type', 'Category', 'Stock', 'Unit Price', 'Total Value', 'Status']))
+    allInventory.forEach(item => {
+      const name = item.medicineName || item.itemName || ''
+      const type = item.medicineName ? 'Medicine' : 'Store Item'
+      const stock = getStockDisplay(item)
+      const price = getPriceDisplay(item)
+      const value = fmtAmt(calcItemValue(item))
+      const primary = getPrimaryStock(item)
+      const status = primary === 0 ? 'Out of Stock' : primary <= 10 ? 'Low Stock' : 'OK'
+      sections.push(row([name, type, item.category || '', stock, price, value, status]))
+    })
+    sections.push('')
+
+    // ── AUDIT TRAIL ──
+    sections.push('AUDIT TRAIL')
+    sections.push(row(['Date', 'Type', 'Description', 'Amount']))
+    getAuditTrail().forEach(e => {
+      sections.push(row([
+        e.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        e.type,
+        e.description,
+        fmtAmt(e.amount)
+      ]))
+    })
+
+    const csv = sections.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `happidogs-report-${dateLabel.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const handlePrint = () => {
@@ -290,13 +423,7 @@ function Reports() {
               Export
             </button>
             
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
-            >
-              <FiPrinter className="w-3.5 h-3.5" />
-              Print
-            </button>
+
           </div>
         </div>
 
@@ -324,178 +451,49 @@ function Reports() {
         {activeTab === 'overview' && (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-4 gap-3 mb-3">
+            <div className="grid grid-cols-3 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                <p className="text-xs text-gray-600 mb-1">Revenue</p>
+                <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-xl font-bold text-gray-900">₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{filteredSales.length} transactions</p>
+                <p className="text-xs text-gray-500 mt-0.5">C ₱{consultationRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })} · S ₱{storeRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
               </div>
 
               <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                <p className="text-xs text-gray-600 mb-1">Expenses</p>
+                <p className="text-xs text-gray-600 mb-1">Total Expenses</p>
                 <p className="text-xl font-bold text-gray-900">₱{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{filteredExpenses.length} records</p>
               </div>
 
               <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                <p className="text-xs text-gray-600 mb-1">Net Profit</p>
-                <p className={`text-xl font-bold ${totalProfit >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
-                  ₱{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">Margin: {profitMargin}%</p>
-              </div>
-
-              <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                <p className="text-xs text-gray-600 mb-1">Consultations</p>
-                <p className="text-xl font-bold text-gray-900">{totalConsultations}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Avg: ₱{avgConsultationValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p className="text-xs text-gray-600 mb-1">Total Stocks Value</p>
+                <p className="text-xl font-bold text-gray-900">₱{inventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{allInventory.length} items</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              {/* Monthly Trend */}
-              <div className="col-span-2 bg-white border border-gray-200 rounded-md shadow-sm p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">6-Month Performance</h2>
-                
-                <div className="space-y-3">
-                  {monthlyTrend.map((month, index) => (
-                    <div key={index}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700">{month.month}</span>
-                        <span className={`text-xs font-semibold ${month.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          ₱{month.profit.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                        </span>
-                      </div>
-                      <div className="flex gap-1 h-6">
-                        <div className="flex-1 bg-gray-100 rounded overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 transition-all"
-                            style={{ width: `${(month.revenue / maxValue) * 100}%` }}
-                          ></div>
-                        </div>
-                        <div className="flex-1 bg-gray-100 rounded overflow-hidden">
-                          <div 
-                            className="h-full bg-gray-400 transition-all"
-                            style={{ width: `${(month.expenses / maxValue) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500 mt-0.5">
-                        <span>₱{month.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                        <span>₱{month.expenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                      </div>
-                    </div>
-                  ))}
+            <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">Business Stats</h2>
+              <div className="grid grid-cols-5 gap-3">
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Clients</span>
+                  <span className="text-lg font-bold text-gray-900">{data.clients.length}</span>
                 </div>
-
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-blue-500 rounded"></div>
-                    <span className="text-gray-600">Revenue</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 bg-gray-400 rounded"></div>
-                    <span className="text-gray-600">Expenses</span>
-                  </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Pets</span>
+                  <span className="text-lg font-bold text-gray-900">{data.pets.length}</span>
                 </div>
-              </div>
-
-              {/* Stats */}
-              <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">Business Stats</h2>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-xs text-gray-600">Clients</span>
-                    <span className="text-sm font-semibold text-gray-900">{data.clients.length}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-xs text-gray-600">Pets</span>
-                    <span className="text-sm font-semibold text-gray-900">{data.pets.length}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-xs text-gray-600">Medicines</span>
-                    <span className="text-sm font-semibold text-gray-900">{data.medicines.length}</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center py-2 border-b">
-                    <span className="text-xs text-gray-600">Store Items</span>
-                    <span className="text-sm font-semibold text-gray-900">{data.storeItems.length}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center py-2 bg-gray-50 -mx-4 px-4 rounded">
-                    <span className="text-xs font-medium text-gray-700">Total Inventory</span>
-                    <span className="text-sm font-bold text-gray-900">{allInventory.length}</span>
-                  </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Medicines</span>
+                  <span className="text-lg font-bold text-gray-900">{data.medicines.length}</span>
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {/* Revenue Categories */}
-              <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">Revenue by Category</h2>
-                
-                {topCategories.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {topCategories.map(([category, data], index) => {
-                      const percentage = (data.revenue / totalRevenue * 100).toFixed(1)
-                      return (
-                        <div key={category}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">{category}</span>
-                            <span className="text-xs font-semibold text-gray-900">
-                              ₱{data.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="h-1.5 rounded-full bg-blue-500"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{data.quantity} items • {percentage}%</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 text-center py-6">No data available</p>
-                )}
-              </div>
-
-              {/* Expense Categories */}
-              <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">Expenses by Category</h2>
-                
-                {topExpenseCategories.length > 0 ? (
-                  <div className="space-y-2.5">
-                    {topExpenseCategories.map(([category, amount], index) => {
-                      const percentage = (amount / totalExpenses * 100).toFixed(1)
-                      return (
-                        <div key={category}>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-gray-700">{category}</span>
-                            <span className="text-xs font-semibold text-gray-900">
-                              ₱{amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="h-1.5 rounded-full bg-gray-500"
-                              style={{ width: `${percentage}%` }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">{percentage}% of total</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 text-center py-6">No data available</p>
-                )}
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Store Items</span>
+                  <span className="text-lg font-bold text-gray-900">{data.storeItems.length}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-gray-500">Consultations</span>
+                  <span className="text-lg font-bold text-gray-900">{totalConsultations}</span>
+                </div>
               </div>
             </div>
           </>
@@ -546,16 +544,17 @@ function Reports() {
                     {displayedInventory.map((item, index) => {
                       const itemName = item.medicineName || item.itemName
                       const itemType = item.medicineName ? 'Medicine' : 'Store Item'
-                      const stockValue = item.sellingPrice * item.stockQuantity
-                      const status = item.stockQuantity === 0 ? 'Out' : item.stockQuantity <= 10 ? 'Low' : 'OK'
+                      const stockValue = calcItemValue(item)
+                      const primaryQty = getPrimaryStock(item)
+                      const status = primaryQty === 0 ? 'Out' : primaryQty <= 10 ? 'Low' : 'OK'
                       
                       return (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-3 py-2 font-medium text-gray-900">{itemName}</td>
                           <td className="px-3 py-2 text-gray-600">{itemType}</td>
                           <td className="px-3 py-2 text-gray-600">{item.category}</td>
-                          <td className="px-3 py-2 text-center font-semibold">{item.stockQuantity} {item.unit}</td>
-                          <td className="px-3 py-2 text-right">₱{item.sellingPrice?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          <td className="px-3 py-2 text-center font-semibold">{getStockDisplay(item)}</td>
+                          <td className="px-3 py-2 text-right">{getPriceDisplay(item)}</td>
                           <td className="px-3 py-2 text-right font-semibold">₱{stockValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           <td className="px-3 py-2 text-center">
                             <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
@@ -736,8 +735,8 @@ function Reports() {
                 </div>
                 
                 <div className="p-3 border border-blue-200 bg-blue-50 rounded">
-                  <p className="text-xs text-blue-700 mb-0.5">Consultations</p>
-                  <p className="text-2xl font-bold text-blue-900">{filteredConsultations.length}</p>
+                  <p className="text-xs text-blue-700 mb-0.5">Stock Edits</p>
+                  <p className="text-2xl font-bold text-blue-900">{data.stockHistory.length}</p>
                 </div>
               </div>
 
@@ -767,8 +766,9 @@ function Reports() {
                         <td className="px-3 py-2">
                           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
                             event.type === 'Sale' ? 'bg-green-100 text-green-800' :
-                            event.type === 'Expense' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
+                            event.type === 'Consultation' ? 'bg-blue-100 text-blue-800' :
+                            event.type === 'Stock Edit' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
                           }`}>
                             {event.type}
                           </span>

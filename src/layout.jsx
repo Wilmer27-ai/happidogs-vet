@@ -67,7 +67,7 @@ function Layout() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-gray-900 text-white rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
+        className="lg:hidden print:hidden fixed top-4 left-4 z-50 p-3 bg-gray-900 text-white rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
       >
         {isMobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
       </button>
@@ -76,7 +76,7 @@ function Layout() {
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
         bg-gray-900 text-white flex flex-col
-        transform transition-all duration-300 ease-in-out
+        transform transition-all duration-300 ease-in-out print:hidden
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${isCollapsed ? 'lg:w-20' : 'w-72'}
       `}>
