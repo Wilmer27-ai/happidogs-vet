@@ -393,13 +393,11 @@ function PetStore() {
                     <FiMinus className="w-3 h-3" />
                   </button>
                   <input
-                    type="number"
-                    step={step}
-                    min={step}
+                    type="text"
+                    inputMode="decimal"
                     value={orderItem.quantity}
                     onChange={(e) => {
                       const raw = e.target.value
-                      // Allow empty string while typing — don't force a value
                       if (raw === '' || raw === '-') {
                         setOrder(order.map(i =>
                           (i.id === orderItem.id && i._type === orderItem._type)
@@ -414,7 +412,6 @@ function PetStore() {
                       }
                     }}
                     onBlur={(e) => {
-                      // On blur, if empty or invalid — reset to step minimum
                       const num = parseFloat(e.target.value)
                       if (isNaN(num) || num <= 0) {
                         setOrder(order.map(i =>

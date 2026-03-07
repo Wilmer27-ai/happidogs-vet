@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiShoppingCart, FiAlertCircle, FiCheck, FiPackage } from 'react-icons/fi'
-import { getSuppliers, addSupplier, updateSupplier, deleteSupplier, getPurchaseOrders, updatePurchaseOrder } from '../firebase/services'
+import { getSuppliers, addSupplier, updateSupplier, deleteSupplier, getPurchaseOrders, updatePurchaseOrder, deletePurchaseOrder } from '../firebase/services'
 
 function Suppliers() {
   const navigate = useNavigate()
@@ -224,6 +224,17 @@ function Suppliers() {
     }
   }
 
+  const handleDeletePurchaseOrder = async (order) => {
+    if (!confirm(`Are you sure you want to delete order ${order.orderNumber}? This cannot be undone.`)) return
+    try {
+      await deletePurchaseOrder(order.id)
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting purchase order:', error)
+      alert('Failed to delete purchase order.')
+    }
+  }
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
@@ -437,6 +448,13 @@ function Suppliers() {
                                     {new Date(order.paidDate).toLocaleDateString()}
                                   </span>
                                 )}
+                                <button
+                                  onClick={() => handleDeletePurchaseOrder(order)}
+                                  className="text-red-600 hover:text-red-700 p-1.5"
+                                  title="Delete Order"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </td>
                           </tr>
