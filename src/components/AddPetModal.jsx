@@ -3,8 +3,9 @@ import { FiX } from 'react-icons/fi'
 import { addPet } from '../firebase/services'
 import { useState } from 'react'
 
-function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedClient }) {
+function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedClient, speciesList }) {
   const [isSaving, setIsSaving] = useState(false)
+  const species = speciesList && speciesList.length > 0 ? speciesList : ['Canine', 'Feline', 'Avian', 'Rabbit', 'Guinea Pig', 'Hamster', 'Reptile', 'Fish', 'Other']
   if (!isOpen) return null
 
   const handleSubmit = async (e) => {
@@ -78,15 +79,9 @@ function AddPetModal({ isOpen, onClose, onSubmit, petData, setPetData, selectedC
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select</option>
-                  <option value="Canine">Canine (Dog)</option>
-                  <option value="Feline">Feline (Cat)</option>
-                  <option value="Avian">Avian (Bird)</option>
-                  <option value="Rabbit">Rabbit</option>
-                  <option value="Guinea Pig">Guinea Pig</option>
-                  <option value="Hamster">Hamster</option>
-                  <option value="Reptile">Reptile</option>
-                  <option value="Fish">Fish</option>
-                  <option value="Other">Other</option>
+                  {species.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
 

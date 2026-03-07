@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiAlertCircle } from 'react-icons/fi'
-import { getAllPetActivities, getClients, getPets, getMedicines, getStoreItems, getExpenses } from '../firebase/services'
+import { getAllPetActivities, getClients, getPets, getMedicines, getStoreItems, getExpenses, getMasterData, getSales, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function Dashboard() {
   const navigate = useNavigate()
@@ -13,9 +13,12 @@ function Dashboard() {
     totalPets: 0,
     todayConsultations: 0,
     todayRevenue: 0,
+    todaySales: 0,
     todayExpenses: 0,
     weekRevenue: 0,
+    weekSales: 0,
     monthRevenue: 0,
+    monthSales: 0,
     lowStockItems: 0,
     outOfStockItems: 0,
     upcomingFollowUps: [],
@@ -29,14 +32,18 @@ function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true)
     try {
-      const [activities, clients, pets, medicines, storeItems, expenses] = await Promise.all([
+      const [activities, clients, pets, medicines, storeItems, expenses, masterData, sales] = await Promise.all([
         getAllPetActivities(),
         getClients(),
         getPets(),
         getMedicines(),
         getStoreItems(),
-        getExpenses()
+        getExpenses(),
+        getMasterData(),
+        getSales()
       ])
+
+      const lowStockThreshold = masterData?.lowStockThreshold ?? MASTER_DATA_DEFAULTS.lowStockThreshold
 
       const consultations = activities.filter(a => a.medicines && a.medicines.length > 0)
 
@@ -74,9 +81,20 @@ function Dashboard() {
       const monthConsultations = consultations.filter(c => new Date(c.date) >= monthAgo)
       const monthRevenue = monthConsultations.reduce((sum, c) => sum + (c.totalAmount || 0), 0)
 
+      // Store sales
+      const todaySalesTotal = sales
+        .filter(s => { const d = new Date(s.saleDate); d.setHours(0,0,0,0); return d.getTime() === today.getTime() })
+        .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+      const weekSalesTotal = sales
+        .filter(s => new Date(s.saleDate) >= weekAgo)
+        .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+      const monthSalesTotal = sales
+        .filter(s => new Date(s.saleDate) >= monthAgo)
+        .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+
       // Stock items
       const allItems = [...medicines, ...storeItems]
-      const lowStockItems = allItems.filter(item => item.stockQuantity <= 10 && item.stockQuantity > 0).length
+      const lowStockItems = allItems.filter(item => item.stockQuantity <= lowStockThreshold && item.stockQuantity > 0).length
       const outOfStockItems = allItems.filter(item => item.stockQuantity === 0).length
 
       // Weekly trend (last 7 days)
@@ -129,9 +147,12 @@ function Dashboard() {
         totalPets: pets.length,
         todayConsultations: todayConsultations.length,
         todayRevenue,
+        todaySales: todaySalesTotal,
         todayExpenses: todayExpensesTotal,
         weekRevenue,
+        weekSales: weekSalesTotal,
         monthRevenue,
+        monthSales: monthSalesTotal,
         lowStockItems,
         outOfStockItems,
         upcomingFollowUps,
@@ -193,7 +214,7 @@ function Dashboard() {
   }
 
   const maxConsultations = Math.max(...stats.weeklyTrend.map(d => d.count), 1)
-  const todayProfit = stats.todayRevenue - stats.todayExpenses
+  const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -225,7 +246,7 @@ function Dashboard() {
 
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 mb-1">Revenue</p>
-              <p className="text-3xl font-bold text-gray-900">₱{stats.todayRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-gray-900">₱{(stats.todayRevenue + stats.todaySales).toLocaleString()}</p>
             </div>
 
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/medicines-stocks')}>
@@ -266,15 +287,18 @@ function Dashboard() {
                     <div className="space-y-3">
                       <div>
                         <p className="text-xs text-gray-600">Today</p>
-                        <p className="text-lg font-bold text-emerald-600">₱{stats.todayRevenue.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-emerald-600">₱{(stats.todayRevenue + stats.todaySales).toLocaleString()}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Consult ₱{stats.todayRevenue.toLocaleString()} · Store ₱{stats.todaySales.toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-600">This Week</p>
-                        <p className="text-lg font-bold text-gray-900">₱{stats.weekRevenue.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-gray-900">₱{(stats.weekRevenue + stats.weekSales).toLocaleString()}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Consult ₱{stats.weekRevenue.toLocaleString()} · Store ₱{stats.weekSales.toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-600">This Month</p>
-                        <p className="text-lg font-bold text-emerald-600">₱{stats.monthRevenue.toLocaleString()}</p>
+                        <p className="text-lg font-bold text-emerald-600">₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Consult ₱{stats.monthRevenue.toLocaleString()} · Store ₱{stats.monthSales.toLocaleString()}</p>
                       </div>
                     </div>
                   </div>

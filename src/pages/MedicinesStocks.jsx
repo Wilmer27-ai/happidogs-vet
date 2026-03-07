@@ -2,18 +2,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'      // ← add this
 import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle } from 'react-icons/fi'   // ← add FiClock
-import { getMedicines, getStoreItems, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit } from '../firebase/services'
+import { getMedicines, getStoreItems, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
+function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
-  const medicineCategories = ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
-  const storeCategories = ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other']
+  const medicineCategories = propMedCategories ?? MASTER_DATA_DEFAULTS.medicineCategories
+  const storeCategories = propStoreCategories ?? MASTER_DATA_DEFAULTS.storeCategories
+  const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
 
   const isFood = (cat) => foodCategories.includes(cat)
   const isSyrup = form.medicineType === 'syrup'
@@ -149,10 +150,9 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete }) {
                 <label className={labelClass}>Medicine Type</label>
                 <select value={form.medicineType || ''} className={`${inputClass} bg-white`}
                   onChange={(e) => set('medicineType', e.target.value)}>
-                  <option value="tablet">Tablet / Capsule</option>
-                  <option value="syrup">Syrup / Liquid</option>
-                  <option value="vial">Vial / Injectable</option>
-                  <option value="other">Other</option>
+                  {Object.entries(medicineForms).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -417,8 +417,10 @@ function MedicinesStocks() {
   const observerTarget = useRef(null)
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
-  const medicineCategories = ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
-  const storeCategories = ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other']
+  const [medicineCategories, setMedicineCategories] = useState(MASTER_DATA_DEFAULTS.medicineCategories)
+  const [storeCategories, setStoreCategories] = useState(MASTER_DATA_DEFAULTS.storeCategories)
+  const [medicineForms, setMedicineForms] = useState({ ...MASTER_DATA_DEFAULTS.medicineForms })
+  const [lowStockThreshold, setLowStockThreshold] = useState(MASTER_DATA_DEFAULTS.lowStockThreshold)
   const allCategories = ['All', ...new Set([...medicineCategories, ...storeCategories])]
 
   const isFood = (item) => foodCategories.includes(item?.category)
@@ -437,10 +439,10 @@ function MedicinesStocks() {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return (item.bottleCount ?? 0) < 2
       if (item.medicineType === 'tablet') return (item.boxCount ?? 0) < 2
-      return (item.stockQuantity ?? 0) <= 5
+      return (item.stockQuantity ?? 0) <= lowStockThreshold
     }
     if (isFood(item)) return (item.sacksCount ?? 0) < 2 && (item.looseKg ?? 0) < (item.kgPerSack ?? 0)
-    return (item.stockQuantity ?? 0) <= 3
+    return (item.stockQuantity ?? 0) <= lowStockThreshold
   }
 
   const isOutOfStock = (item) => getTotalStock(item) === 0
@@ -450,9 +452,15 @@ function MedicinesStocks() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [medicinesData, itemsData] = await Promise.all([getMedicines(), getStoreItems()])
+      const [medicinesData, itemsData, masterData] = await Promise.all([getMedicines(), getStoreItems(), getMasterData()])
       setMedicines(medicinesData)
       setStoreItems(itemsData)
+      if (masterData) {
+        if (masterData.medicineCategories) setMedicineCategories(masterData.medicineCategories)
+        if (masterData.storeCategories) setStoreCategories(masterData.storeCategories)
+        if (masterData.medicineForms) setMedicineForms(masterData.medicineForms)
+        if (masterData.lowStockThreshold != null) setLowStockThreshold(masterData.lowStockThreshold)
+      }
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
@@ -599,6 +607,9 @@ function MedicinesStocks() {
         onClose={() => setEditItem(null)}
         onSave={loadData}
         onDelete={loadData}
+        medicineCategories={medicineCategories}
+        storeCategories={storeCategories}
+        medicineForms={medicineForms}
       />
 
       {/* Header */}

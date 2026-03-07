@@ -1,35 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { FiPlus, FiTrash2, FiArrowLeft, FiPackage, FiChevronDown, FiX } from 'react-icons/fi'
-import { addPurchaseOrder, addMedicine, addStoreItem } from '../firebase/services'
-
-// ── Pack Called Manager Storage Key ──────────────────────────────────────────
-const PACK_UNITS_KEY = 'vet_pack_units'
-const SUB_UNITS_KEY = 'vet_sub_units'
-
-const DEFAULT_PACK_UNITS = ['bottle', 'box', 'sack', 'vial', 'ampoule', 'sachet', 'tube', 'pack', 'bag', 'can']
-const DEFAULT_SUB_UNITS  = ['ml', 'tablet', 'capsule', 'kg', 'g', 'mg', 'pcs', 'dose']
-
-function loadUnits(key, defaults) {
-  try {
-    const stored = localStorage.getItem(key)
-    // If user has saved their own list, use it as-is (respects their deletions)
-    if (stored !== null) {
-      return JSON.parse(stored)
-    }
-  } catch (_) {}
-  // First time: save and return defaults
-  saveUnits(key, [...defaults])
-  return [...defaults]
-}
-
-function saveUnits(key, units) {
-  localStorage.setItem(key, JSON.stringify(units))
-}
+import { addPurchaseOrder, addMedicine, addStoreItem, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 // ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
-function UnitDropdown({ label, value, onChange, storageKey, defaults, placeholder = 'Select or type...' }) {
-  const [units, setUnits] = useState(() => loadUnits(storageKey, defaults))
+function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
   const [open, setOpen] = useState(false)
   const [newUnit, setNewUnit] = useState('')
   const [dropdownStyle, setDropdownStyle] = useState({})  // ← track position in state
@@ -87,9 +62,7 @@ function UnitDropdown({ label, value, onChange, storageKey, defaults, placeholde
       setOpen(false)
       return
     }
-    const updated = [...units, trimmed]
-    setUnits(updated)
-    saveUnits(storageKey, updated)
+    onUnitsChange([...units, trimmed])
     onChange(trimmed)
     setNewUnit('')
     setOpen(false)
@@ -98,9 +71,7 @@ function UnitDropdown({ label, value, onChange, storageKey, defaults, placeholde
   const handleDelete = (unit, e) => {
     e.stopPropagation()
     e.preventDefault()
-    const updated = units.filter(u => u !== unit)
-    setUnits(updated)
-    saveUnits(storageKey, updated)
+    onUnitsChange(units.filter(u => u !== unit))
     if (value === unit) onChange('')
   }
 
@@ -206,6 +177,12 @@ function CreatePurchaseOrder() {
     paymentTerms: selectedSupplier?.paymentTerms || '0'
   })
 
+  const [packUnits, setPackUnits] = useState([...MASTER_DATA_DEFAULTS.packUnits])
+  const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
+  const [medicineCategories, setMedicineCategories] = useState([...MASTER_DATA_DEFAULTS.medicineCategories])
+  const [storeCategories, setStoreCategories] = useState([...MASTER_DATA_DEFAULTS.storeCategories])
+  const [medicineForms, setMedicineForms] = useState({ ...MASTER_DATA_DEFAULTS.medicineForms })
+
   const [currentItem, setCurrentItem] = useState({
     itemType: 'medicine',
     itemName: '',
@@ -226,8 +203,6 @@ function CreatePurchaseOrder() {
     medicineType: 'tablet',
   })
 
-  const medicineCategories = ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
-  const storeCategories = ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other']
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
 
   const getMedicineLabels = (medicineType) => {
@@ -249,7 +224,26 @@ function CreatePurchaseOrder() {
 
   useEffect(() => {
     if (!selectedSupplier) navigate('/suppliers')
+    getMasterData().then(data => {
+      if (data) {
+        if (data.packUnits?.length) setPackUnits(data.packUnits)
+        if (data.subUnits?.length) setSubUnits(data.subUnits)
+        if (data.medicineCategories?.length) setMedicineCategories(data.medicineCategories)
+        if (data.storeCategories?.length) setStoreCategories(data.storeCategories)
+        if (data.medicineForms) setMedicineForms(data.medicineForms)
+      }
+    })
   }, [selectedSupplier, navigate])
+
+  const handlePackUnitsChange = (units) => {
+    setPackUnits(units)
+    saveMasterData({ packUnits: units })
+  }
+
+  const handleSubUnitsChange = (units) => {
+    setSubUnits(units)
+    saveMasterData({ subUnits: units })
+  }
 
   const calculatePaymentDeadline = (orderDate, paymentTerms) => {
     const date = new Date(orderDate)
@@ -513,10 +507,9 @@ function CreatePurchaseOrder() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Medicine Form *</label>
                 <select value={currentItem.medicineType} onChange={(e) => handleCurrentItemChange('medicineType', e.target.value)}
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                  <option value="tablet">Tablet / Capsule</option>
-                  <option value="syrup">Syrup / Liquid</option>
-                  <option value="vial">Vial / Injectable</option>
-                  <option value="other">Other</option>
+                  {Object.entries(medicineForms).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -570,16 +563,16 @@ function CreatePurchaseOrder() {
                       label="Pack Called *"
                       value={currentItem.packUnit}
                       onChange={(v) => handleCurrentItemChange('packUnit', v)}
-                      storageKey={PACK_UNITS_KEY}
-                      defaults={DEFAULT_PACK_UNITS}
+                      units={packUnits}
+                      onUnitsChange={handlePackUnitsChange}
                       placeholder="e.g. bottle"
                     />
                     <UnitDropdown
                       label="Unit Inside *"
                       value={currentItem.subUnit}
                       onChange={(v) => handleCurrentItemChange('subUnit', v)}
-                      storageKey={SUB_UNITS_KEY}
-                      defaults={DEFAULT_SUB_UNITS}
+                      units={subUnits}
+                      onUnitsChange={handleSubUnitsChange}
                       placeholder="e.g. ml"
                     />
                   </div>
@@ -668,8 +661,8 @@ function CreatePurchaseOrder() {
                     label="Pack Called *"
                     value={currentItem.packUnit}
                     onChange={(v) => handleCurrentItemChange('packUnit', v)}
-                    storageKey={PACK_UNITS_KEY}
-                    defaults={DEFAULT_PACK_UNITS}
+                    units={packUnits}
+                    onUnitsChange={handlePackUnitsChange}
                     placeholder="e.g. vial"
                   />
                   <div>
@@ -707,8 +700,8 @@ function CreatePurchaseOrder() {
                     label="Pack Called *"
                     value={currentItem.packUnit}
                     onChange={(v) => handleCurrentItemChange('packUnit', v)}
-                    storageKey={PACK_UNITS_KEY}
-                    defaults={DEFAULT_PACK_UNITS}
+                    units={packUnits}
+                    onUnitsChange={handlePackUnitsChange}
                     placeholder="e.g. bag"
                   />
                   <div>

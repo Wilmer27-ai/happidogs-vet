@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiEdit2, FiTrash2, FiSearch, FiCalendar, FiSave, FiX, FiTrendingDown, FiFileText } from 'react-icons/fi'
-import { addExpense, getExpenses, updateExpense, deleteExpense } from '../firebase/services'
+import { addExpense, getExpenses, updateExpense, deleteExpense, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function Expenses() {
   const [expenses, setExpenses] = useState([])
@@ -16,29 +16,21 @@ function Expenses() {
 
   const [formData, setFormData] = useState({
     expenseName: '',
-    category: 'Supplies',
+    category: MASTER_DATA_DEFAULTS.expenseCategories[0],
     amount: '',
     expenseDate: new Date().toISOString().split('T')[0],
     description: '',
-    paymentMethod: 'Cash'
   })
 
-  const categories = [
-    'Supplies',
-    'Medicine Inventory',
-    'Store Inventory',
-    'Utilities',
-    'Rent',
-    'Salaries',
-    'Equipment',
-    'Maintenance',
-    'Transportation',
-    'Marketing',
-    'Other'
-  ]
+  const [categories, setCategories] = useState([...MASTER_DATA_DEFAULTS.expenseCategories])
 
   useEffect(() => {
     loadExpenses()
+    getMasterData().then(data => {
+      if (data) {
+        if (data.expenseCategories?.length) setCategories(data.expenseCategories)
+      }
+    })
   }, [])
 
   const loadExpenses = async () => {
@@ -136,14 +128,12 @@ function Expenses() {
         setExpenses([newExpense, ...expenses])
       }
       
-      // Reset form
       setFormData({
         expenseName: '',
-        category: 'Supplies',
+        category: categories[0] ?? MASTER_DATA_DEFAULTS.expenseCategories[0],
         amount: '',
         expenseDate: new Date().toISOString().split('T')[0],
         description: '',
-        paymentMethod: 'Cash'
       })
       
       await loadExpenses()
@@ -161,7 +151,6 @@ function Expenses() {
       amount: expense.amount,
       expenseDate: expense.expenseDate,
       description: expense.description || '',
-      paymentMethod: 'Cash'
     })
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -171,11 +160,10 @@ function Expenses() {
     setEditingExpense(null)
     setFormData({
       expenseName: '',
-      category: 'Supplies',
+      category: categories[0] ?? MASTER_DATA_DEFAULTS.expenseCategories[0],
       amount: '',
       expenseDate: new Date().toISOString().split('T')[0],
       description: '',
-      paymentMethod: 'Cash'
     })
   }
 

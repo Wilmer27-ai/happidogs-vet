@@ -13,6 +13,7 @@ function PetStore() {
   const [itemType, setItemType] = useState('All')
   const [order, setOrder] = useState([])
   const [showCart, setShowCart] = useState(false)
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
 
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
@@ -330,6 +331,7 @@ function PetStore() {
         }
       }
       alert('Sale completed successfully!')
+      setShowCheckoutModal(false)
       setOrder([])
       setShowCart(false)
       loadItems()
@@ -476,7 +478,7 @@ function PetStore() {
           <span className="text-xl font-bold text-gray-900">₱{getTotalAmount().toLocaleString()}</span>
         </div>
         <button
-          onClick={handleCheckout}
+          onClick={() => setShowCheckoutModal(true)}
           disabled={order.length === 0}
           className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
         >
@@ -634,6 +636,56 @@ function PetStore() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
           <div className="relative bg-white rounded-t-2xl flex flex-col max-h-[85vh]">
             <CartPanel />
+          </div>
+        </div>
+      )}
+
+      {showCheckoutModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="font-bold text-lg text-gray-900">Confirm Checkout</h2>
+                <p className="text-xs text-gray-500">{order.length} item{order.length !== 1 ? 's' : ''}</p>
+              </div>
+              <button onClick={() => setShowCheckoutModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
+              {order.map(orderItem => (
+                <div key={`chk-${orderItem._type}-${orderItem.id}`} className="flex justify-between items-start text-sm py-1.5 border-b border-gray-100 last:border-0">
+                  <div className="flex-1 mr-3">
+                    <p className="font-medium text-gray-900">{orderItem.itemName}</p>
+                    <p className="text-xs text-gray-500">
+                      {orderItem.quantity} {orderItem.sellUnit} × ₱{orderItem.pricePerUnit?.toLocaleString()}
+                    </p>
+                  </div>
+                  <p className="font-semibold text-gray-900 whitespace-nowrap">₱{calculateItemTotal(orderItem).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t bg-gray-50 rounded-b-xl">
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-gray-700">Total</span>
+                <span className="text-2xl font-bold text-green-600">₱{getTotalAmount().toLocaleString()}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowCheckoutModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiShoppingBag className="w-4 h-4" />
+                  Confirm Sale
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  setDoc,
   query,
   where,
   orderBy,
@@ -637,6 +638,46 @@ export const getStockEditHistory = async () => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
   } catch (error) {
     console.error('Error getting stock edit history:', error)
+    throw error
+  }
+}
+
+// ==================== MASTER DATA ====================
+export const MASTER_DATA_DEFAULTS = {
+  consultationFee: 300,
+  medicineCategories: ['Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care'],
+  storeCategories: ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other'],
+  activityTypes: ['Consultation', 'Vaccination', 'Deworming'],
+  petSpecies: ['Canine', 'Feline', 'Avian', 'Rabbit', 'Guinea Pig', 'Hamster', 'Reptile', 'Fish', 'Other'],
+  packUnits: ['bottle', 'box', 'sack', 'vial', 'ampoule', 'sachet', 'tube', 'pack', 'bag', 'can'],
+  subUnits: ['ml', 'tablet', 'capsule', 'kg', 'g', 'mg', 'pcs', 'dose'],
+  expenseCategories: ['Supplies', 'Medicine Inventory', 'Store Inventory', 'Utilities', 'Rent', 'Salaries', 'Equipment', 'Maintenance', 'Transportation', 'Marketing', 'Other'],
+  paymentMethods: ['Cash', 'GCash', 'Bank Transfer', 'Check', 'Credit Card'],
+  medicineForms: { tablet: 'Tablet / Capsule', syrup: 'Syrup / Liquid', vial: 'Vial / Injectable', other: 'Other' },
+  lowStockThreshold: 10,
+  clinicName: 'Happi Dogs',
+  clinicAddress: 'Pob. Ilaya, Lambunao, Iloilo',
+  clinicPhone: '0915 325 2959',
+}
+
+export const getMasterData = async () => {
+  try {
+    const docRef = doc(db, 'settings', 'masterData')
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) return docSnap.data()
+    return null
+  } catch (error) {
+    console.error('Error getting master data:', error)
+    return null
+  }
+}
+
+export const saveMasterData = async (data) => {
+  try {
+    const docRef = doc(db, 'settings', 'masterData')
+    await setDoc(docRef, { ...data, updatedAt: serverTimestamp() }, { merge: true })
+  } catch (error) {
+    console.error('Error saving master data:', error)
     throw error
   }
 }

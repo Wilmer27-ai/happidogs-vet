@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2 } from 'react-icons/fi'
-import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity } from '../../firebase/services'
+import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
 import React from 'react'
 
-const ACTIVITY_TYPES = ['Consultation', 'Vaccination', 'Deworming']
 const DISPLAY_STEP = 20
 
 // ── Medicine Picker Modal ─────────────────────────────────────────────────────
@@ -191,6 +190,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [selectedActivities, setSelectedActivities] = useState([])
   const [loading, setLoading] = useState(false)
   const [savingActivity, setSavingActivity] = useState(false)
+  const [activityTypes, setActivityTypes] = useState(MASTER_DATA_DEFAULTS.activityTypes)
+  const [masterPetSpecies, setMasterPetSpecies] = useState(MASTER_DATA_DEFAULTS.petSpecies)
   const [selectedPets, setSelectedPets] = useState(propSelectedPets || [])
   const [showForm, setShowForm] = useState(true)
   const [successMessage, setSuccessMessage] = useState('')
@@ -217,6 +218,12 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [petVitals, setPetVitals] = useState({})
 
   useEffect(() => { loadClients() }, [])
+  useEffect(() => {
+    getMasterData().then(data => {
+      if (data?.activityTypes) setActivityTypes(data.activityTypes)
+      if (data?.petSpecies) setMasterPetSpecies(data.petSpecies)
+    })
+  }, [])
 
   useEffect(() => {
     if (selectedClient) loadPets()
@@ -717,7 +724,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Activity Type</label>
                     <div className="border border-gray-300 rounded-md px-3 py-2 space-y-1.5 bg-white">
-                      {ACTIVITY_TYPES.map(type => (
+                      {activityTypes.map(type => (
                         <label key={type} className="flex items-center gap-2 cursor-pointer select-none">
                           <input
                             type="checkbox"
@@ -1334,7 +1341,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)}
         onSubmit={handleAddClient} clientData={newClient} setClientData={setNewClient} />
       <AddPetModal isOpen={isAddPetModalOpen} onClose={() => setIsAddPetModalOpen(false)}
-        onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} />
+        onSubmit={handleAddPet} petData={newPet} setPetData={setNewPet} selectedClient={selectedClient} speciesList={masterPetSpecies} />
 
     </div>
   )

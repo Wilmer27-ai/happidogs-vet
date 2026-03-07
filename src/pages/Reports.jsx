@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   FiDownload,
   FiPrinter
@@ -9,6 +9,12 @@ function Reports() {
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('month')
   const [activeTab, setActiveTab] = useState('overview')
+  const [displayCountInventory, setDisplayCountInventory] = useState(20)
+  const [displayCountAudit, setDisplayCountAudit] = useState(20)
+  const inventoryContainerRef = useRef(null)
+  const auditContainerRef = useRef(null)
+  const inventorySentinelRef = useRef(null)
+  const auditSentinelRef = useRef(null)
   const [data, setData] = useState({
     sales: [],
     expenses: [],
@@ -197,6 +203,37 @@ function Reports() {
   }
 
   const auditTrail = getAuditTrail()
+  const displayedInventory = allInventory.slice(0, displayCountInventory)
+  const hasMoreInventory = displayCountInventory < allInventory.length
+  const displayedAudit = auditTrail.slice(0, displayCountAudit)
+  const hasMoreAudit = displayCountAudit < auditTrail.length
+
+  useEffect(() => {
+    const container = inventoryContainerRef.current
+    const sentinel = inventorySentinelRef.current
+    if (!container || !sentinel) return
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && hasMoreInventory) setDisplayCountInventory(prev => prev + 20) },
+      { root: container, threshold: 0.1 }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMoreInventory, activeTab])
+
+  useEffect(() => {
+    const container = auditContainerRef.current
+    const sentinel = auditSentinelRef.current
+    if (!container || !sentinel) return
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && hasMoreAudit) setDisplayCountAudit(prev => prev + 20) },
+      { root: container, threshold: 0.1 }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMoreAudit, activeTab])
+
+  useEffect(() => { setDisplayCountInventory(20) }, [dateRange])
+  useEffect(() => { setDisplayCountAudit(20) }, [dateRange])
 
   const handleExportCSV = () => {
     alert('CSV export functionality - Coming soon!')
@@ -492,7 +529,7 @@ function Reports() {
                 </div>
               </div>
 
-              <div className="overflow-auto" style={{ maxHeight: '500px' }}>
+              <div ref={inventoryContainerRef} className="overflow-auto" style={{ maxHeight: '500px' }}>
                 <table className="w-full text-xs">
                   <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
@@ -506,7 +543,7 @@ function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {allInventory.map((item, index) => {
+                    {displayedInventory.map((item, index) => {
                       const itemName = item.medicineName || item.itemName
                       const itemType = item.medicineName ? 'Medicine' : 'Store Item'
                       const stockValue = item.sellingPrice * item.stockQuantity
@@ -532,6 +569,16 @@ function Reports() {
                         </tr>
                       )
                     })}
+                    {hasMoreInventory && (
+                      <tr ref={inventorySentinelRef}>
+                        <td colSpan="7" className="px-3 py-2 text-center">
+                          <div className="flex items-center justify-center gap-2 text-gray-400">
+                            <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                            <span className="text-xs">Loading more...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -694,7 +741,7 @@ function Reports() {
                 </div>
               </div>
 
-              <div className="overflow-auto" style={{ maxHeight: '500px' }}>
+              <div ref={auditContainerRef} className="overflow-auto" style={{ maxHeight: '500px' }}>
                 <table className="w-full text-xs">
                   <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
@@ -706,7 +753,7 @@ function Reports() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {auditTrail.map((event, index) => (
+                    {displayedAudit.map((event, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="px-3 py-2 text-gray-700">
                           {event.date.toLocaleDateString('en-US', {
@@ -736,8 +783,16 @@ function Reports() {
                           {event.reference?.substring(0, 8)}...
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
+                    ))}                    {hasMoreAudit && (
+                      <tr ref={auditSentinelRef}>
+                        <td colSpan="5" className="px-3 py-2 text-center">
+                          <div className="flex items-center justify-center gap-2 text-gray-400">
+                            <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                            <span className="text-xs">Loading more...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}                  </tbody>
                 </table>
               </div>
             </div>

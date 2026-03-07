@@ -1,7 +1,7 @@
 // src/components/steps/SummaryStep.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FiPrinter, FiArrowLeft, FiCheckCircle, FiEdit2, FiCheck, FiX } from 'react-icons/fi'
-import { deductMedicineStock, saveSalesRecord, getMedicines } from '../../firebase/services'
+import { deductMedicineStock, saveSalesRecord, getMedicines, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
 import { addDoc, collection } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useNavigate } from 'react-router-dom'
@@ -24,12 +24,27 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
     (a.medicines || []).map(m => ({ ...m, pricePerUnit: m.price ?? m.pricePerUnit ?? 0 }))
   )
   const medicinesTotal = allMeds.reduce((sum, m) => sum + ((m.pricePerUnit ?? 0) * (m.quantity || 0)), 0)
-  const defaultFee = 300 * uniquePetCount
+
+  const [consultationFee, setConsultationFee] = useState(MASTER_DATA_DEFAULTS.consultationFee * uniquePetCount)
+  const [feeInput, setFeeInput] = useState(MASTER_DATA_DEFAULTS.consultationFee * uniquePetCount)
+
+  const [clinicName, setClinicName] = useState(MASTER_DATA_DEFAULTS.clinicName)
+  const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
+  const [clinicPhone, setClinicPhone] = useState(MASTER_DATA_DEFAULTS.clinicPhone)
+
+  // Load default fee and clinic info from masterData
+  useEffect(() => {
+    getMasterData().then(data => {
+      const fee = (data?.consultationFee ?? MASTER_DATA_DEFAULTS.consultationFee) * uniquePetCount
+      setConsultationFee(fee)
+      setFeeInput(fee)
+      if (data?.clinicName) setClinicName(data.clinicName)
+      if (data?.clinicAddress) setClinicAddress(data.clinicAddress)
+      if (data?.clinicPhone) setClinicPhone(data.clinicPhone)
+    })
+  }, [])
 
   const [editingFee, setEditingFee] = useState(false)
-  const [feeInput, setFeeInput] = useState(defaultFee)
-  const [consultationFee, setConsultationFee] = useState(defaultFee)
-
   const [editingTotal, setEditingTotal] = useState(false)
   const [totalInput, setTotalInput] = useState(null)
   const [customTotal, setCustomTotal] = useState(null)
@@ -351,10 +366,10 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                 <img src={logo} alt="Happi Dogs" className="w-16 h-16 object-contain"
                   onError={(e) => { e.target.style.display = 'none' }} />
                 <div>
-                  <h1 className="text-lg font-black uppercase tracking-wide text-gray-900 leading-tight">Happi Dogs</h1>
+                  <h1 className="text-lg font-black uppercase tracking-wide text-gray-900 leading-tight">{clinicName}</h1>
                   <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 leading-tight">Veterinary Clinic</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Pob. Ilaya, Lambunao, Iloilo</p>
-                  <p className="text-xs text-gray-400">Tel: (123) 456-7890</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{clinicAddress}</p>
+                  <p className="text-xs text-gray-400">Tel: {clinicPhone}</p>
                 </div>
               </div>
               <div className="text-right">
