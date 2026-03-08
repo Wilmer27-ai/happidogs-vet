@@ -1,8 +1,465 @@
 // MedicinesStocks.jsx
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'      // ← add this
-import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle } from 'react-icons/fi'   // ← add FiClock
-import { getMedicines, getStoreItems, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle, FiPlus } from 'react-icons/fi'
+import { getMedicines, getStoreItems, addMedicine, addStoreItem, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+
+// ── Add Stock Modal ───────────────────────────────────────────────────────────
+function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
+  const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
+  const medicineCategories = propMedCategories ?? MASTER_DATA_DEFAULTS.medicineCategories
+  const storeCategories = propStoreCategories ?? MASTER_DATA_DEFAULTS.storeCategories
+  const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
+
+  const defaultItem = {
+    itemType: 'medicine', medicineType: 'tablet',
+    itemName: '', brand: '', category: 'Antibiotic', expirationDate: '',
+    packUnit: 'box', subUnit: 'tablet',
+    quantity: '', unitsPerPack: '', packageSize: '', packageUnit: 'pcs',
+    purchasePrice: '', sellingPricePerUnit: '', sellingPricePerPack: '', sellingPrice: '',
+    supplierName: '',
+  }
+
+  const [form, setForm] = useState(defaultItem)
+  const [stagedItems, setStagedItems] = useState([])
+  const [saving, setSaving] = useState(false)
+
+  const isMedicine = form.itemType === 'medicine'
+  const isSyrup = isMedicine && form.medicineType === 'syrup'
+  const isTablet = isMedicine && form.medicineType === 'tablet'
+  const isFoodCat = !isMedicine && foodCategories.includes(form.category)
+  const isDual = isSyrup || isTablet || isFoodCat
+  const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
+
+  const isItemSyrup = (item) => item.itemType === 'medicine' && item.medicineType === 'syrup'
+  const isItemTablet = (item) => item.itemType === 'medicine' && item.medicineType === 'tablet'
+  const isItemFoodCat = (item) => item.itemType === 'store' && foodCategories.includes(item.category)
+  const isItemDual = (item) => isItemSyrup(item) || isItemTablet(item) || isItemFoodCat(item)
+
+  const getMedicineLabels = (type) => {
+    if (type === 'syrup') return { packUnit: 'bottle', subUnit: 'ml' }
+    if (type === 'tablet') return { packUnit: 'box', subUnit: 'tablet' }
+    return { packUnit: 'vial', subUnit: null }
+  }
+
+  const set = (field, value) => {
+    if (field === 'itemType') {
+      const isMed = value === 'medicine'
+      setForm({ ...defaultItem, itemType: value, category: isMed ? (medicineCategories[0] || 'Antibiotic') : (storeCategories[0] || 'Dog Food'), packUnit: isMed ? 'box' : 'sack', subUnit: isMed ? 'tablet' : 'kg' })
+    } else if (field === 'medicineType') {
+      const labels = getMedicineLabels(value)
+      setForm(prev => ({ ...prev, medicineType: value, packUnit: labels.packUnit, subUnit: labels.subUnit ?? '', quantity: '', unitsPerPack: '', purchasePrice: '', sellingPricePerUnit: '', sellingPricePerPack: '', sellingPrice: '' }))
+    } else if (field === 'category' && form.itemType === 'store') {
+      const isFood = foodCategories.includes(value)
+      setForm(prev => ({ ...prev, category: value, packUnit: isFood ? 'sack' : prev.packUnit, subUnit: isFood ? 'kg' : prev.subUnit, sellingPricePerPack: '', sellingPricePerUnit: '', packageSize: '' }))
+    } else {
+      setForm(prev => ({ ...prev, [field]: value }))
+    }
+  }
+
+  const handleAddToList = () => {
+    if (!form.itemName)      { alert('Item Name is required'); return }
+    if (!form.quantity)      { alert('Quantity is required'); return }
+    if (!form.purchasePrice) { alert('Purchase Price is required'); return }
+    if (isMedicine && !form.expirationDate) { alert('Expiration date is required for medicines'); return }
+    if (isDual) {
+      if (!form.unitsPerPack)        { alert('Units per pack is required'); return }
+      if (!form.sellingPricePerUnit) { alert('Selling price per unit is required'); return }
+      if (!form.sellingPricePerPack) { alert('Selling price per pack is required'); return }
+    } else {
+      if (!form.sellingPrice) { alert('Selling Price is required'); return }
+    }
+    setStagedItems(prev => [...prev, {
+      ...form,
+      quantity:            Number(form.quantity),
+      unitsPerPack:        form.unitsPerPack   ? Number(form.unitsPerPack)   : null,
+      packageSize:         form.packageSize    ? Number(form.packageSize)    : null,
+      purchasePrice:       Number(form.purchasePrice),
+      sellingPricePerUnit: form.sellingPricePerUnit ? Number(form.sellingPricePerUnit) : null,
+      sellingPricePerPack: form.sellingPricePerPack ? Number(form.sellingPricePerPack) : null,
+      sellingPrice:        form.sellingPrice   ? Number(form.sellingPrice)   : null,
+    }])
+    setForm(prev => ({ ...prev, itemName: '', brand: '', quantity: '', unitsPerPack: '', packageSize: '', purchasePrice: '', sellingPricePerUnit: '', sellingPricePerPack: '', sellingPrice: '', expirationDate: '' }))
+  }
+
+  const handleSaveAll = async () => {
+    if (stagedItems.length === 0) { alert('Add at least one item to the list.'); return }
+    setSaving(true)
+    try {
+      for (const item of stagedItems) {
+        const base = { brand: item.brand || '', purchasePrice: item.purchasePrice, supplierName: item.supplierName || '', createdAt: new Date().toISOString() }
+        if (item.itemType === 'medicine') {
+          if (isItemSyrup(item)) {
+            await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: 'syrup',
+              bottleCount: item.quantity - 1, looseMl: item.unitsPerPack, mlPerBottle: item.unitsPerPack,
+              stockQuantity: item.quantity * item.unitsPerPack, unit: item.packUnit,
+              sellingPricePerMl: item.sellingPricePerUnit, sellingPricePerBottle: item.sellingPricePerPack,
+              expirationDate: item.expirationDate })
+          } else if (isItemTablet(item)) {
+            await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: 'tablet',
+              boxCount: item.quantity - 1, looseTablets: item.unitsPerPack, tabletsPerBox: item.unitsPerPack,
+              stockQuantity: item.quantity * item.unitsPerPack, unit: item.packUnit,
+              sellingPricePerTablet: item.sellingPricePerUnit, sellingPricePerBox: item.sellingPricePerPack,
+              expirationDate: item.expirationDate })
+          } else {
+            await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: item.medicineType || 'other',
+              stockQuantity: item.quantity, unit: item.packUnit, sellingPrice: item.sellingPrice, expirationDate: item.expirationDate })
+          }
+        } else {
+          if (isItemFoodCat(item)) {
+            await addStoreItem({ ...base, itemName: item.itemName, category: item.category,
+              stockQuantity: item.quantity * item.unitsPerPack, sacksCount: item.quantity - 1,
+              looseKg: item.unitsPerPack, kgPerSack: item.unitsPerPack, unit: item.packUnit,
+              sellingPricePerKg: item.sellingPricePerUnit, sellingPricePerSack: item.sellingPricePerPack })
+          } else {
+            const totalStock = item.packageSize ? item.quantity * item.packageSize : item.quantity
+            await addStoreItem({ ...base, itemName: item.itemName, category: item.category,
+              stockQuantity: totalStock, unit: item.packageSize ? (item.packageUnit || 'pcs') : item.packUnit,
+              packageUnit: item.packUnit, packageSize: item.packageSize || null, sellingPrice: item.sellingPrice })
+          }
+        }
+        await logStockEdit({ itemId: 'new', itemName: item.itemName, itemType: item.itemType,
+          action: 'add', changes: { note: { after: 'Added directly via Add Stock' } }, editedAt: new Date().toISOString() })
+      }
+      setStagedItems([])
+      setForm(defaultItem)
+      onSave()
+      onClose()
+    } catch (err) {
+      console.error(err)
+      alert('Failed to save stock.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleClose = () => {
+    setStagedItems([])
+    setForm(defaultItem)
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  const inputClass = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+  const labelClass = "block text-xs font-medium text-gray-700 mb-1"
+  const totalCost = stagedItems.reduce((sum, item) => sum + (item.purchasePrice * item.quantity), 0)
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-50 w-full max-w-7xl flex flex-col rounded-xl shadow-2xl overflow-hidden" style={{height: '92vh'}}>
+
+        {/* Header */}
+
+
+        <div className="flex-1 flex overflow-hidden">
+
+          {/* ── LEFT: Item Form ── */}
+          <div className="w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900 text-sm">Item Details</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Fill in details then click "Add to List"</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+
+              {/* Type + Medicine Form */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelClass}>Type *</label>
+                  <select value={form.itemType} onChange={(e) => set('itemType', e.target.value)} className={`${inputClass} bg-white`}>
+                    <option value="medicine">Medicine</option>
+                    <option value="store">Store</option>
+                  </select>
+                </div>
+                {isMedicine && (
+                  <div>
+                    <label className={labelClass}>Medicine Form *</label>
+                    <select value={form.medicineType} onChange={(e) => set('medicineType', e.target.value)} className={`${inputClass} bg-white`}>
+                      {Object.entries(medicineForms).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Name + Brand */}
+              <div>
+                <label className={labelClass}>Item Name *</label>
+                <input type="text" value={form.itemName} onChange={(e) => set('itemName', e.target.value)}
+                  placeholder={isMedicine ? 'e.g. Amoxicillin' : 'e.g. Champion Dog Food'} className={inputClass} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className={labelClass}>Brand</label>
+                  <input type="text" value={form.brand} onChange={(e) => set('brand', e.target.value)} placeholder="e.g. Pfizer" className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Category *</label>
+                  <select value={form.category} onChange={(e) => set('category', e.target.value)} className={`${inputClass} bg-white`}>
+                    {(isMedicine ? medicineCategories : storeCategories).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {isMedicine && (
+                <div>
+                  <label className={labelClass}>Expiry Date *</label>
+                  <input type="date" value={form.expirationDate} onChange={(e) => set('expirationDate', e.target.value)} className={inputClass} />
+                </div>
+              )}
+
+              {/* ── Dual stock ── */}
+              {isDual && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>Pack Called *</label>
+                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bottle" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Unit Inside *</label>
+                      <input type="text" value={form.subUnit} onChange={(e) => set('subUnit', e.target.value)} placeholder="e.g. ml" className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>No. of {capFirst(form.packUnit) || 'Pack'}s *</label>
+                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 10" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>{capFirst(form.subUnit) || 'Units'} per {form.packUnit || 'Pack'} *</label>
+                      <input type="number" min="1" step="0.01" value={form.unitsPerPack} onChange={(e) => set('unitsPerPack', e.target.value)} placeholder="e.g. 60" className={inputClass} />
+                    </div>
+                  </div>
+                  {form.quantity && form.unitsPerPack && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                      <p className="text-xs text-blue-700">
+                        On save: <strong>{Number(form.quantity) - 1} sealed {form.packUnit}s</strong> + <strong>{form.unitsPerPack} {form.subUnit} loose</strong>
+                        {' · '}Total: <strong>{Number(form.quantity) * Number(form.unitsPerPack)} {form.subUnit}</strong>
+                      </p>
+                    </div>
+                  )}
+                  <div className="border border-gray-200 rounded-md p-3 space-y-2">
+                    <p className="text-xs font-semibold text-gray-700">Pricing</p>
+                    <div>
+                      <label className={labelClass}>Purchase Price (per {form.packUnit || 'pack'}) *</label>
+                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Selling Price per {form.subUnit || 'unit'} *</label>
+                      <input type="number" min="0" step="0.01" value={form.sellingPricePerUnit} onChange={(e) => set('sellingPricePerUnit', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Selling Price per {form.packUnit || 'pack'} *</label>
+                      <input type="number" min="0" step="0.01" value={form.sellingPricePerPack} onChange={(e) => set('sellingPricePerPack', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── Single unit medicine (vial / other) ── */}
+              {isMedicine && !isSyrup && !isTablet && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>Unit *</label>
+                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. vial" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Qty *</label>
+                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>Purchase Price *</label>
+                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Selling Price *</label>
+                      <input type="number" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ── Non-food store ── */}
+              {!isMedicine && !isFoodCat && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>Pack Unit *</label>
+                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bag" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Qty Ordered *</label>
+                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 12" className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Pcs per Package <span className="text-gray-400">(optional)</span></label>
+                    <input type="number" min="1" value={form.packageSize} onChange={(e) => set('packageSize', e.target.value)} placeholder="e.g. 12 pcs per box" className={inputClass} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelClass}>Purchase Price *</label>
+                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Selling Price *</label>
+                      <input type="number" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Supplier (optional) */}
+              <div>
+                <label className={labelClass}>Supplier <span className="text-gray-400">(optional)</span></label>
+                <input type="text" value={form.supplierName} onChange={(e) => set('supplierName', e.target.value)} placeholder="e.g. ABC Pharma" className={inputClass} />
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ── RIGHT: Staged Items Table ── */}
+          <div className="flex-1 flex flex-col">
+            <div className="px-6 py-3 bg-white border-b border-gray-200">
+              <h3 className="font-semibold text-gray-900">Items to Add ({stagedItems.length})</h3>
+            </div>
+
+            <div className="flex-1 p-6 flex flex-col overflow-hidden">
+              {stagedItems.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <FiPackage className="w-16 h-16 mx-auto mb-3 opacity-40" />
+                    <p className="text-lg font-medium">No items yet</p>
+                    <p className="text-sm">Fill in the form and click "Add to List"</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden mb-3">
+                    <div className="overflow-auto h-full">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
+                          <tr>
+                            <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Type</th>
+                            <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Item Name</th>
+                            <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Category</th>
+                            <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Ordered</th>
+                            <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Stock on Save</th>
+                            <th className="px-2 py-2 text-right font-semibold uppercase tracking-wide">Purchase</th>
+                            <th className="px-2 py-2 text-right font-semibold uppercase tracking-wide">Selling</th>
+                            <th className="px-2 py-2 text-right font-semibold uppercase tracking-wide">Subtotal</th>
+                            <th className="px-2 py-2 text-center font-semibold uppercase tracking-wide">Del</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {stagedItems.map((item, index) => {
+                            if (isItemDual(item)) {
+                              const sealed = item.quantity - 1
+                              return (
+                                <tr key={index} className="hover:bg-gray-50">
+                                  <td className="px-2 py-2 font-medium text-gray-900 capitalize">{item.medicineType || (item.itemType === 'store' ? 'food' : 'other')}</td>
+                                  <td className="px-2 py-2">
+                                    <span className="font-medium text-gray-900">{item.itemName}</span>
+                                    {item.brand && <span className="text-gray-400 ml-1">({item.brand})</span>}
+                                  </td>
+                                  <td className="px-2 py-2 text-gray-700">{item.category}</td>
+                                  <td className="px-2 py-2 text-gray-700 whitespace-nowrap">
+                                    {item.quantity} {item.packUnit}s × {item.unitsPerPack} {item.subUnit}
+                                  </td>
+                                  <td className="px-2 py-2 whitespace-nowrap">
+                                    <span className="font-semibold text-gray-900">{sealed} {item.packUnit}{sealed !== 1 ? 's' : ''}</span>
+                                    <span className="text-gray-300 mx-1">|</span>
+                                    <span className="font-semibold text-gray-900">{item.unitsPerPack} {item.subUnit}</span>
+                                  </td>
+                                  <td className="px-2 py-2 text-right text-gray-700 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/{item.packUnit}</td>
+                                  <td className="px-2 py-2 text-right text-gray-700 whitespace-nowrap">
+                                    <div>₱{item.sellingPricePerUnit?.toLocaleString()}/{item.subUnit}</div>
+                                    <div className="text-gray-400">₱{item.sellingPricePerPack?.toLocaleString()}/{item.packUnit}</div>
+                                  </td>
+                                  <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
+                                  <td className="px-2 py-2 text-center">
+                                    <button onClick={() => setStagedItems(prev => prev.filter((_, i) => i !== index))} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded">
+                                      <FiTrash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            }
+                            const totalStock = item.packageSize ? item.quantity * item.packageSize : item.quantity
+                            return (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-2 py-2 font-medium text-gray-900 capitalize">{item.itemType === 'medicine' ? item.medicineType : 'Store'}</td>
+                                <td className="px-2 py-2">
+                                  <span className="font-medium text-gray-900">{item.itemName}</span>
+                                  {item.brand && <span className="text-gray-400 ml-1">({item.brand})</span>}
+                                </td>
+                                <td className="px-2 py-2 text-gray-700">{item.category}</td>
+                                <td className="px-2 py-2 text-gray-700 whitespace-nowrap">{item.quantity} {item.packUnit}{item.packageSize ? ` × ${item.packageSize} pcs` : ''}</td>
+                                <td className="px-2 py-2 font-semibold text-gray-900 whitespace-nowrap">{totalStock} {item.packUnit}</td>
+                                <td className="px-2 py-2 text-right text-gray-700 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/{item.packUnit}</td>
+                                <td className="px-2 py-2 text-right text-gray-700 whitespace-nowrap">₱{item.sellingPrice?.toLocaleString()}/{item.packUnit}</td>
+                                <td className="px-2 py-2 text-right font-semibold text-gray-900 whitespace-nowrap">₱{(item.purchasePrice * item.quantity).toLocaleString()}</td>
+                                <td className="px-2 py-2 text-center">
+                                  <button onClick={() => setStagedItems(prev => prev.filter((_, i) => i !== index))} className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded">
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Total footer */}
+                  <div className="bg-white rounded-md border border-gray-200 shadow-sm px-5 py-3 flex items-center justify-between">
+                    <p className="text-sm text-gray-600">{stagedItems.length} item{stagedItems.length !== 1 ? 's' : ''} ready to add</p>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500 mb-0.5">Total Cost</p>
+                      <p className="text-2xl font-bold text-gray-900">₱{totalCost.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Bottom actions */}
+        <div className="bg-white border-t border-gray-200 flex items-center flex-shrink-0">
+          <div className="w-80 flex-shrink-0 flex items-center gap-2 px-4 py-3 border-r border-gray-200">
+            <button onClick={handleClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium text-sm whitespace-nowrap">
+              Cancel
+            </button>
+            <button onClick={handleAddToList}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 text-white text-sm rounded-md hover:bg-gray-700 font-medium">
+              <FiPlus className="w-4 h-4" /> Add to List
+            </button>
+          </div>
+          <div className="flex-1 flex items-center px-6 py-3">
+            <button onClick={handleSaveAll} disabled={saving || stagedItems.length === 0}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed">
+              <FiSave className="w-4 h-4" />
+              {saving ? 'Saving...' : `Save ${stagedItems.length > 0 ? stagedItems.length + ' Item' + (stagedItems.length !== 1 ? 's' : '') : 'Items'} to Stock`}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
 function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
@@ -412,6 +869,7 @@ function MedicinesStocks() {
   const [stockFilter, setStockFilter] = useState('All')
   const [itemType, setItemType] = useState('All')
   const [editItem, setEditItem] = useState(null)
+  const [showAddStock, setShowAddStock] = useState(false)
 
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
@@ -600,6 +1058,16 @@ function MedicinesStocks() {
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
 
+      {/* Add Stock Modal */}
+      <AddStockModal
+        isOpen={showAddStock}
+        onClose={() => setShowAddStock(false)}
+        onSave={loadData}
+        medicineCategories={medicineCategories}
+        storeCategories={storeCategories}
+        medicineForms={medicineForms}
+      />
+
       {/* Edit Modal */}
       <EditStockModal
         item={editItem}
@@ -617,6 +1085,15 @@ function MedicinesStocks() {
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-semibold text-gray-900">Inventory Management</h1>
           <div className="flex items-center gap-4">
+
+            {/* ── Add Stock Button ── */}
+            <button
+              onClick={() => setShowAddStock(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Stock
+            </button>
 
             {/* ── Edit History Button ── */}
             <button
