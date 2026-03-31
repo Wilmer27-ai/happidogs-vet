@@ -30,7 +30,7 @@ function ConsultationDetailsModal({ consultation, isOpen, onClose }) {
 
         <div className="p-6 space-y-4">
           {/* Date and Client */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500 mb-1">Date</p>
               <p className="text-sm font-medium text-gray-900">{formatFullDate(consultation.dateTime)}</p>

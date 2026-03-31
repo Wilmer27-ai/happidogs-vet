@@ -264,9 +264,9 @@ function Dashboard() {
   const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
         <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-xs text-gray-500">Overview of your veterinary clinic</p>
       </div>
@@ -275,7 +275,7 @@ function Dashboard() {
       <div className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
 
         {/* Stats Row */}
-        <div className="grid grid-cols-5 gap-3 flex-shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 flex-shrink-0">
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/clients-pets')}>
             <p className="text-xs text-gray-500">Clients</p>
             <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
@@ -299,7 +299,7 @@ function Dashboard() {
         </div>
 
         {/* Main 3-col grid — fills remaining height */}
-        <div className="flex-1 grid grid-cols-3 gap-3 min-h-0">
+        <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-3 min-h-0">
 
           {/* Col 1: Weekly Chart + Revenue/Expense Summary */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
@@ -379,39 +379,41 @@ function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
-                    <tr>
-                      <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Date</th>
-                      <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Pet</th>
-                      <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Owner</th>
-                      <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Contact</th>
-                      <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {displayedFollowUps.map((followUp) => (
-                      <tr key={followUp.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-1.5 whitespace-nowrap font-semibold text-gray-900">
-                          {formatDate(followUp.followUpDate)}
-                        </td>
-                        <td className="px-3 py-1.5 font-semibold text-gray-900 max-w-[60px] truncate">{followUp.petName}</td>
-                        <td className="px-3 py-1.5 text-gray-700 max-w-[70px] truncate">{followUp.clientName}</td>
-                        <td className="px-3 py-1.5 text-gray-700 whitespace-nowrap">{followUp.phoneNumber}</td>
-                        <td className="px-3 py-1.5 text-gray-500 max-w-[100px] truncate" title={followUp.followUpNote || followUp.diagnosis}>
-                          {followUp.followUpNote || followUp.diagnosis || '—'}
-                        </td>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-xs">
+                    <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Date</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Pet</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Owner</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Contact</th>
+                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Note</th>
                       </tr>
-                    ))}
-                    {hasMore && (
-                      <tr ref={observerTarget}>
-                        <td colSpan="5" className="px-3 py-2 text-center">
-                          <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {displayedFollowUps.map((followUp) => (
+                        <tr key={followUp.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-1.5 whitespace-nowrap font-semibold text-gray-900">
+                            {formatDate(followUp.followUpDate)}
+                          </td>
+                          <td className="px-3 py-1.5 font-semibold text-gray-900 max-w-[60px] truncate">{followUp.petName}</td>
+                          <td className="px-3 py-1.5 text-gray-700 max-w-[70px] truncate">{followUp.clientName}</td>
+                          <td className="px-3 py-1.5 text-gray-700 whitespace-nowrap">{followUp.phoneNumber}</td>
+                          <td className="px-3 py-1.5 text-gray-500 max-w-[100px] truncate" title={followUp.followUpNote || followUp.diagnosis}>
+                            {followUp.followUpNote || followUp.diagnosis || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                      {hasMore && (
+                        <tr ref={observerTarget}>
+                          <td colSpan="5" className="px-3 py-2 text-center">
+                            <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

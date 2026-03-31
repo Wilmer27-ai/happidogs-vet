@@ -457,11 +457,11 @@ function CreatePurchaseOrder() {
   const capFirst = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1) : ''
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <div className="flex-1 flex overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ── LEFT: Form ── */}
-        <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-full lg:w-96 bg-white border-r border-gray-200 flex flex-col">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
             <button onClick={() => navigate('/suppliers')} className="text-gray-600 hover:text-gray-900">
               <FiArrowLeft className="w-5 h-5" />
@@ -475,7 +475,7 @@ function CreatePurchaseOrder() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
             {/* Order Date & Payment Terms */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Order Date *</label>
                 <input type="date" value={orderFormData.orderDate}
@@ -558,7 +558,7 @@ function CreatePurchaseOrder() {
               <>
                 {/* Pack Called + Unit Inside — each uses UnitDropdown */}
                 {currentItem.itemType === 'medicine' && (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <UnitDropdown
                       label="Pack Called *"
                       value={currentItem.packUnit}
@@ -579,7 +579,7 @@ function CreatePurchaseOrder() {
                 )}
 
                 {/* Qty + Units per Pack */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       No. of {capFirst(currentItem.packUnit) || 'Pack'}s *
@@ -656,7 +656,7 @@ function CreatePurchaseOrder() {
             {/* ── VIAL / OTHER (medicine, no dual stock) ── */}
             {currentItem.itemType === 'medicine' && !isSyrup() && !isTablet() && (
               <>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <UnitDropdown
                     label="Pack Called *"
                     value={currentItem.packUnit}
@@ -673,7 +673,7 @@ function CreatePurchaseOrder() {
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
                     <input type="number" min="0" step="0.01" value={currentItem.purchasePrice}
@@ -695,7 +695,7 @@ function CreatePurchaseOrder() {
             {/* ── NON-FOOD STORE ── */}
             {currentItem.itemType === 'store' && !isFoodCategory() && (
               <>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <UnitDropdown
                     label="Pack Called *"
                     value={currentItem.packUnit}
@@ -719,7 +719,7 @@ function CreatePurchaseOrder() {
                     placeholder="e.g. 12 pcs per box"
                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
                     <input type="number" min="0" step="0.01" value={currentItem.purchasePrice}
@@ -750,12 +750,12 @@ function CreatePurchaseOrder() {
         </div>
 
         {/* ── RIGHT: Table ── */}
-        <div className="flex-1 flex flex-col bg-gray-50">
-          <div className="px-6 py-3 bg-white border-b border-gray-200">
+          <div className="flex-1 flex flex-col bg-gray-50">
+          <div className="px-4 md:px-6 py-3 bg-white border-b border-gray-200">
             <h3 className="font-semibold text-gray-900">Order Items ({orderItems.length})</h3>
           </div>
 
-          <div className="flex-1 p-6 flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+          <div className="flex-1 p-4 md:p-6 flex flex-col h-auto lg:h-[calc(100vh-200px)]">
             {orderItems.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center text-gray-400">
@@ -768,7 +768,8 @@ function CreatePurchaseOrder() {
               <>
                 <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden mb-3">
                   <div className="overflow-auto h-full">
-                    <table className="w-full text-xs">
+                    <div className="w-full overflow-x-auto">
+                      <table className="w-full min-w-[900px] text-xs">
                       <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                         <tr>
                           <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Type</th>
@@ -856,7 +857,8 @@ function CreatePurchaseOrder() {
                           )
                         })}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -880,13 +882,13 @@ function CreatePurchaseOrder() {
           </div>
 
           {/* Bottom Actions */}
-          <div className="px-6 py-3 bg-white border-t border-gray-200 flex gap-3">
+          <div className="px-4 md:px-6 py-3 bg-white border-t border-gray-200 flex flex-col sm:flex-row gap-3">
             <button onClick={() => navigate('/suppliers')}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium">
+              className="w-full sm:w-auto px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium">
               Cancel
             </button>
             <button onClick={handleSubmitPurchaseOrder} disabled={orderItems.length === 0}
-              className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed">
+              className="w-full sm:flex-1 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed">
               Create Purchase Order
             </button>
           </div>

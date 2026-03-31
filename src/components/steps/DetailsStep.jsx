@@ -71,7 +71,7 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ height: '80vh', maxHeight: '80vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-gray-200 flex-shrink-0">
           <div>
             <h3 className="font-semibold text-gray-900">Select Medicines</h3>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -85,7 +85,7 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
         </div>
 
         {/* Search + Filter */}
-        <div className="px-5 py-3 border-b border-gray-100 flex gap-2 flex-shrink-0">
+        <div className="px-4 sm:px-5 py-3 border-b border-gray-100 flex flex-col sm:flex-row gap-2 flex-shrink-0">
           <div className="relative flex-1">
             <FiSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -94,7 +94,7 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
               autoFocus />
           </div>
           <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)}
-            className="w-44 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+            className="w-full sm:w-44 px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
             {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
         </div>
@@ -106,7 +106,8 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
               <p className="text-sm text-gray-400">{search ? 'No medicines match your search' : 'No medicines available'}</p>
             </div>
           ) : (
-            <table className="w-full text-sm border-collapse">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm border-collapse">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                 <tr>
                   <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
@@ -149,16 +150,17 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
                   </tr>
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-gray-200 flex items-center justify-between gap-3 flex-shrink-0">
+        <div className="px-4 sm:px-5 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
           <p className="text-xs text-gray-400">
             Showing {displayed.length} of {filtered.length}
           </p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 sm:justify-end">
             <button type="button" onClick={handleClose}
               className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">Cancel</button>
             <button type="button" onClick={handleConfirm} disabled={checked.length === 0}
@@ -574,7 +576,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const medicinesTotalAmount = medicinesPerPetAmount * (selectedPets.length || 1)
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-gray-50">
 
       {(showClientDropdown || showPetDropdown) && (
         <div className="fixed inset-0 z-40"
@@ -720,7 +722,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
             {selectedClient && selectedPets.length > 0 && (
               <>
                 {/* Activity Type (multi-checkbox) + Date */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Activity Type</label>
                     <div className="border border-gray-300 rounded-md px-3 py-2 space-y-1.5 bg-white">
@@ -754,36 +756,38 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Vitals</label>
                   <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-100 border-b border-gray-200">
-                        <tr>
-                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Pet</th>
-                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Weight (kg)</th>
-                          <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Temp (°C)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedPets.map((pet, index) => (
-                          <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-2.5 py-1.5 font-semibold text-gray-800">{pet.name}</td>
-                            <td className="px-2 py-1">
-                              <input type="number" step="0.1" min="0"
-                                value={petVitals[pet.id]?.weight || ''}
-                                onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                placeholder="0" />
-                            </td>
-                            <td className="px-2 py-1">
-                              <input type="number" step="0.1" min="0"
-                                value={petVitals[pet.id]?.temperature || ''}
-                                onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
-                                className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                placeholder="0" />
-                            </td>
+                    <div className="w-full overflow-x-auto">
+                      <table className="w-full min-w-[420px] text-xs">
+                        <thead className="bg-gray-100 border-b border-gray-200">
+                          <tr>
+                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Pet</th>
+                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Weight (kg)</th>
+                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Temp (°C)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {selectedPets.map((pet, index) => (
+                            <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-2.5 py-1.5 font-semibold text-gray-800">{pet.name}</td>
+                              <td className="px-2 py-1">
+                                <input type="number" step="0.1" min="0"
+                                  value={petVitals[pet.id]?.weight || ''}
+                                  onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder="0" />
+                              </td>
+                              <td className="px-2 py-1">
+                                <input type="number" step="0.1" min="0"
+                                  value={petVitals[pet.id]?.temperature || ''}
+                                  onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder="0" />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -1211,7 +1215,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               </div>
             ) : (
               <div className="flex-1 overflow-auto min-h-0">
-                <table className="w-full text-xs border-collapse">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[860px] text-xs border-collapse">
                   <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                     <tr>
                       <th className="px-2 py-2.5 text-center w-8 border border-gray-600">
@@ -1322,7 +1327,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                       )
                     })}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             )}
           </div>

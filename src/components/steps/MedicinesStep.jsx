@@ -193,10 +193,10 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Select Medicines</h2>
             <p className="text-sm text-gray-600">
@@ -208,7 +208,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
           </div>
           <button
             onClick={onBack}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             ← Back
           </button>
@@ -245,7 +245,7 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex gap-4 p-6 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 sm:p-6 overflow-hidden">
 
         {/* Medicines Table */}
         <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
@@ -259,74 +259,76 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                 <p className="text-gray-500 text-sm">No medicines found</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Medicine Name</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Price</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {displayedMedicines.map(medicine => {
-                    const isOutOfStock = getTotalStock(medicine) === 0
-                    return (
-                      <tr key={medicine.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className={`font-medium ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
-                            {medicine.medicineName}
-                            {medicine.brand && <span className="text-gray-500 ml-1">({medicine.brand})</span>}
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[700px] text-sm">
+                  <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Medicine Name</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Price</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {displayedMedicines.map(medicine => {
+                      const isOutOfStock = getTotalStock(medicine) === 0
+                      return (
+                        <tr key={medicine.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className={`font-medium ${isOutOfStock ? 'text-red-600' : 'text-gray-900'}`}>
+                              {medicine.medicineName}
+                              {medicine.brand && <span className="text-gray-500 ml-1">({medicine.brand})</span>}
+                            </div>
+                            {medicine.medicineType && (
+                              <p className="text-xs text-gray-500 mt-0.5 capitalize">{medicine.medicineType}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                              {medicine.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {isOutOfStock
+                              ? <span className="text-red-600 font-medium text-xs">Out of Stock</span>
+                              : <div className="text-xs">{getStockDisplay(medicine)}</div>
+                            }
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {getPriceDisplay(medicine)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => handleAddMedicine(medicine)}
+                              disabled={isOutOfStock}
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium shadow-sm transition-colors"
+                            >
+                              Add
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                    {hasMore && (
+                      <tr ref={observerTarget}>
+                        <td colSpan="5" className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2 text-gray-500">
+                            <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                            <span className="text-sm">Loading more...</span>
                           </div>
-                          {medicine.medicineType && (
-                            <p className="text-xs text-gray-500 mt-0.5 capitalize">{medicine.medicineType}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                            {medicine.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {isOutOfStock
-                            ? <span className="text-red-600 font-medium text-xs">Out of Stock</span>
-                            : <div className="text-xs">{getStockDisplay(medicine)}</div>
-                          }
-                        </td>
-                        <td className="px-4 py-3 text-xs">
-                          {getPriceDisplay(medicine)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => handleAddMedicine(medicine)}
-                            disabled={isOutOfStock}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium shadow-sm transition-colors"
-                          >
-                            Add
-                          </button>
                         </td>
                       </tr>
-                    )
-                  })}
-                  {hasMore && (
-                    <tr ref={observerTarget}>
-                      <td colSpan="5" className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2 text-gray-500">
-                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                          <span className="text-sm">Loading more...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
 
         {/* Cart Sidebar */}
-        <div className="w-96 bg-white rounded-lg border border-gray-200 flex flex-col">
+        <div className="w-full lg:w-96 bg-white rounded-lg border border-gray-200 flex flex-col">
           <div className="p-3 border-b bg-gray-50">
             <div className="flex items-center justify-between">
               <div>

@@ -96,11 +96,11 @@ function StockEditHistory() {
   useEffect(() => { setDisplayCount(20) }, [searchQuery, actionFilter, typeFilter])
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="min-h-screen flex flex-col overflow-hidden">
 
       {/* Header — fixed, never scrolls */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Stock Edit History</h1>
             <p className="text-sm text-gray-500 mt-0.5">
@@ -109,14 +109,14 @@ function StockEditHistory() {
           </div>
           <button
             onClick={() => navigate('/medicines-stocks')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            className="w-full md:w-auto flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
           >
             <FiArrowLeft className="w-3.5 h-3.5" /> Back to Inventory
           </button>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col md:flex-row gap-2">
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -128,13 +128,13 @@ function StockEditHistory() {
             />
           </div>
           <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            className="w-full md:w-auto px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="all">All Actions</option>
             <option value="edit">Edits Only</option>
             <option value="delete">Deletions Only</option>
           </select>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            className="w-full md:w-auto px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="all">All Types</option>
             <option value="medicine">Medicine</option>
             <option value="store">Store Item</option>
@@ -143,7 +143,7 @@ function StockEditHistory() {
       </div>
 
       {/* Table — takes all remaining height */}
-      <div className="flex-1 overflow-hidden min-h-0 px-6 py-3">
+      <div className="flex-1 overflow-hidden min-h-0 px-4 md:px-6 py-3">
         <div className="h-full bg-white rounded-md border border-gray-200 shadow-sm flex flex-col overflow-hidden">
 
           {loading ? (
@@ -168,7 +168,8 @@ function StockEditHistory() {
           ) : (
             /* ── Scrollable table only ── */
             <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-xs border-collapse">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[900px] text-xs border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-gray-900 text-white">
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-700 w-40">Date & Time</th>
@@ -255,7 +256,8 @@ function StockEditHistory() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           )}
         </div>

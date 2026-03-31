@@ -396,17 +396,17 @@ function Reports() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-2.5 flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-2.5 flex-shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
           <h1 className="text-lg font-semibold text-gray-900">Business Reports</h1>
           
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm"
+              className="w-full sm:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm"
             >
               <option value="today">Today</option>
               <option value="week">Last 7 Days</option>
@@ -417,7 +417,7 @@ function Reports() {
             
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
             >
               <FiDownload className="w-3.5 h-3.5" />
               Export
@@ -428,7 +428,7 @@ function Reports() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0.5 border-b -mb-px">
+        <div className="flex gap-0.5 border-b -mb-px overflow-x-auto whitespace-nowrap">
           {tabs.map(tab => (
             <button
               key={tab.id}
@@ -446,12 +446,12 @@ function Reports() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto px-6 py-3">
+      <div className="flex-1 overflow-auto px-4 md:px-6 py-3">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
                 <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-xl font-bold text-gray-900">₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -473,7 +473,7 @@ function Reports() {
 
             <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
               <h2 className="text-sm font-semibold text-gray-900 mb-3">Business Stats</h2>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="flex flex-col">
                   <span className="text-xs text-gray-500">Clients</span>
                   <span className="text-lg font-bold text-gray-900">{data.clients.length}</span>
@@ -505,7 +505,7 @@ function Reports() {
             <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
               <h2 className="text-sm font-semibold text-gray-900 mb-3">Inventory Summary</h2>
               
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="p-3 border border-gray-200 rounded">
                   <p className="text-xs text-gray-600 mb-0.5">Total Items</p>
                   <p className="text-2xl font-bold text-gray-900">{allInventory.length}</p>
@@ -528,7 +528,8 @@ function Reports() {
               </div>
 
               <div ref={inventoryContainerRef} className="overflow-auto" style={{ maxHeight: '500px' }}>
-                <table className="w-full text-xs">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-xs">
                   <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold">Item Name</th>
@@ -579,7 +580,8 @@ function Reports() {
                       </tr>
                     )}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -588,7 +590,7 @@ function Reports() {
         {/* Financial Tab */}
         {activeTab === 'financial' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
                 <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-2xl font-bold text-gray-900">₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
@@ -654,7 +656,7 @@ function Reports() {
         {/* Sales Tab */}
         {activeTab === 'sales' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
                 <p className="text-xs text-gray-600 mb-1">Total Sales</p>
                 <p className="text-2xl font-bold text-gray-900">{filteredSales.length}</p>
@@ -718,7 +720,7 @@ function Reports() {
             <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
               <h2 className="text-sm font-semibold text-gray-900 mb-3">Activity Audit Trail</h2>
               
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="p-3 border border-gray-200 rounded">
                   <p className="text-xs text-gray-600 mb-0.5">Total Activities</p>
                   <p className="text-2xl font-bold text-gray-900">{auditTrail.length}</p>
@@ -741,7 +743,8 @@ function Reports() {
               </div>
 
               <div ref={auditContainerRef} className="overflow-auto" style={{ maxHeight: '500px' }}>
-                <table className="w-full text-xs">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-xs">
                   <thead className="bg-gray-800 text-white sticky top-0">
                     <tr>
                       <th className="px-3 py-2 text-left font-semibold">Date & Time</th>
@@ -783,7 +786,8 @@ function Reports() {
                           {event.reference?.substring(0, 8)}...
                         </td>
                       </tr>
-                    ))}                    {hasMoreAudit && (
+                    ))}
+                    {hasMoreAudit && (
                       <tr ref={auditSentinelRef}>
                         <td colSpan="5" className="px-3 py-2 text-center">
                           <div className="flex items-center justify-center gap-2 text-gray-400">
@@ -792,8 +796,10 @@ function Reports() {
                           </div>
                         </td>
                       </tr>
-                    )}                  </tbody>
-                </table>
+                    )}
+                  </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

@@ -123,9 +123,9 @@ function SalesHistory() {
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.totalAmount ?? 0), 0)
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Sales History</h1>
@@ -136,7 +136,7 @@ function SalesHistory() {
           </div>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input type="text" placeholder="Search by client, item, or type..."
@@ -144,14 +144,14 @@ function SalesHistory() {
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            className="w-full md:w-auto px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="all">All Time</option>
             <option value="today">Today</option>
             <option value="week">Last 7 Days</option>
             <option value="month">Last 30 Days</option>
           </select>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+            className="w-full md:w-auto px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
             <option value="all">All Types</option>
             <option value="consultation">Consultations</option>
             <option value="store">Store Sales</option>
@@ -180,7 +180,8 @@ function SalesHistory() {
           </div>
         ) : (
           <div className="flex-1 overflow-auto min-h-0">
-            <table className="w-full text-xs border-collapse">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[760px] text-xs border-collapse">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Date</th>
@@ -253,7 +254,8 @@ function SalesHistory() {
                   </tr>
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
       </div>

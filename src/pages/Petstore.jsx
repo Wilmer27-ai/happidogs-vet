@@ -490,9 +490,9 @@ function PetStore() {
   )
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
           <div className="flex items-center gap-2">
             <button
@@ -529,7 +529,7 @@ function PetStore() {
         </div>
       </div>
 
-      <div className="flex-1 flex gap-4 p-3 md:p-4 overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row gap-4 p-3 md:p-4 overflow-hidden min-h-0">
         <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col">
           <div className="overflow-auto flex-1">
             {loading ? (
@@ -547,7 +547,8 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <table className="w-full text-xs border-collapse">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[720px] text-xs border-collapse">
                 <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Item</th>
@@ -607,7 +608,8 @@ function PetStore() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -642,7 +644,7 @@ function PetStore() {
 
       {showCheckoutModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="font-bold text-lg text-gray-900">Confirm Checkout</h2>

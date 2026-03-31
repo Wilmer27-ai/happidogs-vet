@@ -53,11 +53,11 @@ function PetActivityHistory() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 md:px-8 py-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-8 py-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">{selectedPet.name}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
@@ -66,7 +66,7 @@ function PetActivityHistory() {
           </div>
           <button
             onClick={() => navigate('/consultation-history')}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
             <FiArrowLeft className="w-4 h-4" />
             Back
@@ -90,7 +90,8 @@ function PetActivityHistory() {
           </div>
         ) : (
           <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
-            <table className="w-full text-xs border-collapse">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[760px] text-xs border-collapse">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                 <tr>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 w-28">Date</th>
@@ -165,7 +166,8 @@ function PetActivityHistory() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
       </div>

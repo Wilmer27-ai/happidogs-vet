@@ -256,15 +256,15 @@ function ClientsPets() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-     <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Clients & Pets</h1>
 
       
 
         {/* Tab Toggle & Search */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
           <div className="flex gap-2">
             <button
               onClick={() => setActiveTab('clients')}
@@ -301,7 +301,7 @@ function ClientsPets() {
 
           <button
             onClick={activeTab === 'clients' ? () => setIsClientModalOpen(true) : () => setIsPetModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
+            className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm text-sm"
           >
             <FiPlus className="w-4 h-4" />
             {activeTab === 'clients' ? 'Add Client' : 'Add Pet'}
@@ -310,7 +310,7 @@ function ClientsPets() {
       </div>
 
       {/* Table Container with Fixed Height */}
-      <div className="flex-1 px-6 py-4 overflow-hidden">
+      <div className="flex-1 px-4 md:px-6 py-4 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500">Loading...</p>
@@ -319,118 +319,123 @@ function ClientsPets() {
           <div className="bg-white rounded-lg border border-gray-200 h-full flex flex-col overflow-hidden">
             <div className="overflow-auto flex-1">
               {activeTab === 'clients' ? (
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-800 text-white sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs">Name</th>
-                      <th className="px-4 py-2 text-left text-xs">Phone</th>
-                      <th className="px-4 py-2 text-left text-xs">Address</th>
-                      <th className="px-4 py-2 text-left text-xs">Pets</th>
-                      <th className="px-4 py-2 text-right text-xs">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {displayedClients.length > 0 ? (
-                      displayedClients.map((client, index) => (
-                        <tr key={client.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-gray-900">
-                              {client.firstName} {client.lastName}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">{client.phoneNumber}</td>
-                          <td className="px-4 py-3 text-gray-700">{client.address}</td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {getClientPets(client.id).length}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => handleEditClient(client)}
-                                className="text-blue-600 hover:text-blue-700 p-1.5"
-                                title="Edit"
-                              >
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClient(client.id)}
-                                className="text-red-600 hover:text-red-700 p-1.5"
-                                title="Delete"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead className="bg-gray-800 text-white sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs">Name</th>
+                        <th className="px-4 py-2 text-left text-xs">Phone</th>
+                        <th className="px-4 py-2 text-left text-xs">Address</th>
+                        <th className="px-4 py-2 text-left text-xs">Pets</th>
+                        <th className="px-4 py-2 text-right text-xs">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {displayedClients.length > 0 ? (
+                        displayedClients.map((client, index) => (
+                          <tr key={client.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-gray-900">
+                                {client.firstName} {client.lastName}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{client.phoneNumber}</td>
+                            <td className="px-4 py-3 text-gray-700">{client.address}</td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                {getClientPets(client.id).length}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => handleEditClient(client)}
+                                  className="text-blue-600 hover:text-blue-700 p-1.5"
+                                  title="Edit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClient(client.id)}
+                                  className="text-red-600 hover:text-red-700 p-1.5"
+                                  title="Delete"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="px-4 py-12 text-center text-gray-500">
+                            <div className="flex flex-col items-center gap-2">
+                              <FiUser className="w-12 h-12 text-gray-300" />
+                              <span className="text-sm font-medium">No clients found</span>
                             </div>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="5" className="px-4 py-12 text-center text-gray-500">
-                          <FiUser className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                          <p>No clients found</p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-800 text-white sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs">Pet Name</th>
-                      <th className="px-4 py-2 text-left text-xs">Species</th>
-                      <th className="px-4 py-2 text-left text-xs">Breed</th>
-                      <th className="px-4 py-2 text-left text-xs">Age</th>
-                      <th className="px-4 py-2 text-left text-xs">Owner</th>
-                      <th className="px-4 py-2 text-right text-xs">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {displayedPets.length > 0 ? (
-                      displayedPets.map((pet, index) => (
-                        <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-3">
-                            <p className="font-medium text-gray-900">{pet.name}</p>
-                          </td>
-                          <td className="px-4 py-3 text-gray-700">{pet.species}</td>
-                          <td className="px-4 py-3 text-gray-700">{pet.breed}</td>
-                          <td className="px-4 py-3 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
-                          <td className="px-4 py-3 text-gray-700">{pet.clientName}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => handleEditPet(pet)}
-                                className="text-blue-600 hover:text-blue-700 p-1.5"
-                                title="Edit"
-                              >
-                                <FiEdit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeletePet(pet.id)}
-                                className="text-red-600 hover:text-red-700 p-1.5"
-                                title="Delete"
-                              >
-                                <FiTrash2 className="w-4 h-4" />
-                              </button>
-                            </div>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-sm">
+                    <thead className="bg-gray-800 text-white sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs">Pet Name</th>
+                        <th className="px-4 py-2 text-left text-xs">Species</th>
+                        <th className="px-4 py-2 text-left text-xs">Breed</th>
+                        <th className="px-4 py-2 text-left text-xs">Owner</th>
+                        <th className="px-4 py-2 text-left text-xs">Age</th>
+                        <th className="px-4 py-2 text-right text-xs">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {displayedPets.length > 0 ? (
+                        displayedPets.map((pet, index) => (
+                          <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-gray-900">{pet.name}</p>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">{pet.species || 'N/A'}</td>
+                            <td className="px-4 py-3 text-gray-700">{pet.breed || 'N/A'}</td>
+                            <td className="px-4 py-3 text-gray-700">{pet.clientName || getOwnerName(pet.clientId)}</td>
+                            <td className="px-4 py-3 text-gray-700">{calculateAge(pet.dateOfBirth)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => handleEditPet(pet)}
+                                  className="text-blue-600 hover:text-blue-700 p-1.5"
+                                  title="Edit"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePet(pet.id)}
+                                  className="text-red-600 hover:text-red-700 p-1.5"
+                                  title="Delete"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="px-4 py-12 text-center text-gray-500">
+                            <FiHeart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p>No pets found</p>
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="6" className="px-4 py-12 text-center text-gray-500">
-                          <FiHeart className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                          <p>No pets found</p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
-              {/* Loading indicator for lazy loading */}
               {((activeTab === 'clients' && hasMoreClients) || (activeTab === 'pets' && hasMorePets)) && (
                 <div ref={observerTarget} className="py-4 text-center">
                   <p className="text-sm text-gray-500">Loading more...</p>
@@ -455,7 +460,7 @@ function ClientsPets() {
       {/* Add/Edit Client Modal */}
       {isClientModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingClient ? 'Edit Client' : 'Add New Client'}
@@ -467,7 +472,7 @@ function ClientsPets() {
 
             <form onSubmit={handleClientSubmit}>
               <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       First Name <span className="text-red-500">*</span>
@@ -548,7 +553,7 @@ function ClientsPets() {
       {/* Add/Edit Pet Modal */}
       {isPetModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingPet ? 'Edit Pet' : 'Add New Pet'}
@@ -574,7 +579,7 @@ function ClientsPets() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Species <span className="text-red-500">*</span>

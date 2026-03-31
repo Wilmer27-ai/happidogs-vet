@@ -147,15 +147,15 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-50 w-full max-w-7xl flex flex-col rounded-xl shadow-2xl overflow-hidden" style={{height: '92vh'}}>
+      <div className="bg-gray-50 w-full max-w-7xl flex flex-col rounded-xl shadow-2xl overflow-hidden max-h-[92vh] md:h-[92vh]">
 
         {/* Header */}
 
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
           {/* ── LEFT: Item Form ── */}
-          <div className="w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+          <div className="w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
             <div className="px-4 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900 text-sm">Item Details</h3>
               <p className="text-xs text-gray-400 mt-0.5">Fill in details then click "Add to List"</p>
@@ -164,7 +164,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
               {/* Type + Medicine Form */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className={labelClass}>Type *</label>
                   <select value={form.itemType} onChange={(e) => set('itemType', e.target.value)} className={`${inputClass} bg-white`}>
@@ -190,7 +190,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                 <input type="text" value={form.itemName} onChange={(e) => set('itemName', e.target.value)}
                   placeholder={isMedicine ? 'e.g. Amoxicillin' : 'e.g. Champion Dog Food'} className={inputClass} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className={labelClass}>Brand</label>
                   <input type="text" value={form.brand} onChange={(e) => set('brand', e.target.value)} placeholder="e.g. Pfizer" className={inputClass} />
@@ -213,7 +213,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {/* ── Dual stock ── */}
               {isDual && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Pack Called *</label>
                       <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bottle" className={inputClass} />
@@ -223,7 +223,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                       <input type="text" value={form.subUnit} onChange={(e) => set('subUnit', e.target.value)} placeholder="e.g. ml" className={inputClass} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>No. of {capFirst(form.packUnit) || 'Pack'}s *</label>
                       <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 10" className={inputClass} />
@@ -262,7 +262,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {/* ── Single unit medicine (vial / other) ── */}
               {isMedicine && !isSyrup && !isTablet && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Unit *</label>
                       <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. vial" className={inputClass} />
@@ -272,7 +272,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                       <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Purchase Price *</label>
                       <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
@@ -288,7 +288,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {/* ── Non-food store ── */}
               {!isMedicine && !isFoodCat && (
                 <>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Pack Unit *</label>
                       <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bag" className={inputClass} />
@@ -302,7 +302,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                     <label className={labelClass}>Pcs per Package <span className="text-gray-400">(optional)</span></label>
                     <input type="number" min="1" value={form.packageSize} onChange={(e) => set('packageSize', e.target.value)} placeholder="e.g. 12 pcs per box" className={inputClass} />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Purchase Price *</label>
                       <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
@@ -331,7 +331,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               <h3 className="font-semibold text-gray-900">Items to Add ({stagedItems.length})</h3>
             </div>
 
-            <div className="flex-1 p-6 flex flex-col overflow-hidden">
+            <div className="flex-1 p-4 md:p-6 flex flex-col overflow-hidden">
               {stagedItems.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center text-gray-400">
@@ -344,7 +344,8 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                 <>
                   <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden mb-3">
                     <div className="overflow-auto h-full">
-                      <table className="w-full text-xs">
+                      <div className="w-full overflow-x-auto">
+                        <table className="w-full min-w-[900px] text-xs">
                         <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                           <tr>
                             <th className="px-2 py-2 text-left font-semibold uppercase tracking-wide">Type</th>
@@ -415,7 +416,8 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                             )
                           })}
                         </tbody>
-                      </table>
+                          </table>
+                        </div>
                     </div>
                   </div>
 
@@ -436,8 +438,8 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
         </div>
 
         {/* Bottom actions */}
-        <div className="bg-white border-t border-gray-200 flex items-center flex-shrink-0">
-          <div className="w-80 flex-shrink-0 flex items-center gap-2 px-4 py-3 border-r border-gray-200">
+        <div className="bg-white border-t border-gray-200 flex flex-col lg:flex-row items-stretch flex-shrink-0">
+          <div className="w-full lg:w-80 flex-shrink-0 flex items-center gap-2 px-4 py-3 border-b lg:border-b-0 lg:border-r border-gray-200">
             <button onClick={handleClose}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium text-sm whitespace-nowrap">
               Cancel
@@ -447,7 +449,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               <FiPlus className="w-4 h-4" /> Add to List
             </button>
           </div>
-          <div className="flex-1 flex items-center px-6 py-3">
+          <div className="flex-1 flex items-center px-4 md:px-6 py-3">
             <button onClick={handleSaveAll} disabled={saving || stagedItems.length === 0}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium text-sm disabled:bg-gray-300 disabled:cursor-not-allowed">
               <FiSave className="w-4 h-4" />
@@ -577,7 +579,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
           {/* ── Basic Info ── */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>
                 {item._type === 'medicine' ? 'Medicine Name' : 'Item Name'} *
@@ -592,7 +594,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Category</label>
               <select value={form.category || ''} className={`${inputClass} bg-white`}
@@ -628,7 +630,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {isSyrup && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Syrup)</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Bottles</label>
                   <input type="number" min="0" value={form.bottleCount ?? 0} className={inputClass}
@@ -659,7 +661,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {isTablet && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Tablet)</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Boxes</label>
                   <input type="number" min="0" value={form.boxCount ?? 0} className={inputClass}
@@ -690,7 +692,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {item._type === 'store' && isFood(form.category) && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Food)</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Sacks</label>
                   <input type="number" min="0" value={form.sacksCount ?? 0} className={inputClass}
@@ -721,7 +723,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {!isDualStock && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Quantity</label>
                   <input type="number" min="0" value={form.stockQuantity ?? 0} className={inputClass}
@@ -746,7 +748,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
                 onChange={(e) => set('purchasePrice', Number(e.target.value))} placeholder="₱" />
             </div>
             {isSyrup && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per ML</label>
                   <input type="number" min="0" step="0.01" value={form.sellingPricePerMl ?? ''} className={inputClass}
@@ -760,7 +762,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               </div>
             )}
             {isTablet && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per Tablet</label>
                   <input type="number" min="0" step="0.01" value={form.sellingPricePerTablet ?? ''} className={inputClass}
@@ -774,7 +776,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               </div>
             )}
             {item._type === 'store' && isFood(form.category) && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per KG</label>
                   <input type="number" min="0" step="0.01" value={form.sellingPricePerKg ?? ''} className={inputClass}
@@ -1056,7 +1058,7 @@ function MedicinesStocks() {
   const totalValue = allItems.reduce((sum, i) => sum + getItemValue(i), 0)
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
 
       {/* Add Stock Modal */}
       <AddStockModal
@@ -1081,10 +1083,10 @@ function MedicinesStocks() {
       />
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 mb-3">
           <h1 className="text-xl font-semibold text-gray-900">Inventory Management</h1>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
 
             {/* ── Add Stock Button ── */}
             <button
@@ -1133,22 +1135,22 @@ function MedicinesStocks() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row gap-2">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input type="text" placeholder="Search items..." value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm" />
           </div>
-          <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
+          <select value={itemType} onChange={(e) => setItemType(e.target.value)} className="w-full md:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
             <option value="All">All Types</option>
             <option value="Medicines">Medicines</option>
             <option value="Store Items">Store Items</option>
           </select>
-          <select value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
+          <select value={activeCategory} onChange={(e) => setActiveCategory(e.target.value)} className="w-full md:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
             {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
           </select>
-          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
+          <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} className="w-full md:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm">
             <option value="All">All Status</option>
             <option value="Low Stock">Low Stock</option>
             <option value="Out of Stock">Out of Stock</option>
@@ -1158,25 +1160,26 @@ function MedicinesStocks() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-hidden px-6 py-3">
+      <div className="flex-1 overflow-hidden px-4 md:px-6 py-3">
         <div className="bg-white rounded-md border border-gray-200 shadow-sm h-full overflow-hidden flex flex-col">
           <div className="overflow-auto flex-1">
-            <table className="w-full text-xs">
-              <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Item</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Brand</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Type</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Supplier</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider">Purchase</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider">Selling Price</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Expiry</th>
-                  <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider">Edit</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[1100px] text-xs">
+                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Item</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Brand</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Type</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Category</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Stock</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Supplier</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider">Purchase</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider">Selling Price</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider">Expiry</th>
+                    <th className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wider">Edit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
                     <td colSpan="10" className="px-4 py-12 text-center text-gray-500">
@@ -1258,8 +1261,9 @@ function MedicinesStocks() {
                     )}
                   </>
                 )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

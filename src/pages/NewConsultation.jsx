@@ -13,7 +13,7 @@ function NewConsultation() {
   const [medicinesData, setMedicinesData] = useState([])
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen lg:h-screen bg-gray-50 flex flex-col">
       <div className="flex-1 overflow-hidden">
         {currentStep === 0 && (
           <DetailsStep

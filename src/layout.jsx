@@ -63,18 +63,25 @@ function Layout() {
   const isActive = (path) => location.pathname === path
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden print:hidden fixed top-4 left-4 z-50 p-3 bg-gray-900 text-white rounded-lg shadow-lg hover:bg-gray-800 transition-colors"
-      >
-        {isMobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
-      </button>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden print:hidden fixed top-0 left-0 right-0 z-[60] h-14 bg-gray-900 text-white flex items-center justify-between px-4 shadow">
+        <div className="flex items-center gap-2 min-w-0">
+          <img src={logo} alt="HappiDogs Logo" className="w-8 h-8 object-contain" />
+          <span className="text-sm font-semibold truncate">HappiDogs</span>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+        >
+          {isMobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
+        </button>
+      </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40
+        fixed lg:static top-14 bottom-0 left-0 z-[60] lg:top-0 lg:bottom-0
         bg-gray-900 text-white flex flex-col
         transform transition-all duration-300 ease-in-out print:hidden
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -202,13 +209,13 @@ function Layout() {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[50]"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden pt-14 lg:pt-0">
         <Outlet />
       </main>
 

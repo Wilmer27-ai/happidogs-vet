@@ -184,14 +184,14 @@ function Expenses() {
   const totalCount = filteredExpenses.length
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
           <h1 className="text-xl font-semibold text-gray-900">Expense Management</h1>
           
           {/* Statistics - Inline */}
-          <div className="flex gap-6">
+          <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
                 <FiTrendingDown className="w-4 h-4 text-red-600" />
@@ -214,7 +214,7 @@ function Expenses() {
         </div>
 
         {/* Search & Filters */}
-        <div className="flex gap-2">
+        <div className="flex flex-col md:flex-row gap-2">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -228,7 +228,7 @@ function Expenses() {
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+            className="w-full md:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
           >
             <option value="all">All Time</option>
             <option value="today">Today</option>
@@ -238,7 +238,7 @@ function Expenses() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
+            className="w-full md:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
           >
             <option value="All">All Categories</option>
             {categories.map(cat => (
@@ -249,11 +249,11 @@ function Expenses() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto px-6 py-3">
+      <div className="flex-1 overflow-auto px-4 md:px-6 py-3">
         {/* Form */}
         <div className="bg-white rounded-md border border-gray-200 shadow-sm p-4 mb-3">
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-5 gap-2 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2 mb-2">
               <input
                 type="text"
                 required
@@ -325,7 +325,7 @@ function Expenses() {
         </div>
 
         {/* Expenses Table */}
-        <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+        <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden h-auto md:h-[calc(100vh-260px)]">
           <div className="overflow-auto h-full">
             <table className="w-full text-sm">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">

@@ -311,10 +311,10 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   const handleGoToHistory = () => navigate('/consultation-history')
 
   return (
-    <div className="h-screen flex flex-col bg-gray-300">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-gray-300">
 
       {/* ── Toolbar ── */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-2 print:hidden flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 print:hidden flex-shrink-0">
         {!saved && (
           <button onClick={onBack}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
@@ -325,24 +325,24 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
           className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
           <FiPrinter className="w-3.5 h-3.5" /> Print
         </button>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="sm:ml-auto flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           {saved ? (
             <>
               <div className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
                 <FiCheckCircle className="w-4 h-4" /> Consultation saved!
               </div>
               <button onClick={handleViewSummary}
-                className="px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
+                className="w-full sm:w-auto px-4 py-1.5 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors">
                 View Receipt
               </button>
               <button onClick={handleGoToHistory}
-                className="px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
+                className="w-full sm:w-auto px-4 py-1.5 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors">
                 Go to History
               </button>
             </>
           ) : (
             <button onClick={handleSave} disabled={saving}
-              className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5">
+              className="w-full sm:w-auto px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1.5">
               {saving
                 ? <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Saving...</>
                 : 'Save & Complete'}
@@ -353,15 +353,15 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
 
       {/* ── Scrollable A4 area ── */}
       <div className="flex-1 overflow-auto py-8 px-4 print:p-0 print:overflow-visible">
-        <div className="bg-white mx-auto print:shadow-none print:mx-0 flex flex-col"
-          style={{ width: '210mm', minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
+        <div className="bg-white mx-auto print:shadow-none print:mx-0 flex flex-col w-full max-w-[210mm]"
+          style={{ minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
 
           <div style={{ height: '7px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
 
-          <div className="flex flex-col flex-1 px-10 py-7">
+          <div className="flex flex-col flex-1 px-4 sm:px-10 py-6 sm:py-7">
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
                 <img src={logo} alt="Happi Dogs" className="w-16 h-16 object-contain"
                   onError={(e) => { e.target.style.display = 'none' }} />
@@ -387,7 +387,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             <div className="border-t-2 border-gray-900 border-b border-gray-300 mb-4" />
 
             {/* Client Info */}
-            <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 border border-gray-200 px-4 py-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 bg-gray-50 border border-gray-200 px-4 py-3">
               <div className="space-y-1.5 text-xs">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Owner's Name:</span>
@@ -423,76 +423,78 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             </div>
 
             {/* Table */}
-            <table className="w-full text-xs border-collapse mb-4" style={{ borderTop: '2px solid #111827' }}>
-              <thead>
-                <tr style={{ background: '#111827' }} className="text-white">
-                  <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[12%]">Pet</th>
-                  <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[13%]">Activity</th>
-                  <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[23%]">Clinical Notes</th>
-                  <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[22%]">Medicine / Item</th>
-                  <th className="px-2.5 py-2 text-center font-bold border-r border-gray-600 w-[10%]">Qty</th>
-                  <th className="px-2.5 py-2 text-right font-bold border-r border-gray-600 w-[10%]">Unit Price</th>
-                  <th className="px-2.5 py-2 text-right font-bold w-[10%]">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupedByPet.map((group, gIndex) => {
-                  const rows = buildRows(group)
-                  return rows.map((row) => (
-                    <tr key={row.key}
-                      style={{ background: gIndex % 2 === 0 ? '#ffffff' : '#f9fafb' }}
-                      className="border-b border-gray-200">
-                      {row.isFirstInGroup && (
-                        <td rowSpan={rows.length}
-                          className="px-2.5 py-2 border-r border-gray-200 font-black text-gray-900 align-top"
-                          style={{ borderLeft: '3px solid #111827' }}>
-                          {row.petName}
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[720px] text-xs border-collapse mb-4" style={{ borderTop: '2px solid #111827' }}>
+                <thead>
+                  <tr style={{ background: '#111827' }} className="text-white">
+                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[12%]">Pet</th>
+                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[13%]">Activity</th>
+                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[23%]">Clinical Notes</th>
+                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[22%]">Medicine / Item</th>
+                    <th className="px-2.5 py-2 text-center font-bold border-r border-gray-600 w-[10%]">Qty</th>
+                    <th className="px-2.5 py-2 text-right font-bold border-r border-gray-600 w-[10%]">Unit Price</th>
+                    <th className="px-2.5 py-2 text-right font-bold w-[10%]">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupedByPet.map((group, gIndex) => {
+                    const rows = buildRows(group)
+                    return rows.map((row) => (
+                      <tr key={row.key}
+                        style={{ background: gIndex % 2 === 0 ? '#ffffff' : '#f9fafb' }}
+                        className="border-b border-gray-200">
+                        {row.isFirstInGroup && (
+                          <td rowSpan={rows.length}
+                            className="px-2.5 py-2 border-r border-gray-200 font-black text-gray-900 align-top"
+                            style={{ borderLeft: '3px solid #111827' }}>
+                            {row.petName}
+                          </td>
+                        )}
+                        {row.isFirstInActivity && (
+                          <td rowSpan={row.activityMedCount || 1}
+                            className="px-2.5 py-2 border-r border-gray-200 font-semibold text-gray-700 align-top whitespace-nowrap">
+                            {row.activityType}
+                          </td>
+                        )}
+                        {row.isFirstInActivity && (
+                          <td rowSpan={row.activityMedCount || 1}
+                            className="px-2.5 py-2 border-r border-gray-200 text-gray-700 align-top">
+                            {row.detailParts.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {row.detailParts.map((d, i) => (
+                                  <div key={i}>
+                                    <span className="font-semibold text-gray-500">{d.label}: </span>
+                                    <span className="text-gray-800">{d.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : <span className="text-gray-300">—</span>}
+                          </td>
+                        )}
+                        <td className="px-2.5 py-2 border-r border-gray-200 text-gray-900">
+                          {row.med ? row.med.medicineName : <span className="text-gray-300">—</span>}
                         </td>
-                      )}
-                      {row.isFirstInActivity && (
-                        <td rowSpan={row.activityMedCount || 1}
-                          className="px-2.5 py-2 border-r border-gray-200 font-semibold text-gray-700 align-top whitespace-nowrap">
-                          {row.activityType}
+                        <td className="px-2.5 py-2 border-r border-gray-200 text-center text-gray-700">
+                          {row.med ? `${row.med.quantity} ${row.med.unit}` : '—'}
                         </td>
-                      )}
-                      {row.isFirstInActivity && (
-                        <td rowSpan={row.activityMedCount || 1}
-                          className="px-2.5 py-2 border-r border-gray-200 text-gray-700 align-top">
-                          {row.detailParts.length > 0 ? (
-                            <div className="space-y-0.5">
-                              {row.detailParts.map((d, i) => (
-                                <div key={i}>
-                                  <span className="font-semibold text-gray-500">{d.label}: </span>
-                                  <span className="text-gray-800">{d.value}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : <span className="text-gray-300">—</span>}
+                        <td className="px-2.5 py-2 border-r border-gray-200 text-right text-gray-700">
+                          {row.med ? `₱${(row.med.pricePerUnit ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '—'}
                         </td>
-                      )}
-                      <td className="px-2.5 py-2 border-r border-gray-200 text-gray-900">
-                        {row.med ? row.med.medicineName : <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-2.5 py-2 border-r border-gray-200 text-center text-gray-700">
-                        {row.med ? `${row.med.quantity} ${row.med.unit}` : '—'}
-                      </td>
-                      <td className="px-2.5 py-2 border-r border-gray-200 text-right text-gray-700">
-                        {row.med ? `₱${(row.med.pricePerUnit ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '—'}
-                      </td>
-                      <td className="px-2.5 py-2 text-right font-semibold text-gray-900">
-                        {row.med
-                          ? `₱${((row.med.pricePerUnit ?? 0) * (row.med.quantity || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))
-                })}
-              </tbody>
-            </table>
+                        <td className="px-2.5 py-2 text-right font-semibold text-gray-900">
+                          {row.med
+                            ? `₱${((row.med.pricePerUnit ?? 0) * (row.med.quantity || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                            : '—'}
+                        </td>
+                      </tr>
+                    ))
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {/* Billing Summary */}
             <div className="flex justify-end mb-4">
-              <div className="w-80">
+              <div className="w-full sm:w-80">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="h-3.5 w-1 rounded-full bg-gray-900" />
                   <p className="text-xs font-black uppercase tracking-widest text-gray-900">Billing Summary</p>
@@ -618,7 +620,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             </div>
 
             {/* Footer */}
-            <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
+            <div className="pt-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
               <p className="text-xs text-gray-400 italic">This is a computer-generated document.</p>
               <p className="text-xs font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
             </div>

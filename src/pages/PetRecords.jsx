@@ -119,15 +119,15 @@ function ConsultationHistory() {
   const totalClients = clients.length
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">Pet Records</h1>
 
     
 
         {/* Search & Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
@@ -140,7 +140,7 @@ function ConsultationHistory() {
           </div>
           <button
             onClick={() => navigate('/new-consultation')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap"
+            className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm whitespace-nowrap"
           >
             New Consultation
           </button>
@@ -148,7 +148,7 @@ function ConsultationHistory() {
       </div>
 
       {/* Table Container with Fixed Height */}
-      <div className="flex-1 px-6 py-4 overflow-hidden">
+      <div className="flex-1 px-4 md:px-6 py-4 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500">Loading...</p>
@@ -166,52 +166,54 @@ function ConsultationHistory() {
                   </div>
                 </div>
               ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-800 text-white sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs">Pet Name</th>
-                      <th className="px-4 py-2 text-left text-xs">Owner</th>
-                      <th className="px-4 py-2 text-left text-xs">Species</th>
-                      <th className="px-4 py-2 text-left text-xs">Breed</th>
-                      <th className="px-4 py-2 text-left text-xs">Age</th>
-                      <th className="px-4 py-2 text-left text-xs">Date of Birth</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {displayedPets.map((pet, index) => (
-                      <tr 
-                        key={pet.id} 
-                        onClick={() => handlePetClick(pet)}
-                        className={`cursor-pointer hover:bg-blue-50 transition-colors ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                        }`}
-                      >
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-blue-600">{pet.name}</p>
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {getOwnerName(pet.clientId)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.species || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.breed || 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {calculateAge(pet.dateOfBirth)}
-                        </td>
-                        <td className="px-4 py-3 text-gray-700">
-                          {pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          }) : 'N/A'}
-                        </td>
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-sm">
+                    <thead className="bg-gray-800 text-white sticky top-0">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs">Pet Name</th>
+                        <th className="px-4 py-2 text-left text-xs">Owner</th>
+                        <th className="px-4 py-2 text-left text-xs">Species</th>
+                        <th className="px-4 py-2 text-left text-xs">Breed</th>
+                        <th className="px-4 py-2 text-left text-xs">Age</th>
+                        <th className="px-4 py-2 text-left text-xs">Date of Birth</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {displayedPets.map((pet, index) => (
+                        <tr 
+                          key={pet.id} 
+                          onClick={() => handlePetClick(pet)}
+                          className={`cursor-pointer hover:bg-blue-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-4 py-3">
+                            <p className="font-medium text-blue-600">{pet.name}</p>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {getOwnerName(pet.clientId)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {pet.species || 'N/A'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {pet.breed || 'N/A'}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {calculateAge(pet.dateOfBirth)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {pet.dateOfBirth ? new Date(pet.dateOfBirth).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            }) : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {/* Loading indicator for lazy loading */}

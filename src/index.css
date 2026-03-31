@@ -1,2 +1,9 @@
 @import "tailwindcss";
 
+@media (max-width: 768px) {
+	.h-screen {
+		height: auto;
+		min-height: 100vh;
+	}
+}
+
