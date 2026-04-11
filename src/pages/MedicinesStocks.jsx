@@ -146,7 +146,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
   const totalCost = stagedItems.reduce((sum, item) => sum + (item.purchasePrice * item.quantity), 0)
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4">
       <div className="bg-gray-50 w-full max-w-7xl flex flex-col rounded-xl shadow-2xl overflow-hidden max-h-[92vh] md:h-[92vh]">
 
         {/* Header */}

@@ -32,6 +32,7 @@ function Dashboard() {
     monthExpenses: 0,
     monthlySalesTrend: [],
     monthlySalesRange: '',
+    monthlyExpensesTrend: [],
     monthlyProductSales: [],
     lowStockItems: 0,
     outOfStockItems: 0,
@@ -149,6 +150,20 @@ function Dashboard() {
         value: monthlyTotalsMap[m.key] || 0
       }))
 
+      const monthlyExpensesMap = {}
+      expenses.forEach(e => {
+        const d = new Date(e.expenseDate || e.createdAt || Date.now())
+        if (d < startMonth || d >= endMonth) return
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        monthlyExpensesMap[key] = (monthlyExpensesMap[key] || 0) + (parseFloat(e.amount) || 0)
+      })
+
+      const monthlyExpensesTrend = months.map(m => ({
+        label: m.label,
+        year: m.year,
+        value: monthlyExpensesMap[m.key] || 0
+      }))
+
       const monthlySalesRange = `${months[0].label} - ${months[months.length - 1].label} ${salesYear}`
 
       // Monthly product list (selected month, store sales only)
@@ -252,6 +267,7 @@ function Dashboard() {
         monthExpenses: monthExpensesTotal,
         monthlySalesTrend,
         monthlySalesRange,
+        monthlyExpensesTrend,
         monthlyProductSales,
         lowStockItems,
         outOfStockItems,
@@ -630,6 +646,7 @@ function Dashboard() {
                       <div
                         className={`w-4 sm:w-5 rounded-t ${salesYearColor}`}
                         style={{ height: `${(item.value / chartMax) * 100}%`, minHeight: item.value > 0 ? '6px' : '0' }}
+                        title={`Sales: ₱${item.value.toLocaleString()}\nExpenses: ₱${(stats.monthlyExpensesTrend[index]?.value || 0).toLocaleString()}`}
                       ></div>
                     </div>
                   ))}
@@ -678,6 +695,7 @@ function Dashboard() {
                           <div
                             className="w-8 rounded-t bg-blue-600"
                             style={{ height: `${Math.max((item.total / maxProductTotal) * 100, 6)}%` }}
+                            title={`Total: ₱${item.total.toLocaleString()}\nQty: ${item.quantity}`}
                           ></div>
                         </div>
                         <div className="mt-1 text-[10px] text-gray-500 text-center truncate w-full">

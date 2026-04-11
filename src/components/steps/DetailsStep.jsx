@@ -836,38 +836,6 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   </div>
                 )}
 
-                {/* Follow-up */}
-                <div className="border border-gray-200 rounded-md p-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-gray-700">Follow-up</label>
-                    <button type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev, hasFollowUp: !prev.hasFollowUp,
-                        followUpDate: '', followUpNote: ''
-                      }))}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${formData.hasFollowUp ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${formData.hasFollowUp ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                    </button>
-                  </div>
-                  {formData.hasFollowUp && (
-                    <div className="mt-2.5 space-y-2">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Follow-up Date</label>
-                        <input type="date" value={formData.followUpDate}
-                          onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Notes</label>
-                        <textarea value={formData.followUpNote}
-                          onChange={(e) => setFormData({ ...formData, followUpNote: e.target.value })}
-                          rows="2" placeholder="e.g. 2nd shot, recheck wound..."
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 {/* Medicines */}
                 <div className="border border-gray-200 rounded-md bg-white overflow-hidden">
 
@@ -1146,6 +1114,38 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             sum + (petMedicines[pet.id] || []).reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0), 0
                           ).toLocaleString()}
                         </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Follow-up */}
+                <div className="border border-gray-200 rounded-md p-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-gray-700">Follow-up</label>
+                    <button type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev, hasFollowUp: !prev.hasFollowUp,
+                        followUpDate: '', followUpNote: ''
+                      }))}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${formData.hasFollowUp ? 'bg-blue-600' : 'bg-gray-300'}`}>
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${formData.hasFollowUp ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                  </div>
+                  {formData.hasFollowUp && (
+                    <div className="mt-2.5 space-y-2">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Follow-up Date</label>
+                        <input type="date" value={formData.followUpDate}
+                          onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                        <textarea value={formData.followUpNote}
+                          onChange={(e) => setFormData({ ...formData, followUpNote: e.target.value })}
+                          rows="2" placeholder="e.g. 2nd shot, recheck wound..."
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
                       </div>
                     </div>
                   )}

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createHashRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import Layout from './layout.jsx'
 import { AuthProvider } from './pages/AuthContext'
@@ -25,7 +25,7 @@ import SalesHistory from './pages/SalesHistory.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 import StockEditHistory from './pages/StockEditHistory.jsx'
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/login',
     element: <Login />
