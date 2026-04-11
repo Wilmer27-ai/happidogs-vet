@@ -115,16 +115,22 @@ function Expenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const amountValue = parseFloat(formData.amount)
+    if (!Number.isFinite(amountValue) || amountValue < 0) {
+      alert('Please enter a valid amount.')
+      return
+    }
+    const payload = { ...formData, amount: amountValue }
     
     try {
       if (editingExpense) {
-        await updateExpense(editingExpense.id, formData)
+        await updateExpense(editingExpense.id, payload)
         setExpenses(expenses.map(exp => 
-          exp.id === editingExpense.id ? { ...exp, ...formData } : exp
+          exp.id === editingExpense.id ? { ...exp, ...payload } : exp
         ))
         setEditingExpense(null)
       } else {
-        const newExpense = await addExpense(formData)
+        const newExpense = await addExpense(payload)
         setExpenses([newExpense, ...expenses])
       }
       
@@ -275,7 +281,8 @@ function Expenses() {
               </select>
 
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 required
                 step="0.01"
                 min="0"

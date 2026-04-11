@@ -146,7 +146,9 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
 
   const handleUpdateQuantity = (id, change) => {
     const item = selectedMedicines.find(m => m.id === id)
-    const newQuantity = item.quantity + change
+    const currentQty = parseFloat(item.quantity)
+    const safeQty = Number.isFinite(currentQty) ? currentQty : 1
+    const newQuantity = safeQty + change
     if (newQuantity <= 0) {
       handleRemoveMedicine(id)
     } else {
@@ -163,11 +165,17 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   }
 
   const handleQuantityInputChange = (id, value) => {
-    const numValue = parseInt(value)
-    if (isNaN(numValue) || numValue < 1) return
+    if (value === '' || value === '-' || value === '.' || value === '-.') {
+      setSelectedMedicines(selectedMedicines.map(m =>
+        m.id === id ? { ...m, quantity: value } : m
+      ))
+      return
+    }
+    const numValue = parseFloat(value)
+    if (isNaN(numValue) || numValue < 0) return
     setSelectedMedicines(selectedMedicines.map(m =>
       m.id === id
-        ? { ...m, quantity: numValue, subtotal: numValue * (m.pricePerUnit ?? 0) }
+        ? { ...m, quantity: value, subtotal: numValue * (m.pricePerUnit ?? 0) }
         : m
     ))
   }
@@ -184,7 +192,11 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
   }
 
   const getTotalPrice = () => {
-    return selectedMedicines.reduce((sum, med) => sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * (med.quantity || 0)), 0)
+    return selectedMedicines.reduce((sum, med) => {
+      const qty = parseFloat(med.quantity)
+      const safeQty = Number.isFinite(qty) ? qty : 0
+      return sum + ((med.pricePerUnit ?? med.sellingPrice ?? 0) * safeQty)
+    }, 0)
   }
 
   const handleNext = () => {
@@ -342,7 +354,9 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
             {selectedMedicines.length === 0 ? (
               <p className="text-center text-gray-400 text-xs mt-8">No medicines selected</p>
             ) : selectedMedicines.map(medicine => {
-              const subtotal = (medicine.pricePerUnit ?? medicine.sellingPrice ?? 0) * (medicine.quantity || 0)
+              const qty = parseFloat(medicine.quantity)
+              const safeQty = Number.isFinite(qty) ? qty : 0
+              const subtotal = (medicine.pricePerUnit ?? medicine.sellingPrice ?? 0) * safeQty
               const step = medicine.sellUnit === 'ml' ? 0.5 : 1
 
               return (
@@ -397,13 +411,14 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                         <FiMinus className="w-3 h-3" />
                       </button>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         min={step}
                         step={step}
                         value={medicine.quantity}
                         onChange={(e) => {
                           const raw = e.target.value
-                          if (raw === '' || raw === '-') {
+                          if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
                             setSelectedMedicines(selectedMedicines.map(m =>
                               m.id === medicine.id ? { ...m, quantity: raw } : m
                             ))
@@ -412,14 +427,6 @@ function MedicinesStep({ selectedClient, selectedPets, onBack, onNext, medicines
                           const num = parseFloat(raw)
                           if (!isNaN(num) && num > 0) {
                             handleQuantityInputChange(medicine.id, raw)
-                          }
-                        }}
-                        onBlur={(e) => {
-                          const num = parseFloat(e.target.value)
-                          if (isNaN(num) || num <= 0) {
-                            setSelectedMedicines(selectedMedicines.map(m =>
-                              m.id === medicine.id ? { ...m, quantity: step } : m
-                            ))
                           }
                         }}
                         onFocus={(e) => e.target.select()}

@@ -49,7 +49,7 @@ function PetStore() {
 
   const allItems = [
     ...storeItems.map(item => ({ ...item, _type: 'store', itemName: item.itemName })),
-    ...medicines.map(med => ({ ...med, _type: 'medicine', itemName: med.medicineName }))
+    ...medicines.map(med => ({ ...med, _type: 'medicine', itemName: med.medicineName })),
   ]
 
   const getTotalStock = (item) => {
@@ -62,7 +62,10 @@ function PetStore() {
     return item.stockQuantity ?? 0
   }
 
-  const isOutOfStock = (item) => getTotalStock(item) === 0
+  const isOutOfStock = (item) => {
+    const total = getTotalStock(item)
+    return !Number.isFinite(total) || total <= 0
+  }
 
   const getStockDisplay = (item) => {
     if (item._type === 'medicine') {
@@ -195,7 +198,9 @@ function PetStore() {
   const handleUpdateQuantity = (id, type, delta) => {
     const newOrder = order.map(i => {
       if (i.id !== id || i._type !== type) return i
-      const newQty = Math.max(0.1, parseFloat((i.quantity + delta).toFixed(2)))
+      const currentQty = parseFloat(i.quantity)
+      const safeQty = Number.isFinite(currentQty) ? currentQty : 0.1
+      const newQty = Math.max(0.1, parseFloat((safeQty + delta).toFixed(2)))
       return { 
         ...i, 
         quantity: newQty,
@@ -206,13 +211,22 @@ function PetStore() {
   }
 
   const handleQuantityInput = (id, type, value) => {
-    const num = parseFloat(value)
-    if (isNaN(num) || num <= 0) return
-    setOrder(order.map(i =>
-      (i.id === id && i._type === type) ? { 
-        ...i, 
-        quantity: num,
-        finalPrice: undefined   // ← reset final price override when qty changes
+    if (value === '' || value === '-' || value === '.' || value === '-.') {
+      setOrder(prev => prev.map(i =>
+        (i.id === id && i._type === type) ? {
+          ...i,
+          quantity: value,
+          finalPrice: undefined
+        } : i
+      ))
+      return
+    }
+    if (!/^-?\d*\.?\d*$/.test(value)) return
+    setOrder(prev => prev.map(i =>
+      (i.id === id && i._type === type) ? {
+        ...i,
+        quantity: value,
+        finalPrice: undefined
       } : i
     ))
   }
@@ -233,22 +247,39 @@ function PetStore() {
 
   const calculateItemTotal = (orderItem) => {
     // ── Use finalPrice if manually set, otherwise calculate normally ──
-    if (orderItem.finalPrice !== undefined) return orderItem.finalPrice
-    return (orderItem.pricePerUnit ?? 0) * orderItem.quantity
+    const qty = parseFloat(orderItem.quantity)
+    const safeQty = Number.isFinite(qty) ? qty : 0
+    if (orderItem.finalPrice !== undefined && orderItem.finalPrice !== '') {
+      const final = parseFloat(orderItem.finalPrice)
+      return Number.isFinite(final) ? final : 0
+    }
+    return (orderItem.pricePerUnit ?? 0) * safeQty
   }
 
   const getTotalAmount = () => order.reduce((sum, i) => sum + calculateItemTotal(i), 0)
 
   const handlePriceEdit = (id, type, value) => {
+    if (value === '' || value === '-' || value === '.' || value === '-.') {
+      setOrder(order.map(i =>
+        (i.id === id && i._type === type) ? {
+          ...i,
+          finalPrice: value
+        } : i
+      ))
+      return
+    }
     const num = parseFloat(value)
     if (isNaN(num) || num < 0) return
-    setOrder(order.map(i =>
-      (i.id === id && i._type === type) ? { 
-        ...i, 
-        finalPrice: num,                                          // ← store final price
-        pricePerUnit: i.quantity > 0 ? num / i.quantity : 0      // ← back-calculate per unit
-      } : i
-    ))
+    setOrder(order.map(i => {
+      if (i.id !== id || i._type !== type) return i
+      const qty = parseFloat(i.quantity)
+      const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0
+      return {
+        ...i,
+        finalPrice: value,                                       // ← store final price
+        pricePerUnit: safeQty > 0 ? num / safeQty : 0            // ← back-calculate per unit
+      }
+    }))
   }
 
   const handleToggleEditPrice = (id, type) => {
@@ -261,7 +292,11 @@ function PetStore() {
     if (order.length === 0) { alert('Order is empty!'); return }
     try {
       for (const orderItem of order) {
-        const qty = orderItem.quantity
+        const qty = parseFloat(orderItem.quantity)
+        if (!Number.isFinite(qty) || qty <= 0) {
+          alert('Please fix invalid quantities before checkout.')
+          return
+        }
         const unit = orderItem.sellUnit
         const totalAmount = calculateItemTotal(orderItem)   // ← uses finalPrice if set
         const effectivePricePerUnit = totalAmount / qty     // ← back-calculated for sale record
@@ -341,7 +376,7 @@ function PetStore() {
     }
   }
 
-  const CartPanel = () => (
+  const renderCartPanel = () => (
     <>
       <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
         <div>
@@ -398,32 +433,7 @@ function PetStore() {
                     type="text"
                     inputMode="decimal"
                     value={orderItem.quantity}
-                    onChange={(e) => {
-                      const raw = e.target.value
-                      if (raw === '' || raw === '-') {
-                        setOrder(order.map(i =>
-                          (i.id === orderItem.id && i._type === orderItem._type)
-                            ? { ...i, quantity: raw }
-                            : i
-                        ))
-                        return
-                      }
-                      const num = parseFloat(raw)
-                      if (!isNaN(num) && num > 0) {
-                        handleQuantityInput(orderItem.id, orderItem._type, raw)
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const num = parseFloat(e.target.value)
-                      if (isNaN(num) || num <= 0) {
-                        setOrder(order.map(i =>
-                          (i.id === orderItem.id && i._type === orderItem._type)
-                            ? { ...i, quantity: step }
-                            : i
-                        ))
-                      }
-                    }}
-                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => handleQuantityInput(orderItem.id, orderItem._type, e.target.value)}
                     className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <span className="text-xs text-gray-600">{orderItem.sellUnit}</span>
@@ -439,7 +449,8 @@ function PetStore() {
                   <>
                     <span className="text-xs text-gray-400">Final: ₱</span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       min="0"
                       step="0.01"
                       value={orderItem.finalPrice !== undefined ? orderItem.finalPrice : calculateItemTotal(orderItem)}
@@ -615,7 +626,7 @@ function PetStore() {
         </div>
 
         <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col">
-          <CartPanel />
+          {renderCartPanel()}
         </div>
       </div>
 
@@ -637,7 +648,7 @@ function PetStore() {
         <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowCart(false)} />
           <div className="relative bg-white rounded-t-2xl flex flex-col max-h-[85vh]">
-            <CartPanel />
+            {renderCartPanel()}
           </div>
         </div>
       )}

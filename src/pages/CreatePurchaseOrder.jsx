@@ -221,6 +221,24 @@ function CreatePurchaseOrder() {
   const isItemSyrup  = (item) => item.itemType === 'medicine' && item.medicineType === 'syrup'
   const isItemTablet = (item) => item.itemType === 'medicine' && item.medicineType === 'tablet'
   const hasDualStock = () => isSyrup() || isTablet() || isFoodCategory()
+  const isDualStockItem = (item) =>
+    (item.itemType === 'medicine' && (item.medicineType === 'syrup' || item.medicineType === 'tablet')) ||
+    (item.itemType === 'store' && foodCategories.includes(item.category))
+
+  const parseDecimal = (value) => {
+    if (value === '' || value === '.' || value === '-.' || value === '-') return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+  }
+
+  const applyPerUnitAutoCalc = (item) => {
+    if (!isDualStockItem(item)) return item
+    const perPack = parseDecimal(item.sellingPricePerPack)
+    const unitsPerPack = parseDecimal(item.unitsPerPack)
+    if (!perPack || !unitsPerPack) return item
+    const perUnit = perPack / unitsPerPack
+    return { ...item, sellingPricePerUnit: perUnit.toFixed(2) }
+  }
 
   useEffect(() => {
     if (!selectedSupplier) navigate('/suppliers')
@@ -290,7 +308,13 @@ function CreatePurchaseOrder() {
         sellingPricePerPack: '', sellingPricePerUnit: '', packageSize: '',
       })
     } else {
-      setCurrentItem({ ...currentItem, [field]: value })
+      setCurrentItem(prev => {
+        const next = { ...prev, [field]: value }
+        if (field === 'sellingPricePerPack' || field === 'unitsPerPack') {
+          return applyPerUnitAutoCalc(next)
+        }
+        return next
+      })
     }
   }
 
@@ -584,7 +608,7 @@ function CreatePurchaseOrder() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       No. of {capFirst(currentItem.packUnit) || 'Pack'}s *
                     </label>
-                    <input type="number" min="1" value={currentItem.quantity}
+                    <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
                       placeholder="e.g. 10"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -595,7 +619,7 @@ function CreatePurchaseOrder() {
                         ? `${capFirst(currentItem.subUnit)} per ${currentItem.packUnit || 'Pack'} *`
                         : 'Units per Pack *'}
                     </label>
-                    <input type="number" min="1" step="0.01" value={currentItem.unitsPerPack}
+                    <input type="text" inputMode="decimal" min="1" step="0.01" value={currentItem.unitsPerPack}
                       onChange={(e) => handleCurrentItemChange('unitsPerPack', e.target.value)}
                       placeholder="e.g. 60"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -626,7 +650,7 @@ function CreatePurchaseOrder() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Purchase Price (per {currentItem.packUnit || 'pack'}) *
                     </label>
-                    <input type="number" min="0" step="0.01" value={currentItem.purchasePrice}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                       placeholder={`₱ per ${currentItem.packUnit || 'pack'}`}
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -635,7 +659,7 @@ function CreatePurchaseOrder() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Selling Price per {currentItem.subUnit || 'unit'} *
                     </label>
-                    <input type="number" min="0" step="0.01" value={currentItem.sellingPricePerUnit}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPricePerUnit}
                       onChange={(e) => handleCurrentItemChange('sellingPricePerUnit', e.target.value)}
                       placeholder={`₱ per ${currentItem.subUnit || 'unit'}`}
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -644,7 +668,7 @@ function CreatePurchaseOrder() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Selling Price per {currentItem.packUnit || 'pack'} *
                     </label>
-                    <input type="number" min="0" step="0.01" value={currentItem.sellingPricePerPack}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPricePerPack}
                       onChange={(e) => handleCurrentItemChange('sellingPricePerPack', e.target.value)}
                       placeholder={`₱ per ${currentItem.packUnit || 'pack'}`}
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -667,7 +691,7 @@ function CreatePurchaseOrder() {
                   />
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
-                    <input type="number" min="1" value={currentItem.quantity}
+                    <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
                       placeholder="e.g. 20"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -676,14 +700,14 @@ function CreatePurchaseOrder() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
-                    <input type="number" min="0" step="0.01" value={currentItem.purchasePrice}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price *</label>
-                    <input type="number" min="0" step="0.01" value={currentItem.sellingPrice}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPrice}
                       onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -706,7 +730,7 @@ function CreatePurchaseOrder() {
                   />
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
-                    <input type="number" min="1" value={currentItem.quantity}
+                    <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
                       placeholder="e.g. 12"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -714,7 +738,7 @@ function CreatePurchaseOrder() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Pcs per Package <span className="text-gray-400">(optional)</span></label>
-                  <input type="number" min="1" value={currentItem.packageSize}
+                  <input type="text" inputMode="decimal" min="1" value={currentItem.packageSize}
                     onChange={(e) => handleCurrentItemChange('packageSize', e.target.value)}
                     placeholder="e.g. 12 pcs per box"
                     className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -722,14 +746,14 @@ function CreatePurchaseOrder() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
-                    <input type="number" min="0" step="0.01" value={currentItem.purchasePrice}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price *</label>
-                    <input type="number" min="0" step="0.01" value={currentItem.sellingPrice}
+                    <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPrice}
                       onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />

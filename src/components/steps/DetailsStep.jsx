@@ -367,16 +367,24 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     setSelectedMedicines(prev => prev.map(m => {
       if (m.id !== id) return m
       const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
-      const newQty = Math.max(step, parseFloat((m.quantity + delta * step).toFixed(2)))
+      const currentQty = parseFloat(m.quantity)
+      const safeQty = Number.isFinite(currentQty) ? currentQty : step
+      const newQty = Math.max(step, parseFloat((safeQty + delta * step).toFixed(2)))
       return { ...m, quantity: newQty, subtotal: newQty * (m.pricePerUnit ?? 0) }
     }))
   }
 
   const handleMedQtyInput = (id, value) => {
+    if (value === '' || value === '-' || value === '.' || value === '-.') {
+      setSelectedMedicines(prev => prev.map(m =>
+        m.id === id ? { ...m, quantity: value } : m
+      ))
+      return
+    }
     const num = parseFloat(value)
     if (isNaN(num) || num < 0) return
     setSelectedMedicines(prev => prev.map(m =>
-      m.id === id ? { ...m, quantity: num, subtotal: num * (m.pricePerUnit ?? 0) } : m
+      m.id === id ? { ...m, quantity: value, subtotal: num * (m.pricePerUnit ?? 0) } : m
     ))
   }
 
@@ -398,19 +406,30 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       [petId]: (prev[petId] || []).map(m => {
         if (m.id !== id) return m
         const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
-        const newQty = Math.max(step, parseFloat((m.quantity + delta * step).toFixed(2)))
+        const currentQty = parseFloat(m.quantity)
+        const safeQty = Number.isFinite(currentQty) ? currentQty : step
+        const newQty = Math.max(step, parseFloat((safeQty + delta * step).toFixed(2)))
         return { ...m, quantity: newQty, subtotal: newQty * (m.pricePerUnit ?? 0) }
       })
     }))
   }
 
   const handlePetMedQtyInput = (petId, id, value) => {
+    if (value === '' || value === '-' || value === '.' || value === '-.') {
+      setPetMedicines(prev => ({
+        ...prev,
+        [petId]: (prev[petId] || []).map(m =>
+          m.id === id ? { ...m, quantity: value } : m
+        )
+      }))
+      return
+    }
     const num = parseFloat(value)
     if (isNaN(num) || num < 0) return
     setPetMedicines(prev => ({
       ...prev,
       [petId]: (prev[petId] || []).map(m =>
-        m.id === id ? { ...m, quantity: num, subtotal: num * (m.pricePerUnit ?? 0) } : m
+        m.id === id ? { ...m, quantity: value, subtotal: num * (m.pricePerUnit ?? 0) } : m
       )
     }))
   }

@@ -31,6 +31,24 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
   const isDual = isSyrup || isTablet || isFoodCat
   const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
 
+  const parseDecimal = (value) => {
+    if (value === '' || value === '.' || value === '-.' || value === '-') return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+  }
+
+  const applyPerUnitAutoCalc = (item) => {
+    if (!(item.itemType === 'medicine' && (item.medicineType === 'syrup' || item.medicineType === 'tablet')) &&
+        !(item.itemType === 'store' && foodCategories.includes(item.category))) {
+      return item
+    }
+    const perPack = parseDecimal(item.sellingPricePerPack)
+    const unitsPerPack = parseDecimal(item.unitsPerPack)
+    if (!perPack || !unitsPerPack) return item
+    const perUnit = perPack / unitsPerPack
+    return { ...item, sellingPricePerUnit: perUnit.toFixed(2) }
+  }
+
   const isItemSyrup = (item) => item.itemType === 'medicine' && item.medicineType === 'syrup'
   const isItemTablet = (item) => item.itemType === 'medicine' && item.medicineType === 'tablet'
   const isItemFoodCat = (item) => item.itemType === 'store' && foodCategories.includes(item.category)
@@ -53,7 +71,13 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
       const isFood = foodCategories.includes(value)
       setForm(prev => ({ ...prev, category: value, packUnit: isFood ? 'sack' : prev.packUnit, subUnit: isFood ? 'kg' : prev.subUnit, sellingPricePerPack: '', sellingPricePerUnit: '', packageSize: '' }))
     } else {
-      setForm(prev => ({ ...prev, [field]: value }))
+      setForm(prev => {
+        const next = { ...prev, [field]: value }
+        if (field === 'sellingPricePerPack' || field === 'unitsPerPack') {
+          return applyPerUnitAutoCalc(next)
+        }
+        return next
+      })
     }
   }
 
@@ -226,11 +250,11 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>No. of {capFirst(form.packUnit) || 'Pack'}s *</label>
-                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 10" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 10" className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass}>{capFirst(form.subUnit) || 'Units'} per {form.packUnit || 'Pack'} *</label>
-                      <input type="number" min="1" step="0.01" value={form.unitsPerPack} onChange={(e) => set('unitsPerPack', e.target.value)} placeholder="e.g. 60" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="1" step="0.01" value={form.unitsPerPack} onChange={(e) => set('unitsPerPack', e.target.value)} placeholder="e.g. 60" className={inputClass} />
                     </div>
                   </div>
                   {form.quantity && form.unitsPerPack && (
@@ -245,15 +269,15 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                     <p className="text-xs font-semibold text-gray-700">Pricing</p>
                     <div>
                       <label className={labelClass}>Purchase Price (per {form.packUnit || 'pack'}) *</label>
-                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass}>Selling Price per {form.subUnit || 'unit'} *</label>
-                      <input type="number" min="0" step="0.01" value={form.sellingPricePerUnit} onChange={(e) => set('sellingPricePerUnit', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.sellingPricePerUnit} onChange={(e) => set('sellingPricePerUnit', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass}>Selling Price per {form.packUnit || 'pack'} *</label>
-                      <input type="number" min="0" step="0.01" value={form.sellingPricePerPack} onChange={(e) => set('sellingPricePerPack', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.sellingPricePerPack} onChange={(e) => set('sellingPricePerPack', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                   </div>
                 </>
@@ -269,17 +293,17 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                     </div>
                     <div>
                       <label className={labelClass}>Qty *</label>
-                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Purchase Price *</label>
-                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass}>Selling Price *</label>
-                      <input type="number" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                   </div>
                 </>
@@ -295,21 +319,21 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                     </div>
                     <div>
                       <label className={labelClass}>Qty Ordered *</label>
-                      <input type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 12" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 12" className={inputClass} />
                     </div>
                   </div>
                   <div>
                     <label className={labelClass}>Pcs per Package <span className="text-gray-400">(optional)</span></label>
-                    <input type="number" min="1" value={form.packageSize} onChange={(e) => set('packageSize', e.target.value)} placeholder="e.g. 12 pcs per box" className={inputClass} />
+                    <input type="text" inputMode="decimal" min="1" value={form.packageSize} onChange={(e) => set('packageSize', e.target.value)} placeholder="e.g. 12 pcs per box" className={inputClass} />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className={labelClass}>Purchase Price *</label>
-                      <input type="number" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.purchasePrice} onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                     <div>
                       <label className={labelClass}>Selling Price *</label>
-                      <input type="number" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
+                      <input type="text" inputMode="decimal" min="0" step="0.01" value={form.sellingPrice} onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" className={inputClass} />
                     </div>
                   </div>
                 </>
@@ -490,21 +514,46 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
+  const normalizeNumberField = (value) => {
+    if (value === '' || value === null || value === undefined || value === '.' || value === '-.' || value === '-') return 0
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }
+
+  const normalizeNumericFields = (data) => {
+    const next = { ...data }
+    const numericFields = [
+      'bottleCount', 'looseMl', 'mlPerBottle',
+      'boxCount', 'looseTablets', 'tabletsPerBox',
+      'sacksCount', 'looseKg', 'kgPerSack',
+      'stockQuantity', 'purchasePrice',
+      'sellingPricePerMl', 'sellingPricePerBottle',
+      'sellingPricePerTablet', 'sellingPricePerBox',
+      'sellingPricePerKg', 'sellingPricePerSack',
+      'sellingPrice'
+    ]
+    numericFields.forEach(field => {
+      if (field in next) next[field] = normalizeNumberField(next[field])
+    })
+    return next
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
       // ── Build a diff of what changed ──
+      const normalizedForm = normalizeNumericFields(form)
       const changes = {}
-      Object.keys(form).forEach(key => {
-        if (JSON.stringify(form[key]) !== JSON.stringify(item[key])) {
-          changes[key] = { before: item[key], after: form[key] }
+      Object.keys(normalizedForm).forEach(key => {
+        if (JSON.stringify(normalizedForm[key]) !== JSON.stringify(item[key])) {
+          changes[key] = { before: item[key], after: normalizedForm[key] }
         }
       })
 
       if (item._type === 'medicine') {
-        await updateMedicine(item.id, form)
+        await updateMedicine(item.id, normalizedForm)
       } else {
-        await updateStoreItem(item.id, form)
+        await updateStoreItem(item.id, normalizedForm)
       }
 
       // ── Log the edit ──
@@ -633,18 +682,18 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Bottles</label>
-                  <input type="number" min="0" value={form.bottleCount ?? 0} className={inputClass}
-                    onChange={(e) => set('bottleCount', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.bottleCount ?? ''} className={inputClass}
+                    onChange={(e) => set('bottleCount', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Loose ML</label>
-                  <input type="number" min="0" step="0.01" value={form.looseMl ?? 0} className={inputClass}
-                    onChange={(e) => set('looseMl', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.looseMl ?? ''} className={inputClass}
+                    onChange={(e) => set('looseMl', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>ML per Bottle</label>
-                  <input type="number" min="1" step="0.01" value={form.mlPerBottle ?? 0} className={inputClass}
-                    onChange={(e) => set('mlPerBottle', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.mlPerBottle ?? ''} className={inputClass}
+                    onChange={(e) => set('mlPerBottle', e.target.value)} />
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2">
@@ -664,18 +713,18 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Boxes</label>
-                  <input type="number" min="0" value={form.boxCount ?? 0} className={inputClass}
-                    onChange={(e) => set('boxCount', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.boxCount ?? ''} className={inputClass}
+                    onChange={(e) => set('boxCount', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Loose Tablets</label>
-                  <input type="number" min="0" value={form.looseTablets ?? 0} className={inputClass}
-                    onChange={(e) => set('looseTablets', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.looseTablets ?? ''} className={inputClass}
+                    onChange={(e) => set('looseTablets', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Tablets per Box</label>
-                  <input type="number" min="1" value={form.tabletsPerBox ?? 0} className={inputClass}
-                    onChange={(e) => set('tabletsPerBox', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.tabletsPerBox ?? ''} className={inputClass}
+                    onChange={(e) => set('tabletsPerBox', e.target.value)} />
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2">
@@ -695,18 +744,18 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelClass}>Sealed Sacks</label>
-                  <input type="number" min="0" value={form.sacksCount ?? 0} className={inputClass}
-                    onChange={(e) => set('sacksCount', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.sacksCount ?? ''} className={inputClass}
+                    onChange={(e) => set('sacksCount', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Loose KG</label>
-                  <input type="number" min="0" step="0.01" value={form.looseKg ?? 0} className={inputClass}
-                    onChange={(e) => set('looseKg', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.looseKg ?? ''} className={inputClass}
+                    onChange={(e) => set('looseKg', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>KG per Sack</label>
-                  <input type="number" min="1" step="0.01" value={form.kgPerSack ?? 0} className={inputClass}
-                    onChange={(e) => set('kgPerSack', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.kgPerSack ?? ''} className={inputClass}
+                    onChange={(e) => set('kgPerSack', e.target.value)} />
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2">
@@ -726,8 +775,8 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Quantity</label>
-                  <input type="number" min="0" value={form.stockQuantity ?? 0} className={inputClass}
-                    onChange={(e) => set('stockQuantity', Number(e.target.value))} />
+                  <input type="text" inputMode="decimal" value={form.stockQuantity ?? ''} className={inputClass}
+                    onChange={(e) => set('stockQuantity', e.target.value)} />
                 </div>
                 <div>
                   <label className={labelClass}>Unit</label>
@@ -744,20 +793,20 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Pricing</p>
             <div>
               <label className={labelClass}>Purchase Price (per pack/unit)</label>
-              <input type="number" min="0" step="0.01" value={form.purchasePrice ?? ''} className={inputClass}
-                onChange={(e) => set('purchasePrice', Number(e.target.value))} placeholder="₱" />
+              <input type="text" inputMode="decimal" value={form.purchasePrice ?? ''} className={inputClass}
+                onChange={(e) => set('purchasePrice', e.target.value)} placeholder="₱" />
             </div>
             {isSyrup && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per ML</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerMl ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerMl', Number(e.target.value))} placeholder="₱/ml" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerMl ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerMl', e.target.value)} placeholder="₱/ml" />
                 </div>
                 <div>
                   <label className={labelClass}>Selling Price per Bottle</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerBottle ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerBottle', Number(e.target.value))} placeholder="₱/bottle" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerBottle ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerBottle', e.target.value)} placeholder="₱/bottle" />
                 </div>
               </div>
             )}
@@ -765,13 +814,13 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per Tablet</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerTablet ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerTablet', Number(e.target.value))} placeholder="₱/tablet" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerTablet ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerTablet', e.target.value)} placeholder="₱/tablet" />
                 </div>
                 <div>
                   <label className={labelClass}>Selling Price per Box</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerBox ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerBox', Number(e.target.value))} placeholder="₱/box" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerBox ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerBox', e.target.value)} placeholder="₱/box" />
                 </div>
               </div>
             )}
@@ -779,21 +828,21 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Selling Price per KG</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerKg ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerKg', Number(e.target.value))} placeholder="₱/kg" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerKg ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerKg', e.target.value)} placeholder="₱/kg" />
                 </div>
                 <div>
                   <label className={labelClass}>Selling Price per Sack</label>
-                  <input type="number" min="0" step="0.01" value={form.sellingPricePerSack ?? ''} className={inputClass}
-                    onChange={(e) => set('sellingPricePerSack', Number(e.target.value))} placeholder="₱/sack" />
+                  <input type="text" inputMode="decimal" value={form.sellingPricePerSack ?? ''} className={inputClass}
+                    onChange={(e) => set('sellingPricePerSack', e.target.value)} placeholder="₱/sack" />
                 </div>
               </div>
             )}
             {!isDualStock && (
               <div>
                 <label className={labelClass}>Selling Price</label>
-                <input type="number" min="0" step="0.01" value={form.sellingPrice ?? ''} className={inputClass}
-                  onChange={(e) => set('sellingPrice', Number(e.target.value))} placeholder="₱" />
+                <input type="text" inputMode="decimal" value={form.sellingPrice ?? ''} className={inputClass}
+                  onChange={(e) => set('sellingPrice', e.target.value)} placeholder="₱" />
               </div>
             )}
           </div>
