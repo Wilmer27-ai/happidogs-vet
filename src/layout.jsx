@@ -48,7 +48,7 @@ function Layout() {
 
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: FiBarChart2 },
-    { name: 'New Consultation', path: '/new-consultation', icon: FiPlus },
+    { name: 'New Clients', path: '/new-consultation', icon: FiPlus },
     { name: 'POS', path: '/pet-store', icon: FiShoppingBag },
     { name: 'Consultation History', path: '/consultation-history', icon: FiFileText },
     { name: 'Pet Records', path: '/pet-records', icon: FiUsers },

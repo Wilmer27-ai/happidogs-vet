@@ -10,6 +10,14 @@ function Dashboard() {
   const observerTarget = useRef(null)
   const [displayCountActivity, setDisplayCountActivity] = useState(10)
   const observerActivityTarget = useRef(null)
+  const [selectedFollowUpDate, setSelectedFollowUpDate] = useState(null)
+  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false)
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), 1)
+  })
+  const [salesYear, setSalesYear] = useState(new Date().getFullYear())
+  const [productMonth, setProductMonth] = useState(new Date().getMonth())
   const [stats, setStats] = useState({
     totalClients: 0,
     totalPets: 0,
@@ -21,6 +29,10 @@ function Dashboard() {
     weekSales: 0,
     monthRevenue: 0,
     monthSales: 0,
+    monthExpenses: 0,
+    monthlySalesTrend: [],
+    monthlySalesRange: '',
+    monthlyProductSales: [],
     lowStockItems: 0,
     outOfStockItems: 0,
     upcomingFollowUps: [],
@@ -30,7 +42,7 @@ function Dashboard() {
 
   useEffect(() => {
     loadDashboardData()
-  }, [])
+  }, [salesYear, productMonth])
 
   const loadDashboardData = async () => {
     setLoading(true)
@@ -63,6 +75,9 @@ function Dashboard() {
       
       const monthAgo = new Date(today)
       monthAgo.setMonth(monthAgo.getMonth() - 1)
+      const monthStartCurrent = new Date(today.getFullYear(), today.getMonth(), 1)
+      const productMonthStart = new Date(today.getFullYear(), productMonth, 1)
+      const productMonthEnd = new Date(today.getFullYear(), productMonth + 1, 1)
 
       // Today's data
       const todayConsultations = consultations.filter(c => {
@@ -81,6 +96,9 @@ function Dashboard() {
         return expenseDate.getTime() === today.getTime()
       })
       const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
+      const monthExpensesTotal = expenses
+        .filter(e => new Date(e.expenseDate) >= monthAgo)
+        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
 
       // Week revenue
       const weekRevenue = consultationSales
@@ -102,6 +120,55 @@ function Dashboard() {
       const monthSalesTotal = storeSales
         .filter(s => new Date(s.saleDate) >= monthAgo)
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+
+      // Monthly sales trend (selected year, Jan-Dec, total sales)
+      const startMonth = new Date(salesYear, 0, 1)
+      const endMonth = new Date(salesYear + 1, 0, 1)
+      const months = Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(salesYear, i, 1)
+        return {
+          key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+          label: d.toLocaleDateString('en-US', { month: 'short' }),
+          year: d.getFullYear()
+        }
+      })
+
+      const monthlyTotalsMap = {}
+      ;[...consultationSales, ...storeSales].forEach(s => {
+        const d = s.type === 'consultation'
+          ? new Date((s.date || '') + 'T00:00:00')
+          : new Date(s.saleDate || s.createdAt || Date.now())
+        if (d < startMonth || d >= endMonth) return
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        monthlyTotalsMap[key] = (monthlyTotalsMap[key] || 0) + (s.totalAmount || 0)
+      })
+
+      const monthlySalesTrend = months.map(m => ({
+        label: m.label,
+        year: m.year,
+        value: monthlyTotalsMap[m.key] || 0
+      }))
+
+      const monthlySalesRange = `${months[0].label} - ${months[months.length - 1].label} ${salesYear}`
+
+      // Monthly product list (selected month, store sales only)
+      const monthlyProductSales = (() => {
+        const productMap = {}
+        storeSales
+          .filter(s => {
+            const d = new Date(s.saleDate || s.createdAt || Date.now())
+            return d >= productMonthStart && d < productMonthEnd
+          })
+          .forEach(s => {
+            const key = s.itemName || 'Unknown Item'
+            if (!productMap[key]) productMap[key] = { name: key, quantity: 0, total: 0 }
+            productMap[key].quantity += (s.quantity || 0)
+            productMap[key].total += (s.totalAmount || 0)
+          })
+
+        return Object.values(productMap)
+          .sort((a, b) => b.total - a.total)
+      })()
 
       // Stock items
       const allItems = [...medicines, ...storeItems]
@@ -182,6 +249,10 @@ function Dashboard() {
         weekSales: weekSalesTotal,
         monthRevenue,
         monthSales: monthSalesTotal,
+        monthExpenses: monthExpensesTotal,
+        monthlySalesTrend,
+        monthlySalesRange,
+        monthlyProductSales,
         lowStockItems,
         outOfStockItems,
         upcomingFollowUps,
@@ -249,6 +320,47 @@ function Dashboard() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
+  const today = new Date()
+  const monthStart = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1)
+  const monthEnd = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0)
+  const monthDays = monthEnd.getDate()
+  const startDay = monthStart.getDay()
+
+  const monthOptions = Array.from({ length: 12 }, (_, i) => (
+    new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' })
+  ))
+  const yearOptions = Array.from({ length: 6 }, (_, i) => today.getFullYear() - 2 + i)
+
+  const handleMonthChange = (value) => {
+    const next = new Date(calendarDate)
+    next.setMonth(parseInt(value, 10))
+    setCalendarDate(next)
+  }
+
+  const handleYearChange = (value) => {
+    const next = new Date(calendarDate)
+    next.setFullYear(parseInt(value, 10))
+    setCalendarDate(next)
+  }
+
+  const followUpsByDate = stats.upcomingFollowUps.reduce((acc, followUp) => {
+    const dateKey = followUp.followUpDate
+    if (!acc[dateKey]) acc[dateKey] = []
+    acc[dateKey].push(followUp)
+    return acc
+  }, {})
+
+  const openFollowUpsForDate = (dateKey) => {
+    if (!followUpsByDate[dateKey]) return
+    setSelectedFollowUpDate(dateKey)
+    setIsFollowUpModalOpen(true)
+  }
+
+  const closeFollowUpModal = () => {
+    setIsFollowUpModalOpen(false)
+    setSelectedFollowUpDate(null)
+  }
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-50">
@@ -262,9 +374,20 @@ function Dashboard() {
 
   const maxConsultations = Math.max(...stats.weeklyTrend.map(d => d.count), 1)
   const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses
+  const maxMonthlySales = Math.max(...stats.monthlySalesTrend.map(item => item.value), 1)
+  const maxProductTotal = Math.max(...stats.monthlyProductSales.map(item => item.total), 1)
+  const chartMax = 100000
+  const monthlyAxisTicks = [100000, 50000, 20000, 0]
+  const currentYear = new Date().getFullYear()
+  const salesYearColor = salesYear === currentYear
+    ? 'bg-blue-600'
+    : salesYear === currentYear - 1
+      ? 'bg-amber-500'
+      : 'bg-gray-500'
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <>
+      <div className="min-h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 flex-shrink-0">
         <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
@@ -277,29 +400,30 @@ function Dashboard() {
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 flex-shrink-0">
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/clients-pets')}>
-            <p className="text-xs text-gray-500">Clients</p>
+            <p className="text-xs text-gray-500">Total Clients</p>
             <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
-          </div>
-          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/pet-records')}>
-            <p className="text-xs text-gray-500">Pets</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalPets}</p>
-          </div>
-          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/consultation-history')}>
-            <p className="text-xs text-gray-500">Today's Consults</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.todayConsultations}</p>
-          </div>
-          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500">Today's Revenue</p>
+          </div> 
+            <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500">Daily Sales</p>
             <p className="text-2xl font-bold text-gray-900">₱{(stats.todayRevenue + stats.todaySales).toLocaleString()}</p>
           </div>
-          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/medicines-stocks')}>
-            <p className="text-xs text-gray-500">Low Stock</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.lowStockItems}</p>
+          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500">Monthly Sales</p>
+            <p className="text-2xl font-bold text-gray-900">₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500">Daily Expenses</p>
+            <p className="text-2xl font-bold text-gray-900">₱{stats.todayExpenses.toLocaleString()}</p>
+          </div>
+        
+          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500">Monthly Expenses</p>
+            <p className="text-2xl font-bold text-gray-900">₱{stats.monthExpenses.toLocaleString()}</p>
           </div>
         </div>
 
         {/* Main 3-col grid — fills remaining height */}
-        <div className="flex-1 grid grid-cols-1 xl:grid-cols-3 gap-3 min-h-0">
+        <div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-3 min-h-0">
 
           {/* Col 1: Weekly Chart + Revenue/Expense Summary */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
@@ -367,7 +491,7 @@ function Dashboard() {
           {/* Col 2: Upcoming Follow-Ups */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
             <div className="px-4 py-2.5 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Upcoming Follow-Ups</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Follow-Up Calendar</h3>
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{stats.upcomingFollowUps.length}</span>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -379,83 +503,235 @@ function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-xs">
-                    <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
-                      <tr>
-                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Date</th>
-                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Pet</th>
-                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Owner</th>
-                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Contact</th>
-                        <th className="px-3 py-1.5 text-left font-semibold text-gray-600">Note</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {displayedFollowUps.map((followUp) => (
-                        <tr key={followUp.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-1.5 whitespace-nowrap font-semibold text-gray-900">
-                            {formatDate(followUp.followUpDate)}
-                          </td>
-                          <td className="px-3 py-1.5 font-semibold text-gray-900 max-w-[60px] truncate">{followUp.petName}</td>
-                          <td className="px-3 py-1.5 text-gray-700 max-w-[70px] truncate">{followUp.clientName}</td>
-                          <td className="px-3 py-1.5 text-gray-700 whitespace-nowrap">{followUp.phoneNumber}</td>
-                          <td className="px-3 py-1.5 text-gray-500 max-w-[100px] truncate" title={followUp.followUpNote || followUp.diagnosis}>
-                            {followUp.followUpNote || followUp.diagnosis || '—'}
-                          </td>
-                        </tr>
-                      ))}
-                      {hasMore && (
-                        <tr ref={observerTarget}>
-                          <td colSpan="5" className="px-3 py-2 text-center">
-                            <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-3 gap-2">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={calendarDate.getMonth()}
+                        onChange={(e) => handleMonthChange(e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                      >
+                        {monthOptions.map((label, idx) => (
+                          <option key={label} value={idx}>{label}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={calendarDate.getFullYear()}
+                        onChange={(e) => handleYearChange(e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <span className="text-xs text-gray-500">Tap a day to view details</span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-xs text-gray-500 mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="text-center font-semibold">{day}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: startDay }).map((_, i) => (
+                      <div key={`empty-${i}`} className="h-14"></div>
+                    ))}
+                    {Array.from({ length: monthDays }).map((_, i) => {
+                      const day = i + 1
+                      const dateKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                      const items = followUpsByDate[dateKey] || []
+                      const isToday = day === today.getDate() && calendarDate.getMonth() === today.getMonth() && calendarDate.getFullYear() === today.getFullYear()
+                      return (
+                        <button
+                          key={dateKey}
+                          type="button"
+                          onClick={() => openFollowUpsForDate(dateKey)}
+                          disabled={items.length === 0}
+                          className={`h-14 rounded-md border text-left p-2 transition-colors ${
+                            items.length > 0
+                              ? 'border-blue-200 hover:bg-blue-50'
+                              : 'border-gray-200 text-gray-300 cursor-default'
+                          } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-semibold ${items.length > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{day}</span>
+                            {items.length > 0 && (
+                              <span className="text-[10px] font-semibold bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
+                                {items.length}
+                              </span>
+                            )}
+                          </div>
+                          {items.length > 0 && (
+                            <div className="mt-1">
+                              <div className="h-1.5 w-full rounded-full bg-blue-200">
+                                <div className="h-1.5 rounded-full bg-blue-600" style={{ width: '100%' }}></div>
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Col 3: Recent Activity */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Recent Activity</h3>
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">{stats.recentActivity.length}</span>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {stats.recentActivity.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-gray-400">No recent activity</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {displayedActivity.map((event, i) => (
-                    <div key={i} className="px-3 py-2 flex items-start justify-between hover:bg-gray-50">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs text-gray-500">{event.type}</p>
-                        <p className="text-xs font-medium text-gray-900 truncate">{event.label}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-3">
-                        <p className="text-xs font-semibold text-gray-900">{event.positive ? '+' : '-'}₱{event.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                        <p className="text-xs text-gray-400">{event.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {hasMoreActivity && (
-                    <div ref={observerActivityTarget} className="py-2 text-center">
-                      <div className="w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto"></div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          
 
         </div>
+
+        {/* Bottom stats row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-shrink-0">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Monthly Sales</h3>
+                <p className="text-xs text-gray-500">Jan-Dec totals</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={salesYear}
+                  onChange={(e) => setSalesYear(parseInt(e.target.value, 10))}
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                >
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <p className="text-sm font-bold text-gray-900">
+                  ₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-[10px] text-gray-500">
+              <div className="flex items-center gap-1">
+                <span className={`inline-block w-2.5 h-2.5 rounded ${salesYearColor}`}></span>
+                {salesYear}
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="h-36 relative pl-10">
+                <div className="absolute left-0 top-0 bottom-0 w-10 flex flex-col justify-between text-[10px] text-gray-500">
+                  {monthlyAxisTicks.map((value, idx) => (
+                    <div key={`axis-${idx}`} className="text-right pr-2 leading-none">
+                      ₱{value.toLocaleString()}
+                    </div>
+                  ))}
+                </div>
+                <div className="absolute inset-0 ml-10 grid grid-rows-4 gap-3">
+                  {[0, 1, 2, 3].map((row) => (
+                    <div key={`grid-${row}`} className="border-t border-gray-100"></div>
+                  ))}
+                </div>
+                <div className="absolute inset-0 ml-10 grid grid-cols-12 items-end">
+                  {stats.monthlySalesTrend.map((item, index) => (
+                    <div key={`month-${index}`} className="flex items-end justify-center">
+                      <div
+                        className={`w-4 sm:w-5 rounded-t ${salesYearColor}`}
+                        style={{ height: `${(item.value / chartMax) * 100}%`, minHeight: item.value > 0 ? '6px' : '0' }}
+                      ></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-2 ml-10 grid grid-cols-12 text-[10px] text-gray-500">
+                {stats.monthlySalesTrend.map((item, index) => (
+                  <div key={`label-${index}`} className="text-center">
+                    <div className="text-gray-400">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-center text-xs text-gray-500">
+                {stats.monthlySalesRange}
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <h3 className="text-sm font-semibold text-gray-900">Products Sold</h3>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-xs text-gray-500">Selected month</p>
+              <select
+                value={productMonth}
+                onChange={(e) => setProductMonth(parseInt(e.target.value, 10))}
+                className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+              >
+                {monthOptions.map((label, idx) => (
+                  <option key={label} value={idx}>{label}</option>
+                ))}
+              </select>
+            </div>
+            {stats.monthlyProductSales.length > 0 ? (
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-[10px] text-gray-400 uppercase tracking-wide">
+                  <span>Product</span>
+                  <span>Total</span>
+                </div>
+                <div className="mt-2 overflow-x-auto">
+                  <div className="flex items-end gap-4 min-w-max h-44 pr-2">
+                    {stats.monthlyProductSales.map((item) => (
+                      <div key={item.name} className="flex flex-col items-center justify-end w-14">
+                        <div className="text-[10px] font-semibold text-gray-900 mb-1">
+                          ₱{item.total.toLocaleString()}
+                        </div>
+                        <div className="h-28 w-full flex items-end justify-center">
+                          <div
+                            className="w-8 rounded-t bg-blue-600"
+                            style={{ height: `${Math.max((item.total / maxProductTotal) * 100, 6)}%` }}
+                          ></div>
+                        </div>
+                        <div className="mt-1 text-[10px] text-gray-500 text-center truncate w-full">
+                          {item.name}
+                        </div>
+                        <div className="text-[10px] text-gray-400">Qty {item.quantity}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 mt-3">No sales for this month.</p>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+      </div>
+      {isFollowUpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Follow-Ups</h3>
+                <p className="text-xs text-gray-500">{formatDate(selectedFollowUpDate)}</p>
+              </div>
+              <button type="button" onClick={closeFollowUpModal} className="text-gray-400 hover:text-gray-600">
+                <FiAlertCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {(followUpsByDate[selectedFollowUpDate] || []).map((followUp) => (
+                <div key={followUp.id} className="px-4 py-3 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">{followUp.petName}</p>
+                    <span className="text-xs text-gray-500">{followUp.activityType}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Owner: {followUp.clientName}</p>
+                  <p className="text-xs text-gray-500">Contact: {followUp.phoneNumber}</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {followUp.followUpNote || followUp.diagnosis || 'No notes'}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
+              <button type="button" onClick={closeFollowUpModal} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

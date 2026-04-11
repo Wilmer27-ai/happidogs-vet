@@ -366,7 +366,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const handleMedQty = (id, delta) => {
     setSelectedMedicines(prev => prev.map(m => {
       if (m.id !== id) return m
-      const step = m.sellUnit === 'ml' ? 0.5 : 1
+      const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
       const newQty = Math.max(step, parseFloat((m.quantity + delta * step).toFixed(2)))
       return { ...m, quantity: newQty, subtotal: newQty * (m.pricePerUnit ?? 0) }
     }))
@@ -374,7 +374,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
   const handleMedQtyInput = (id, value) => {
     const num = parseFloat(value)
-    if (isNaN(num) || num <= 0) return
+    if (isNaN(num) || num < 0) return
     setSelectedMedicines(prev => prev.map(m =>
       m.id === id ? { ...m, quantity: num, subtotal: num * (m.pricePerUnit ?? 0) } : m
     ))
@@ -397,7 +397,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       ...prev,
       [petId]: (prev[petId] || []).map(m => {
         if (m.id !== id) return m
-        const step = m.sellUnit === 'ml' ? 0.5 : 1
+        const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
         const newQty = Math.max(step, parseFloat((m.quantity + delta * step).toFixed(2)))
         return { ...m, quantity: newQty, subtotal: newQty * (m.pricePerUnit ?? 0) }
       })
@@ -406,7 +406,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
   const handlePetMedQtyInput = (petId, id, value) => {
     const num = parseFloat(value)
-    if (isNaN(num) || num <= 0) return
+    if (isNaN(num) || num < 0) return
     setPetMedicines(prev => ({
       ...prev,
       [petId]: (prev[petId] || []).map(m =>
@@ -914,7 +914,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     ) : (
                       <div>
                         {selectedMedicines.map((med, idx) => {
-                          const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
+                          const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
                           const subtotal = (med.pricePerUnit ?? 0) * med.quantity
                           return (
                             <div key={med.id} className={`px-3 py-2 ${idx < selectedMedicines.length - 1 ? 'border-b border-gray-100' : ''}`}>
@@ -937,7 +937,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                       const raw = e.target.value
                                       if (raw === '' || raw === '-') { setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, quantity: raw } : m)); return }
                                       const num = parseFloat(raw)
-                                      if (!isNaN(num) && num > 0) handleMedQtyInput(med.id, raw)
+                                      if (!isNaN(num) && num >= 0) handleMedQtyInput(med.id, raw)
                                     }}
                                     onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, quantity: step } : m)) }}
                                     onFocus={(e) => e.target.select()}
@@ -1055,7 +1055,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             ) : (
                               <div>
                                 {meds.map((med, medIdx) => {
-                                  const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg') ? 0.5 : 1
+                                  const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
                                   const subtotal = (med.pricePerUnit ?? 0) * med.quantity
                                   return (
                                     <div key={med.id} className={`px-3 py-2 ${medIdx < meds.length - 1 ? 'border-b border-gray-100' : ''}`}>
@@ -1074,7 +1074,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                               const raw = e.target.value
                                               if (raw === '' || raw === '-') { setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: raw } : m) })); return }
                                               const num = parseFloat(raw)
-                                              if (!isNaN(num) && num > 0) handlePetMedQtyInput(pet.id, med.id, raw)
+                                              if (!isNaN(num) && num >= 0) handlePetMedQtyInput(pet.id, med.id, raw)
                                             }}
                                             onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: step } : m) })) }}
                                             onFocus={(e) => e.target.select()}
