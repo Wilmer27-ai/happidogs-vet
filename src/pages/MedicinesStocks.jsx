@@ -1,14 +1,534 @@
 // MedicinesStocks.jsx
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'      // ← add this
-import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle, FiPlus } from 'react-icons/fi'
-import { getMedicines, getStoreItems, addMedicine, addStoreItem, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { useNavigate } from 'react-router-dom'
+import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle, FiPlus, FiChevronDown } from 'react-icons/fi'
+import { getMedicines, getStoreItems, addMedicine, addStoreItem, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
-// ── Add Stock Modal ───────────────────────────────────────────────────────────
+// ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
+function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newUnit, setNewUnit] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const [lastAddedUnit, setLastAddedUnit] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewUnit('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = () => {
+    const trimmed = newUnit.trim().toLowerCase()
+    if (!trimmed) return
+    if (units.includes(trimmed)) {
+      onChange(trimmed)
+      setNewUnit('')
+      setOpen(false)
+      return
+    }
+    onUnitsChange([...units, trimmed])
+    onChange(trimmed)
+    setLastAddedUnit(trimmed)
+    setSavedMessage(true)
+    setNewUnit('')
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedUnit(null)
+      setSavedMessage(false)
+    }, 1500)
+  }
+
+  const handleDelete = (unit, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onUnitsChange(units.filter(u => u !== unit))
+    if (value === unit) onChange('')
+  }
+
+  const handleSelect = (unit) => {
+    onChange(unit)
+    setOpen(false)
+    setNewUnit('')
+  }
+
+  return (
+    <div ref={ref}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewUnit('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900 capitalize' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newUnit}
+              onChange={(e) => setNewUnit(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewUnit('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new unit name..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newUnit.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {units.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No units yet. Add one above.</p>
+            ) : (
+              units.map(unit => {
+                const isSelected = value === unit
+                const isNewlyAdded = unit === lastAddedUnit
+                return (
+                  <div
+                    key={unit}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(unit)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs capitalize ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {unit}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(unit, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this unit"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Reusable Category Dropdown with Add / Delete ──────────────────────────────
+function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const [lastAddedCategory, setLastAddedCategory] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewCategory('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = () => {
+    const trimmed = newCategory.trim()
+    if (!trimmed) return
+    if (categories.includes(trimmed)) {
+      onChange(trimmed)
+      setNewCategory('')
+      setOpen(false)
+      return
+    }
+    onCategoriesChange([...categories, trimmed])
+    onChange(trimmed)
+    setLastAddedCategory(trimmed)
+    setSavedMessage(true)
+    setNewCategory('')
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedCategory(null)
+      setSavedMessage(false)
+    }, 1500)
+  }
+
+  const handleDelete = (category, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onCategoriesChange(categories.filter(c => c !== category))
+    if (value === category) onChange('')
+  }
+
+  const handleSelect = (category) => {
+    onChange(category)
+    setOpen(false)
+    setNewCategory('')
+  }
+
+  return (
+    <div ref={ref}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewCategory('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewCategory('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new category..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newCategory.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {categories.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No categories yet. Add one above.</p>
+            ) : (
+              categories.map(category => {
+                const isSelected = value === category
+                const isNewlyAdded = category === lastAddedCategory
+                return (
+                  <div
+                    key={category}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(category)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {category}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(category, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this category"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Reusable Brand Dropdown with Add / Delete ────────────────────────────────
+function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newBrand, setNewBrand] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const [lastAddedBrand, setLastAddedBrand] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewBrand('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = () => {
+    const trimmed = newBrand.trim()
+    if (!trimmed) return
+    if (brands.includes(trimmed)) {
+      onChange(trimmed)
+      setNewBrand('')
+      setOpen(false)
+      return
+    }
+    onBrandsChange([...brands, trimmed])
+    onChange(trimmed)
+    setLastAddedBrand(trimmed)
+    setSavedMessage(true)
+    setNewBrand('')
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedBrand(null)
+      setSavedMessage(false)
+    }, 1500)
+  }
+
+  const handleDelete = (brand, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onBrandsChange(brands.filter(b => b !== brand))
+    if (value === brand) onChange('')
+  }
+
+  const handleSelect = (brand) => {
+    onChange(brand)
+    setOpen(false)
+    setNewBrand('')
+  }
+
+  return (
+    <div ref={ref}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewBrand('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newBrand}
+              onChange={(e) => setNewBrand(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewBrand('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new brand..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newBrand.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {brands.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No brands yet. Add one above.</p>
+            ) : (
+              brands.map(brand => {
+                const isSelected = value === brand
+                const isNewlyAdded = brand === lastAddedBrand
+                return (
+                  <div
+                    key={brand}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(brand)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {brand}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(brand, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this brand"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Add Stock Modal ───────────────────────────────────────────────────────
 function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
-  const medicineCategories = propMedCategories ?? MASTER_DATA_DEFAULTS.medicineCategories
-  const storeCategories = propStoreCategories ?? MASTER_DATA_DEFAULTS.storeCategories
   const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
 
   const defaultItem = {
@@ -23,6 +543,11 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
   const [form, setForm] = useState(defaultItem)
   const [stagedItems, setStagedItems] = useState([])
   const [saving, setSaving] = useState(false)
+  const [packUnits, setPackUnits] = useState([...MASTER_DATA_DEFAULTS.packUnits])
+  const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
+  const [medicineCategories, setMedicineCategories] = useState(propMedCategories ?? [...MASTER_DATA_DEFAULTS.medicineCategories])
+  const [storeCategories, setStoreCategories] = useState(propStoreCategories ?? [...MASTER_DATA_DEFAULTS.storeCategories])
+  const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
 
   const isMedicine = form.itemType === 'medicine'
   const isSyrup = isMedicine && form.medicineType === 'syrup'
@@ -58,6 +583,31 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
     if (type === 'syrup') return { packUnit: 'bottle', subUnit: 'ml' }
     if (type === 'tablet') return { packUnit: 'box', subUnit: 'tablet' }
     return { packUnit: 'vial', subUnit: null }
+  }
+
+  const handlePackUnitsChange = (units) => {
+    setPackUnits(units)
+    saveMasterData({ packUnits: units })
+  }
+
+  const handleSubUnitsChange = (units) => {
+    setSubUnits(units)
+    saveMasterData({ subUnits: units })
+  }
+
+  const handleMedicineCategoriesChange = (categories) => {
+    setMedicineCategories(categories)
+    saveMasterData({ medicineCategories: categories })
+  }
+
+  const handleStoreCategoriesChange = (categories) => {
+    setStoreCategories(categories)
+    saveMasterData({ storeCategories: categories })
+  }
+
+  const handleBrandsChange = (newBrands) => {
+    setBrands(newBrands)
+    saveMasterData({ brands: newBrands })
   }
 
   const set = (field, value) => {
@@ -216,14 +766,24 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
-                  <label className={labelClass}>Brand</label>
-                  <input type="text" value={form.brand} onChange={(e) => set('brand', e.target.value)} placeholder="e.g. Pfizer" className={inputClass} />
+                  <BrandDropdown
+                    label="Brand"
+                    value={form.brand}
+                    onChange={(v) => set('brand', v)}
+                    brands={brands}
+                    onBrandsChange={handleBrandsChange}
+                    placeholder="Select brand"
+                  />
                 </div>
                 <div>
-                  <label className={labelClass}>Category *</label>
-                  <select value={form.category} onChange={(e) => set('category', e.target.value)} className={`${inputClass} bg-white`}>
-                    {(isMedicine ? medicineCategories : storeCategories).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <CategoryDropdown
+                    label="Category *"
+                    value={form.category}
+                    onChange={(v) => set('category', v)}
+                    categories={isMedicine ? medicineCategories : storeCategories}
+                    onCategoriesChange={isMedicine ? handleMedicineCategoriesChange : handleStoreCategoriesChange}
+                    placeholder="Select category"
+                  />
                 </div>
               </div>
 
@@ -238,14 +798,22 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {isDual && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className={labelClass}>Pack Called *</label>
-                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bottle" className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Unit Inside *</label>
-                      <input type="text" value={form.subUnit} onChange={(e) => set('subUnit', e.target.value)} placeholder="e.g. ml" className={inputClass} />
-                    </div>
+                    <UnitDropdown
+                      label="Pack Called *"
+                      value={form.packUnit}
+                      onChange={(v) => set('packUnit', v)}
+                      units={packUnits}
+                      onUnitsChange={handlePackUnitsChange}
+                      placeholder="e.g. bottle"
+                    />
+                    <UnitDropdown
+                      label="Unit Inside *"
+                      value={form.subUnit}
+                      onChange={(v) => set('subUnit', v)}
+                      units={subUnits}
+                      onUnitsChange={handleSubUnitsChange}
+                      placeholder="e.g. ml"
+                    />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
@@ -287,10 +855,14 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {isMedicine && !isSyrup && !isTablet && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className={labelClass}>Unit *</label>
-                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. vial" className={inputClass} />
-                    </div>
+                    <UnitDropdown
+                      label="Unit *"
+                      value={form.packUnit}
+                      onChange={(v) => set('packUnit', v)}
+                      units={packUnits}
+                      onUnitsChange={handlePackUnitsChange}
+                      placeholder="e.g. vial"
+                    />
                     <div>
                       <label className={labelClass}>Qty *</label>
                       <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
@@ -313,10 +885,14 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {!isMedicine && !isFoodCat && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className={labelClass}>Pack Unit *</label>
-                      <input type="text" value={form.packUnit} onChange={(e) => set('packUnit', e.target.value)} placeholder="e.g. bag" className={inputClass} />
-                    </div>
+                    <UnitDropdown
+                      label="Pack Unit *"
+                      value={form.packUnit}
+                      onChange={(v) => set('packUnit', v)}
+                      units={packUnits}
+                      onUnitsChange={handlePackUnitsChange}
+                      placeholder="e.g. bag"
+                    />
                     <div>
                       <label className={labelClass}>Qty Ordered *</label>
                       <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 12" className={inputClass} />

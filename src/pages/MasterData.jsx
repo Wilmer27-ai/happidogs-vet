@@ -118,6 +118,7 @@ function MasterData() {
   const [petSpecies, setPetSpecies] = useState([...MASTER_DATA_DEFAULTS.petSpecies])
   const [packUnits, setPackUnits] = useState([...MASTER_DATA_DEFAULTS.packUnits])
   const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
+  const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
   const [expenseCategories, setExpenseCategories] = useState([...MASTER_DATA_DEFAULTS.expenseCategories])
   const [medicineForms, setMedicineForms] = useState({ ...MASTER_DATA_DEFAULTS.medicineForms })
   const [lowStockThreshold, setLowStockThreshold] = useState(MASTER_DATA_DEFAULTS.lowStockThreshold)
@@ -131,6 +132,7 @@ function MasterData() {
   const [newSpecies, setNewSpecies] = useState('')
   const [newPackUnit, setNewPackUnit] = useState('')
   const [newSubUnit, setNewSubUnit] = useState('')
+  const [newBrand, setNewBrand] = useState('')
   const [newExpenseCategory, setNewExpenseCategory] = useState('')
 
   useEffect(() => { loadData() }, [])
@@ -147,6 +149,7 @@ function MasterData() {
         setPetSpecies(data.petSpecies ?? [...MASTER_DATA_DEFAULTS.petSpecies])
         setPackUnits(data.packUnits ?? [...MASTER_DATA_DEFAULTS.packUnits])
         setSubUnits(data.subUnits ?? [...MASTER_DATA_DEFAULTS.subUnits])
+        setBrands(data.brands ?? [...MASTER_DATA_DEFAULTS.brands])
         setExpenseCategories(data.expenseCategories ?? [...MASTER_DATA_DEFAULTS.expenseCategories])
         setMedicineForms(data.medicineForms ?? { ...MASTER_DATA_DEFAULTS.medicineForms })
         setLowStockThreshold(data.lowStockThreshold ?? MASTER_DATA_DEFAULTS.lowStockThreshold)
@@ -175,6 +178,7 @@ function MasterData() {
         petSpecies,
         packUnits,
         subUnits,
+        brands,
         expenseCategories,
         medicineForms,
         lowStockThreshold: parseInt(lowStockThreshold) || 10,
@@ -204,6 +208,7 @@ function MasterData() {
     setSubUnits([...MASTER_DATA_DEFAULTS.subUnits])
     setExpenseCategories([...MASTER_DATA_DEFAULTS.expenseCategories])
     setMedicineForms({ ...MASTER_DATA_DEFAULTS.medicineForms })
+    setBrands([...MASTER_DATA_DEFAULTS.brands])
     setLowStockThreshold(MASTER_DATA_DEFAULTS.lowStockThreshold)
     setClinicName(MASTER_DATA_DEFAULTS.clinicName)
     setClinicAddress(MASTER_DATA_DEFAULTS.clinicAddress)
@@ -391,6 +396,15 @@ function MasterData() {
               onAdd={(val) => { setSubUnits(prev => [...prev, val.toLowerCase()]); markDirty() }}
               newValue={newSubUnit}
               setNewValue={setNewSubUnit}
+            />
+            <CategorySection
+              title="Brands"
+              description="Product brands used in Purchase Orders and inventory"
+              items={brands}
+              onRemove={(i) => { setBrands(prev => prev.filter((_, idx) => idx !== i)); markDirty() }}
+              onAdd={(val) => { setBrands(prev => [...prev, val]); markDirty() }}
+              newValue={newBrand}
+              setNewValue={setNewBrand}
             />
             <CategorySection
               title="Expense Categories"

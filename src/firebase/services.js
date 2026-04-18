@@ -651,6 +651,7 @@ export const MASTER_DATA_DEFAULTS = {
   petSpecies: ['Canine', 'Feline', 'Avian', 'Rabbit', 'Guinea Pig', 'Hamster', 'Reptile', 'Fish', 'Other'],
   packUnits: ['bottle', 'box', 'sack', 'vial', 'ampoule', 'sachet', 'tube', 'pack', 'bag', 'can'],
   subUnits: ['ml', 'tablet', 'capsule', 'kg', 'g', 'mg', 'pcs', 'dose'],
+  brands: ['Apollo', 'Beaphar', 'Royal Canin', 'Purina', 'Iams', 'Pedigree', 'Generic'],
   expenseCategories: ['Supplies', 'Medicine Inventory', 'Store Inventory', 'Utilities', 'Rent', 'Salaries', 'Equipment', 'Maintenance', 'Transportation', 'Marketing', 'Other'],
   paymentMethods: ['Cash', 'GCash', 'Bank Transfer', 'Check', 'Credit Card'],
   medicineForms: { tablet: 'Tablet / Capsule', syrup: 'Syrup / Liquid', vial: 'Vial / Injectable', other: 'Other' },

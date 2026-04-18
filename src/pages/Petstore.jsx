@@ -149,6 +149,16 @@ function PetStore() {
     return item.sellingPrice ?? 0
   }
 
+  const getTypeColor = (item) => {
+    if (item._type === 'medicine') {
+      if (item.medicineType === 'syrup') return 'text-blue-600'
+      if (item.medicineType === 'tablet') return 'text-blue-600'
+      return 'text-blue-600'
+    }
+    if (isFood(item)) return 'text-blue-600'
+    return 'text-blue-600'
+  }
+
   const filteredItems = allItems.filter(item => {
     const matchesSearch = item.itemName?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = activeCategory === 'All' || item.category === activeCategory
@@ -558,68 +568,84 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <table className="w-full min-w-[720px] text-xs border-collapse">
-                <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Item</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden sm:table-cell">Brand</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden md:table-cell">Type</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600 hidden md:table-cell">Category</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Stock</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider border border-gray-600">Price</th>
-                    <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wider border border-gray-600">Add</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedItems.map((item, index) => {
+              <div className="p-4 md:p-5 overflow-auto">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {displayedItems.map((item) => {
                     const out = isOutOfStock(item)
+                    
                     return (
-                      <tr
+                      <div
                         key={`${item._type}-${item.id}`}
-                        className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors ${out ? 'opacity-50' : ''}`}
+                        onClick={() => { if (!out) { handleAddToOrder(item); setShowCart(true) } }}
+                        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer p-4 flex flex-col ${
+                          out ? 'opacity-50 grayscale' : 'hover:border-gray-300'
+                        }`}
                       >
-                        <td className="px-3 py-2 border border-gray-200 align-middle">
-                          <span className={`font-semibold ${out ? 'text-red-500' : 'text-gray-900'}`}>{item.itemName || 'N/A'}</span>
-                          <p className="text-gray-400 sm:hidden">{item.brand || '—'}</p>
-                          <p className="text-gray-400 md:hidden">{item.category || '—'}</p>
-                        </td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-900 hidden sm:table-cell">
-                          {item.brand || <span className="text-gray-400 italic">—</span>}
-                        </td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-700 hidden md:table-cell">{getTypeLabel(item)}</td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle text-gray-700 hidden md:table-cell">{item.category || '—'}</td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle">
-                          {out
-                            ? <span className="text-red-500 font-semibold">Out of Stock</span>
-                            : getStockDisplay(item)
-                          }
-                        </td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle">{getPriceDisplay(item)}</td>
-                        <td className="px-3 py-2 border border-gray-200 align-middle text-center">
-                          <button
-                            onClick={() => { handleAddToOrder(item); setShowCart(true) }}
-                            disabled={out}
-                            className="px-2.5 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-xs font-medium transition-colors"
-                          >
-                            Add
-                          </button>
-                        </td>
-                      </tr>
+                        {/* Header */}
+                        <h3 className="font-semibold text-sm text-gray-900 mb-3 line-clamp-2">
+                          {item.itemName}
+                        </h3>
+
+                        {/* Info Grid */}
+                        <div className="space-y-2 text-xs flex-1">
+                          {/* Brand */}
+                          {item.brand && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 font-medium">Brand:</span>
+                              <span className="text-gray-900 font-semibold">{item.brand}</span>
+                            </div>
+                          )}
+
+                          {/* Category */}
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 font-medium">Category:</span>
+                            <span className="text-gray-900 font-semibold">{item.category}</span>
+                          </div>
+
+                          {/* Type */}
+                          <div className="flex justify-between">
+                            <span className="text-gray-600 font-medium">Type:</span>
+                            <span className="text-gray-900 font-semibold">{getTypeLabel(item)}</span>
+                          </div>
+
+                          {/* Stock */}
+                          <div className="flex justify-between items-start">
+                            <span className="text-gray-600 font-medium">Stock:</span>
+                            {out ? (
+                              <span className="font-bold text-red-600">Out of Stock</span>
+                            ) : (
+                              <span className="text-gray-900 font-semibold text-right">{getStockDisplay(item)}</span>
+                            )}
+                          </div>
+
+                          {/* Price */}
+                          <div className="flex justify-between pt-3 border-t border-gray-300 mt-auto">
+                            <span className="text-gray-600 font-medium">Price:</span>
+                            <span className="text-blue-600 font-bold text-xl">
+                              ₱{
+                                (item._type === 'medicine' && item.medicineType === 'syrup' 
+                                  ? item.sellingPricePerMl 
+                                  : item._type === 'medicine' && item.medicineType === 'tablet'
+                                  ? item.sellingPricePerTablet
+                                  : isFood(item)
+                                  ? item.sellingPricePerKg
+                                  : item.sellingPrice)?.toLocaleString() || '0'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )
                   })}
-                  {hasMore && (
-                    <tr ref={observerTarget}>
-                      <td colSpan="7" className="px-4 py-3 text-center border border-gray-200">
-                        <div className="flex items-center justify-center gap-2 text-gray-500">
-                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                          <span className="text-xs">Loading more...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                </table>
+                </div>
+
+                {/* Load More Indicator */}
+                {hasMore && (
+                  <div ref={observerTarget} className="flex items-center justify-center gap-2 text-gray-500 py-8">
+                    <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                    <span className="text-xs">Loading more...</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

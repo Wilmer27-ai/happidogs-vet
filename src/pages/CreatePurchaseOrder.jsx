@@ -8,6 +8,8 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
   const [open, setOpen] = useState(false)
   const [newUnit, setNewUnit] = useState('')
   const [dropdownStyle, setDropdownStyle] = useState({})  // ← track position in state
+  const [lastAddedUnit, setLastAddedUnit] = useState(null) // ← track newly added unit for visual feedback
+  const [savedMessage, setSavedMessage] = useState(false) // ← show save confirmation
   const ref = useRef(null)
   const dropdownRef = useRef(null)
 
@@ -64,8 +66,15 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
     }
     onUnitsChange([...units, trimmed])
     onChange(trimmed)
+    setLastAddedUnit(trimmed)
+    setSavedMessage(true)
     setNewUnit('')
-    setOpen(false)
+    // Auto-close dropdown after 1.5 seconds
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedUnit(null)
+      setSavedMessage(false)
+    }, 1500)
   }
 
   const handleDelete = (unit, e) => {
@@ -101,6 +110,14 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
           style={dropdownStyle}
           className="bg-white border border-gray-200 rounded-md shadow-2xl"
         >
+          {/* ── Success message ── */}
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
           {/* ── Add new row ── */}
           <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
             <input
@@ -135,22 +152,374 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
             ) : (
               units.map(unit => {
                 const isSelected = value === unit
+                const isNewlyAdded = unit === lastAddedUnit
                 return (
                   <div
                     key={unit}
                     className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
-                      ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                     onClick={() => handleSelect(unit)}
                   >
-                    <span className={`text-xs capitalize ${isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
-                      {unit}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs capitalize ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {unit}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
                     <button
                       type="button"
                       onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
                       onClick={(e) => handleDelete(unit, e)}
                       className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
                       title="Delete this unit"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Reusable Brand Dropdown with Add / Delete ────────────────────────────────
+function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newBrand, setNewBrand] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const [lastAddedBrand, setLastAddedBrand] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewBrand('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = () => {
+    const trimmed = newBrand.trim()
+    if (!trimmed) return
+    if (brands.includes(trimmed)) {
+      onChange(trimmed)
+      setNewBrand('')
+      setOpen(false)
+      return
+    }
+    onBrandsChange([...brands, trimmed])
+    onChange(trimmed)
+    setLastAddedBrand(trimmed)
+    setSavedMessage(true)
+    setNewBrand('')
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedBrand(null)
+      setSavedMessage(false)
+    }, 1500)
+  }
+
+  const handleDelete = (brand, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onBrandsChange(brands.filter(b => b !== brand))
+    if (value === brand) onChange('')
+  }
+
+  const handleSelect = (brand) => {
+    onChange(brand)
+    setOpen(false)
+    setNewBrand('')
+  }
+
+  return (
+    <div ref={ref}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewBrand('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newBrand}
+              onChange={(e) => setNewBrand(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewBrand('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new brand..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newBrand.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {brands.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No brands yet. Add one above.</p>
+            ) : (
+              brands.map(brand => {
+                const isSelected = value === brand
+                const isNewlyAdded = brand === lastAddedBrand
+                return (
+                  <div
+                    key={brand}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(brand)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {brand}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(brand, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this brand"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Reusable Category Dropdown with Add / Delete ──────────────────────────────
+function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState({})
+  const [lastAddedCategory, setLastAddedCategory] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  const updatePosition = () => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+      zIndex: 99999,
+    })
+  }
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewCategory('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = () => {
+    const trimmed = newCategory.trim()
+    if (!trimmed) return
+    if (categories.includes(trimmed)) {
+      onChange(trimmed)
+      setNewCategory('')
+      setOpen(false)
+      return
+    }
+    onCategoriesChange([...categories, trimmed])
+    onChange(trimmed)
+    setLastAddedCategory(trimmed)
+    setSavedMessage(true)
+    setNewCategory('')
+    setTimeout(() => {
+      setOpen(false)
+      setLastAddedCategory(null)
+      setSavedMessage(false)
+    }, 1500)
+  }
+
+  const handleDelete = (category, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onCategoriesChange(categories.filter(c => c !== category))
+    if (value === category) onChange('')
+  }
+
+  const handleSelect = (category) => {
+    onChange(category)
+    setOpen(false)
+    setNewCategory('')
+  }
+
+  return (
+    <div ref={ref}>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewCategory('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewCategory('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new category..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newCategory.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {categories.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No categories yet. Add one above.</p>
+            ) : (
+              categories.map(category => {
+                const isSelected = value === category
+                const isNewlyAdded = category === lastAddedCategory
+                return (
+                  <div
+                    key={category}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(category)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {category}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(category, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this category"
                     >
                       <FiTrash2 className="w-3 h-3" />
                     </button>
@@ -181,6 +550,7 @@ function CreatePurchaseOrder() {
   const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
   const [medicineCategories, setMedicineCategories] = useState([...MASTER_DATA_DEFAULTS.medicineCategories])
   const [storeCategories, setStoreCategories] = useState([...MASTER_DATA_DEFAULTS.storeCategories])
+  const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
   const [medicineForms, setMedicineForms] = useState({ ...MASTER_DATA_DEFAULTS.medicineForms })
 
   const [currentItem, setCurrentItem] = useState({
@@ -261,6 +631,21 @@ function CreatePurchaseOrder() {
   const handleSubUnitsChange = (units) => {
     setSubUnits(units)
     saveMasterData({ subUnits: units })
+  }
+
+  const handleBrandsChange = (newBrands) => {
+    setBrands(newBrands)
+    saveMasterData({ brands: newBrands })
+  }
+
+  const handleMedicineCategoriesChange = (categories) => {
+    setMedicineCategories(categories)
+    saveMasterData({ medicineCategories: categories })
+  }
+
+  const handleStoreCategoriesChange = (categories) => {
+    setStoreCategories(categories)
+    saveMasterData({ storeCategories: categories })
   }
 
   const calculatePaymentDeadline = (orderDate, paymentTerms) => {
@@ -549,22 +934,26 @@ function CreatePurchaseOrder() {
 
             {/* Brand */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Brand</label>
-              <input type="text" value={currentItem.brand}
-                onChange={(e) => handleCurrentItemChange('brand', e.target.value)}
-                placeholder="e.g. Pfizer"
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              <BrandDropdown
+                label="Brand"
+                value={currentItem.brand}
+                onChange={(v) => handleCurrentItemChange('brand', v)}
+                brands={brands}
+                onBrandsChange={handleBrandsChange}
+                placeholder="Select or add brand"
+              />
             </div>
 
             {/* Category */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Category *</label>
-              <select value={currentItem.category} onChange={(e) => handleCurrentItemChange('category', e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                {(currentItem.itemType === 'medicine' ? medicineCategories : storeCategories).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+              <CategoryDropdown
+                label="Category *"
+                value={currentItem.category}
+                onChange={(v) => handleCurrentItemChange('category', v)}
+                categories={currentItem.itemType === 'medicine' ? medicineCategories : storeCategories}
+                onCategoriesChange={currentItem.itemType === 'medicine' ? handleMedicineCategoriesChange : handleStoreCategoriesChange}
+                placeholder="Select category"
+              />
             </div>
 
             {/* Expiry Date (medicine only) */}
