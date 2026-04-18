@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2 } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
@@ -937,30 +937,41 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                   {med.editingPrice ? (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-gray-400">₱</span>
+                                    <div className="flex items-center gap-1 bg-blue-50 px-2 py-1.5 rounded border border-blue-300">
+                                      <span className="text-xs font-semibold text-gray-700">₱</span>
                                       <input type="number" min="0" step="0.01"
                                         value={med.finalPrice !== undefined ? med.finalPrice : subtotal}
                                         onChange={(e) => {
-                                          const num = parseFloat(e.target.value)
+                                          const value = e.target.value
+                                          if (value === '') {
+                                            setSelectedMedicines(prev => prev.map(m =>
+                                              m.id === med.id ? { ...m, finalPrice: '' } : m
+                                            ))
+                                            return
+                                          }
+                                          const num = parseFloat(value)
                                           if (isNaN(num) || num < 0) return
                                           setSelectedMedicines(prev => prev.map(m =>
                                             m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m
                                           ))
                                         }}
                                         onFocus={(e) => e.target.select()}
-                                        className="w-16 text-xs text-right border-b border-gray-400 focus:outline-none focus:border-blue-500 bg-transparent"
+                                        className="w-14 text-xs font-bold text-right border-0 focus:outline-none bg-transparent [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+                                        style={{ appearance: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
                                         autoFocus />
                                       <button type="button"
                                         onClick={() => setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, editingPrice: false } : m))}
-                                        className="text-xs font-medium text-gray-500 hover:text-gray-800">✓</button>
+                                        className="px-1.5 py-0.5 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">Save</button>
                                     </div>
                                   ) : (
                                     <button type="button" title="Click to edit price"
                                       onClick={() => setSelectedMedicines(prev => prev.map(m => m.id === med.id ? { ...m, editingPrice: true } : m))}
-                                      className="text-right hover:opacity-70 transition-opacity">
-                                      <p className="text-xs font-bold text-gray-900 tabular-nums">₱{subtotal.toLocaleString()}</p>
-                                      {selectedPets.length > 1 && <p className="text-xs text-gray-400 tabular-nums">₱{(subtotal * selectedPets.length).toLocaleString()} total</p>}
+                                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100 hover:border-blue-400 transition-all group shadow-sm">
+                                      <div className="text-right">
+                                        <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700 tabular-nums">₱{subtotal.toLocaleString()}</p>
+                                        {selectedPets.length > 1 && <p className="text-sm text-gray-500 group-hover:text-blue-600 tabular-nums">₱{(subtotal * selectedPets.length).toLocaleString()} total</p>}
+                                      </div>
+                                      <span className="text-xs font-semibold text-blue-600 group-hover:text-blue-700 whitespace-nowrap">Edit</span>
                                     </button>
                                   )}
                                   <button type="button" onClick={() => handleRemoveMedicine(med.id)}
@@ -971,20 +982,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                               </div>
                               {/* Unit toggle for syrup/tablet */}
                               {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
-                                <div className="flex gap-1 mt-1.5">
+                                <div className="flex gap-2 mt-2">
                                   {med.medicineType === 'syrup' ? (
                                     <>
                                       <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
-                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>ml</button>
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'ml' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>ml</button>
                                       <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
-                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>bottle</button>
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>bottle</button>
                                     </>
                                   ) : (
                                     <>
                                       <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
-                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>tablet</button>
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>tablet</button>
                                       <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
-                                        className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>box</button>
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'box' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>box</button>
                                     </>
                                   )}
                                 </div>
@@ -1009,35 +1020,38 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
                   {/* ── Per-pet mode ── */}
                   {perPetMode && (
-                    <div>
+                    <div className="bg-white/40">
                       {selectedPets.map((pet, petIdx) => {
                         const meds = petMedicines[pet.id] || []
                         const petTotal = meds.reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0)
                         return (
-                          <div key={pet.id} className={petIdx > 0 ? 'border-t border-gray-200' : ''}>
+                          <div key={pet.id} className={petIdx > 0 ? 'border-t-2 border-amber-200' : ''}>
                             {/* Pet row */}
-                            <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-b border-gray-100">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-semibold text-gray-800">{pet.name}</span>
-                                <span className="text-xs text-gray-400">{pet.species}</span>
+                            <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-blue-100 to-blue-50 border-b-2 border-blue-200">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
+                                  {pet.species?.[0]?.toUpperCase()}
+                                </div>
+                                <span className="text-sm font-bold text-gray-900">{pet.name}</span>
+                                <span className="text-xs text-gray-600 font-medium">{pet.species}</span>
                                 {meds.length > 0 && (
-                                  <span className="text-xs text-gray-500">· {meds.length} item{meds.length !== 1 ? 's' : ''}</span>
+                                  <span className="text-xs font-bold text-blue-700 bg-blue-200 px-2 py-0.5 rounded">· {meds.length}</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2">
-                                {meds.length > 0 && <span className="text-xs font-bold text-gray-800">₱{petTotal.toLocaleString()}</span>}
+                              <div className="flex items-center gap-3">
+                                {meds.length > 0 && <span className="text-lg font-black text-blue-900">₱{petTotal.toLocaleString()}</span>}
                                 <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
-                                  className="flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
-                                  <FiPlus className="w-3 h-3" /> Add
+                                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm">
+                                  <FiPlus className="w-3.5 h-3.5" /> Add
                                 </button>
                               </div>
                             </div>
                             {/* Medicines for this pet */}
                             {meds.length === 0 ? (
                               <button type="button" onClick={() => handleOpenPetMedModal(pet.id)}
-                                className="w-full py-2.5 flex items-center justify-center gap-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
-                                <FiPlus className="w-3 h-3" />
-                                <span className="text-xs">Add medicines for {pet.name}</span>
+                                className="w-full py-5 flex items-center justify-center gap-2 text-blue-400 hover:text-blue-600 hover:bg-white/60 transition-all group">
+                                <FiPackage className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                <span className="text-xs font-medium">Add medicines for {pet.name}</span>
                               </button>
                             ) : (
                               <div>
@@ -1045,15 +1059,21 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                   const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
                                   const subtotal = (med.pricePerUnit ?? 0) * med.quantity
                                   return (
-                                    <div key={med.id} className={`px-3 py-2 ${medIdx < meds.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
-                                          <p className="text-xs text-gray-400 mt-0.5">₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}</p>
+                                    <div key={med.id} className={`px-3.5 py-3 ${medIdx < meds.length - 1 ? 'border-b-2 border-blue-100' : ''} hover:bg-white/80 transition-all`}>
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                          <FiPackage className="w-4 h-4 text-white" />
                                         </div>
-                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-bold text-gray-900 truncate">{med.medicineName}</p>
+                                          <p className="text-xs text-gray-600 mt-0.5">
+                                            <span className="font-semibold text-blue-700">₱{(med.pricePerUnit ?? 0).toLocaleString()}</span>
+                                            <span className="text-gray-500">/{med.sellUnit ?? med.unit}</span>
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-shrink-0 bg-white rounded-lg px-1.5 py-1 shadow-sm border border-blue-200">
                                           <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, -step)}
-                                            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                            className="w-5 h-5 rounded border border-blue-300 flex items-center justify-center text-blue-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 transition-all bg-white">
                                             <FiMinus className="w-2.5 h-2.5" />
                                           </button>
                                           <input type="text" inputMode="decimal" value={med.quantity}
@@ -1065,54 +1085,68 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                             }}
                                             onBlur={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num <= 0) setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, quantity: step } : m) })) }}
                                             onFocus={(e) => e.target.select()}
-                                            className="w-10 text-center text-xs border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white" />
+                                            className="w-8 text-center text-xs font-semibold border-0 focus:outline-none focus:ring-0 bg-transparent text-gray-900" />
                                           <button type="button" onClick={() => handlePetMedQty(pet.id, med.id, step)}
-                                            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                            className="w-5 h-5 rounded border border-blue-300 flex items-center justify-center text-blue-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 transition-all bg-white">
                                             <FiPlus className="w-2.5 h-2.5" />
                                           </button>
-                                          <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>
+                                          <span className="text-xs font-semibold text-blue-700 min-w-[32px]">{med.sellUnit ?? med.unit}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5 flex-shrink-0">
                                           {med.editingPrice ? (
-                                            <div className="flex items-center gap-1">
-                                              <span className="text-xs text-gray-400">₱</span>
+                                            <div className="flex items-center gap-1 bg-blue-50 px-2 py-1.5 rounded border border-blue-400 shadow-sm">
+                                              <span className="text-xs font-bold text-blue-600">₱</span>
                                               <input type="number" min="0" step="0.01"
                                                 value={med.finalPrice !== undefined ? med.finalPrice : subtotal}
-                                                onChange={(e) => { const num = parseFloat(e.target.value); if (isNaN(num) || num < 0) return; setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m) })) }}
+                                                onChange={(e) => {
+                                                  const value = e.target.value
+                                                  if (value === '') {
+                                                    setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, finalPrice: '' } : m) }))
+                                                    return
+                                                  }
+                                                  const num = parseFloat(value)
+                                                  if (isNaN(num) || num < 0) return
+                                                  setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, finalPrice: num, pricePerUnit: med.quantity > 0 ? num / med.quantity : 0 } : m) }))
+                                                }}
                                                 onFocus={(e) => e.target.select()}
-                                                className="w-16 text-xs text-right border-b border-gray-400 focus:outline-none focus:border-blue-500 bg-transparent" autoFocus />
+                                                className="w-12 text-xs font-bold text-right border-0 focus:outline-none focus:ring-0 bg-transparent text-blue-600 [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+                                                style={{ appearance: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                                                autoFocus />
                                               <button type="button"
                                                 onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: false } : m) }))}
-                                                className="text-xs font-medium text-gray-500 hover:text-gray-800">✓</button>
+                                                className="px-1.5 py-0.5 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">Save</button>
                                             </div>
                                           ) : (
                                             <button type="button" title="Click to edit price"
                                               onClick={() => setPetMedicines(prev => ({ ...prev, [pet.id]: (prev[pet.id] || []).map(m => m.id === med.id ? { ...m, editingPrice: true } : m) }))}
-                                              className="text-xs font-bold text-gray-900 tabular-nums hover:opacity-70 transition-opacity">
-                                              ₱{subtotal.toLocaleString()}
+                                              className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-400 rounded-lg hover:from-blue-100 hover:to-blue-200 hover:shadow-md transition-all group shadow">
+                                              <div className="text-right">
+                                                <p className="text-base font-bold text-gray-900 group-hover:text-blue-800 tabular-nums">₱{subtotal.toLocaleString()}</p>
+                                              </div>
+                                              <span className="text-xs font-bold text-blue-700 group-hover:text-blue-800 whitespace-nowrap">EDIT</span>
                                             </button>
                                           )}
                                           <button type="button" onClick={() => handleRemovePetMedicine(pet.id, med.id)}
-                                            className="text-gray-300 hover:text-red-500 transition-colors">
+                                            className="text-blue-200 hover:text-red-500 hover:bg-red-50 transition-all rounded-lg p-1.5">
                                             <FiX className="w-4 h-4" />
                                           </button>
                                         </div>
                                       </div>
                                       {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
-                                        <div className="flex gap-1 mt-1.5">
+                                        <div className="flex gap-2 mt-2.5 ml-10">
                                           {med.medicineType === 'syrup' ? (
                                             <>
                                               <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'ml')}
-                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'ml' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>ml</button>
+                                                className={`px-3 py-1 text-xs rounded-md font-bold transition-all border-2 ${med.sellUnit === 'ml' ? 'bg-gradient-to-r from-gray-900 to-gray-800 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>ml</button>
                                               <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'bottle')}
-                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>bottle</button>
+                                                className={`px-3 py-1 text-xs rounded-md font-bold transition-all border-2 ${med.sellUnit === 'bottle' ? 'bg-gradient-to-r from-gray-900 to-gray-800 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>bottle</button>
                                             </>
                                           ) : (
                                             <>
                                               <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'tablet')}
-                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>tablet</button>
+                                                className={`px-3 py-1 text-xs rounded-md font-bold transition-all border-2 ${med.sellUnit === 'tablet' ? 'bg-gradient-to-r from-gray-900 to-gray-800 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>tablet</button>
                                               <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'box')}
-                                                className={`px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${med.sellUnit === 'box' ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}>box</button>
+                                                className={`px-3 py-1 text-xs rounded-md font-bold transition-all border-2 ${med.sellUnit === 'box' ? 'bg-gradient-to-r from-gray-900 to-gray-800 text-white border-gray-900' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>box</button>
                                             </>
                                           )}
                                         </div>
@@ -1126,9 +1160,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                         )
                       })}
                       {/* Grand total */}
-                      <div className="flex items-center justify-between px-3 py-2 border-t border-gray-200 bg-gray-50">
-                        <span className="text-xs text-gray-500">All pets total</span>
-                        <span className="text-sm font-bold text-gray-900">
+                      <div className="flex items-center justify-between px-4 py-3.5 border-t-2 border-amber-200 bg-gradient-to-r from-amber-100 to-orange-100">
+                        <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">All Pets Total</span>
+                        <span className="text-lg font-black text-amber-900 bg-white/60 px-3 py-1.5 rounded-lg">
                           ₱{selectedPets.reduce((sum, pet) =>
                             sum + (petMedicines[pet.id] || []).reduce((s, m) => s + ((m.pricePerUnit ?? 0) * m.quantity), 0), 0
                           ).toLocaleString()}

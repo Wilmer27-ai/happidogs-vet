@@ -28,10 +28,13 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -86,7 +89,7 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -102,8 +105,7 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {savedMessage && (
             <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
@@ -202,10 +204,13 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -260,7 +265,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -276,8 +281,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {savedMessage && (
             <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
@@ -376,10 +380,13 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -434,7 +441,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -450,8 +457,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {savedMessage && (
             <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
@@ -527,7 +533,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
 }
 
 // ── Add Stock Modal ───────────────────────────────────────────────────────
-function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
+function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms, packUnits: propPackUnits, subUnits: propSubUnits, onPackUnitsChange, onSubUnitsChange }) {
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
   const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
 
@@ -1064,7 +1070,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
 }
 
 // ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms }) {
+function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms, packUnits: propPackUnits, subUnits: propSubUnits, brands: propBrands, onPackUnitsChange, onSubUnitsChange, onMedicineCategoriesChange, onStoreCategoriesChange }) {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -1074,6 +1080,9 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
   const medicineCategories = propMedCategories ?? MASTER_DATA_DEFAULTS.medicineCategories
   const storeCategories = propStoreCategories ?? MASTER_DATA_DEFAULTS.storeCategories
   const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
+  const packUnits = propPackUnits ?? MASTER_DATA_DEFAULTS.packUnits
+  const subUnits = propSubUnits ?? MASTER_DATA_DEFAULTS.subUnits
+  const brands = propBrands ?? MASTER_DATA_DEFAULTS.brands
 
   const isFood = (cat) => foodCategories.includes(cat)
   const isSyrup = form.medicineType === 'syrup'
@@ -1088,7 +1097,16 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
 
   if (!isOpen || !item) return null
 
-  const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+  const set = (field, value) => {
+    const newData = { ...form, [field]: value }
+    const fieldsToCalc = ['sellingPricePerBottle', 'mlPerBottle', 'sellingPricePerBox', 'tabletsPerBox', 'sellingPricePerSack', 'kgPerSack']
+    if (fieldsToCalc.includes(field)) {
+      const calculated = applyPerUnitAutoCalc(newData)
+      setForm(calculated)
+    } else {
+      setForm(newData)
+    }
+  }
 
   const normalizeNumberField = (value) => {
     if (value === '' || value === null || value === undefined || value === '.' || value === '-.' || value === '-') return 0
@@ -1185,6 +1203,61 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
   const inputClass = "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
   const labelClass = "block text-xs font-medium text-gray-700 mb-1"
 
+  const handleLocalPackUnitsChange = (units) => {
+    onPackUnitsChange ? onPackUnitsChange(units) : saveMasterData({ packUnits: units })
+  }
+
+  const handleLocalSubUnitsChange = (units) => {
+    onSubUnitsChange ? onSubUnitsChange(units) : saveMasterData({ subUnits: units })
+  }
+
+  const handleBrandsChange = (newBrands) => {
+    saveMasterData({ brands: newBrands })
+  }
+
+  const handleLocalMedicineCategoriesChange = (categories) => {
+    onMedicineCategoriesChange ? onMedicineCategoriesChange(categories) : saveMasterData({ medicineCategories: categories })
+  }
+
+  const handleLocalStoreCategoriesChange = (categories) => {
+    onStoreCategoriesChange ? onStoreCategoriesChange(categories) : saveMasterData({ storeCategories: categories })
+  }
+
+  const parseDecimal = (value) => {
+    if (value === '' || value === '.' || value === '-.' || value === '-') return null
+    const num = Number(value)
+    return Number.isFinite(num) ? num : null
+  }
+
+  const applyPerUnitAutoCalc = (data) => {
+    const isSyrup = data.medicineType === 'syrup'
+    const isTablet = data.medicineType === 'tablet'
+    const isFood = foodCategories.includes(data.category) && item._type === 'store'
+    
+    if (!isSyrup && !isTablet && !isFood) return data
+    
+    if (isSyrup) {
+      const perBottle = parseDecimal(data.sellingPricePerBottle)
+      const mlPerBottle = parseDecimal(data.mlPerBottle)
+      if (perBottle && mlPerBottle) {
+        return { ...data, sellingPricePerMl: (perBottle / mlPerBottle).toFixed(2) }
+      }
+    } else if (isTablet) {
+      const perBox = parseDecimal(data.sellingPricePerBox)
+      const tabletsPerBox = parseDecimal(data.tabletsPerBox)
+      if (perBox && tabletsPerBox) {
+        return { ...data, sellingPricePerTablet: (perBox / tabletsPerBox).toFixed(2) }
+      }
+    } else if (isFood) {
+      const perSack = parseDecimal(data.sellingPricePerSack)
+      const kgPerSack = parseDecimal(data.kgPerSack)
+      if (perSack && kgPerSack) {
+        return { ...data, sellingPricePerKg: (perSack / kgPerSack).toFixed(2) }
+      }
+    }
+    return data
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
@@ -1213,21 +1286,27 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
                 onChange={(e) => set(item._type === 'medicine' ? 'medicineName' : 'itemName', e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Brand</label>
-              <input type="text" value={form.brand || ''} className={inputClass}
-                onChange={(e) => set('brand', e.target.value)} />
+              <BrandDropdown
+                label="Brand"
+                value={form.brand || ''}
+                onChange={(v) => set('brand', v)}
+                brands={brands}
+                onBrandsChange={handleBrandsChange}
+                placeholder="Select or add brand"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Category</label>
-              <select value={form.category || ''} className={`${inputClass} bg-white`}
-                onChange={(e) => set('category', e.target.value)}>
-                {(item._type === 'medicine' ? medicineCategories : storeCategories).map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <CategoryDropdown
+                label="Category"
+                value={form.category || ''}
+                onChange={(v) => set('category', v)}
+                categories={item._type === 'medicine' ? medicineCategories : storeCategories}
+                onCategoriesChange={item._type === 'medicine' ? handleLocalMedicineCategoriesChange : handleLocalStoreCategoriesChange}
+                placeholder="Select or add category"
+              />
             </div>
             {item._type === 'medicine' && (
               <div>
@@ -1255,19 +1334,37 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {isSyrup && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Syrup)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <UnitDropdown
+                  label="Pack Called *"
+                  value={form.packUnit || 'bottle'}
+                  onChange={(v) => set('packUnit', v)}
+                  units={packUnits}
+                  onUnitsChange={handleLocalPackUnitsChange}
+                  placeholder="e.g. bottle"
+                />
+                <UnitDropdown
+                  label="Unit Inside *"
+                  value={form.subUnit || 'ml'}
+                  onChange={(v) => set('subUnit', v)}
+                  units={subUnits}
+                  onUnitsChange={handleLocalSubUnitsChange}
+                  placeholder="e.g. ml"
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className={labelClass}>Sealed Bottles</label>
+                  <label className={labelClass}>Sealed {form.packUnit || 'Bottle'}s</label>
                   <input type="text" inputMode="decimal" value={form.bottleCount ?? ''} className={inputClass}
                     onChange={(e) => set('bottleCount', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>Loose ML</label>
+                  <label className={labelClass}>Loose {form.subUnit || 'ML'}</label>
                   <input type="text" inputMode="decimal" value={form.looseMl ?? ''} className={inputClass}
                     onChange={(e) => set('looseMl', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>ML per Bottle</label>
+                  <label className={labelClass}>{form.subUnit || 'ML'} per {form.packUnit || 'Bottle'}</label>
                   <input type="text" inputMode="decimal" value={form.mlPerBottle ?? ''} className={inputClass}
                     onChange={(e) => set('mlPerBottle', e.target.value)} />
                 </div>
@@ -1286,19 +1383,37 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {isTablet && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Tablet)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <UnitDropdown
+                  label="Pack Called *"
+                  value={form.packUnit || 'box'}
+                  onChange={(v) => set('packUnit', v)}
+                  units={packUnits}
+                  onUnitsChange={handleLocalPackUnitsChange}
+                  placeholder="e.g. box"
+                />
+                <UnitDropdown
+                  label="Unit Inside *"
+                  value={form.subUnit || 'tablet'}
+                  onChange={(v) => set('subUnit', v)}
+                  units={subUnits}
+                  onUnitsChange={handleLocalSubUnitsChange}
+                  placeholder="e.g. tablet"
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className={labelClass}>Sealed Boxes</label>
+                  <label className={labelClass}>Sealed {form.packUnit || 'Box'}es</label>
                   <input type="text" inputMode="decimal" value={form.boxCount ?? ''} className={inputClass}
                     onChange={(e) => set('boxCount', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>Loose Tablets</label>
+                  <label className={labelClass}>Loose {form.subUnit || 'Tablet'}s</label>
                   <input type="text" inputMode="decimal" value={form.looseTablets ?? ''} className={inputClass}
                     onChange={(e) => set('looseTablets', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>Tablets per Box</label>
+                  <label className={labelClass}>{form.subUnit || 'Tablet'}s per {form.packUnit || 'Box'}</label>
                   <input type="text" inputMode="decimal" value={form.tabletsPerBox ?? ''} className={inputClass}
                     onChange={(e) => set('tabletsPerBox', e.target.value)} />
                 </div>
@@ -1317,19 +1432,37 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
           {item._type === 'store' && isFood(form.category) && (
             <div className="border border-gray-200 rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Stock (Food)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <UnitDropdown
+                  label="Pack Called *"
+                  value={form.packUnit || 'sack'}
+                  onChange={(v) => set('packUnit', v)}
+                  units={packUnits}
+                  onUnitsChange={handleLocalPackUnitsChange}
+                  placeholder="e.g. sack"
+                />
+                <UnitDropdown
+                  label="Unit Inside *"
+                  value={form.subUnit || 'kg'}
+                  onChange={(v) => set('subUnit', v)}
+                  units={subUnits}
+                  onUnitsChange={handleLocalSubUnitsChange}
+                  placeholder="e.g. kg"
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className={labelClass}>Sealed Sacks</label>
+                  <label className={labelClass}>Sealed {form.packUnit || 'Sack'}s</label>
                   <input type="text" inputMode="decimal" value={form.sacksCount ?? ''} className={inputClass}
                     onChange={(e) => set('sacksCount', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>Loose KG</label>
+                  <label className={labelClass}>Loose {form.subUnit || 'KG'}</label>
                   <input type="text" inputMode="decimal" value={form.looseKg ?? ''} className={inputClass}
                     onChange={(e) => set('looseKg', e.target.value)} />
                 </div>
                 <div>
-                  <label className={labelClass}>KG per Sack</label>
+                  <label className={labelClass}>{form.subUnit || 'KG'} per {form.packUnit || 'Sack'}</label>
                   <input type="text" inputMode="decimal" value={form.kgPerSack ?? ''} className={inputClass}
                     onChange={(e) => set('kgPerSack', e.target.value)} />
                 </div>
@@ -1356,9 +1489,14 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
                 </div>
                 <div>
                   <label className={labelClass}>Unit</label>
-                  <input type="text" value={form.unit || ''} className={inputClass}
-                    onChange={(e) => set('unit', e.target.value)}
-                    placeholder="e.g. vial, pcs" />
+                  <UnitDropdown
+                    label=""
+                    value={form.unit || ''}
+                    onChange={(v) => set('unit', v)}
+                    units={subUnits}
+                    onUnitsChange={handleLocalSubUnitsChange}
+                    placeholder="e.g. vial, pcs"
+                  />
                 </div>
               </div>
             </div>
@@ -1505,8 +1643,36 @@ function MedicinesStocks() {
   const [medicineCategories, setMedicineCategories] = useState(MASTER_DATA_DEFAULTS.medicineCategories)
   const [storeCategories, setStoreCategories] = useState(MASTER_DATA_DEFAULTS.storeCategories)
   const [medicineForms, setMedicineForms] = useState({ ...MASTER_DATA_DEFAULTS.medicineForms })
+  const [packUnits, setPackUnits] = useState([...MASTER_DATA_DEFAULTS.packUnits])
+  const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
+  const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
   const [lowStockThreshold, setLowStockThreshold] = useState(MASTER_DATA_DEFAULTS.lowStockThreshold)
   const allCategories = ['All', ...new Set([...medicineCategories, ...storeCategories])]
+
+  const handlePackUnitsChange = (units) => {
+    setPackUnits(units)
+    saveMasterData({ packUnits: units })
+  }
+
+  const handleSubUnitsChange = (units) => {
+    setSubUnits(units)
+    saveMasterData({ subUnits: units })
+  }
+
+  const handleBrandsChange = (newBrands) => {
+    setBrands(newBrands)
+    saveMasterData({ brands: newBrands })
+  }
+
+  const handleMedicineCategoriesChange = (categories) => {
+    setMedicineCategories(categories)
+    saveMasterData({ medicineCategories: categories })
+  }
+
+  const handleStoreCategoriesChange = (categories) => {
+    setStoreCategories(categories)
+    saveMasterData({ storeCategories: categories })
+  }
 
   const isFood = (item) => foodCategories.includes(item?.category)
 
@@ -1544,6 +1710,8 @@ function MedicinesStocks() {
         if (masterData.medicineCategories) setMedicineCategories(masterData.medicineCategories)
         if (masterData.storeCategories) setStoreCategories(masterData.storeCategories)
         if (masterData.medicineForms) setMedicineForms(masterData.medicineForms)
+        if (masterData.packUnits) setPackUnits(masterData.packUnits)
+        if (masterData.subUnits) setSubUnits(masterData.subUnits)
         if (masterData.lowStockThreshold != null) setLowStockThreshold(masterData.lowStockThreshold)
       }
     } catch (error) {
@@ -1693,6 +1861,10 @@ function MedicinesStocks() {
         medicineCategories={medicineCategories}
         storeCategories={storeCategories}
         medicineForms={medicineForms}
+        packUnits={packUnits}
+        subUnits={subUnits}
+        onPackUnitsChange={handlePackUnitsChange}
+        onSubUnitsChange={handleSubUnitsChange}
       />
 
       {/* Edit Modal */}
@@ -1705,6 +1877,13 @@ function MedicinesStocks() {
         medicineCategories={medicineCategories}
         storeCategories={storeCategories}
         medicineForms={medicineForms}
+        packUnits={packUnits}
+        subUnits={subUnits}
+        brands={brands}
+        onPackUnitsChange={handlePackUnitsChange}
+        onSubUnitsChange={handleSubUnitsChange}
+        onMedicineCategoriesChange={handleMedicineCategoriesChange}
+        onStoreCategoriesChange={handleStoreCategoriesChange}
       />
 
       {/* Header */}
@@ -1853,7 +2032,7 @@ function MedicinesStocks() {
                           <td className="px-3 py-1.5 text-right text-gray-900">
                             ₱{item.purchasePrice?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                           </td>
-                          <td className="px-3 py-1.5 text-gray-900">{getSellingPriceDisplay(item)}</td>
+                          <td className="px-3 py-1.5 text-gray-900 font-semibold text-blue-600">{getSellingPriceDisplay(item)}</td>
                           <td className="px-3 py-1.5">
                             {item._type === 'medicine' && item.expirationDate ? (
                               <span className={isExpiringSoon ? 'text-orange-600 font-medium' : 'text-gray-900'}>
@@ -1866,7 +2045,7 @@ function MedicinesStocks() {
                           <td className="px-3 py-1.5 text-center">
                             <button
                               onClick={() => setEditItem(item)}
-                              className="px-2 py-1 text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 rounded transition-colors"
+                              className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
                             >
                               Edit
                             </button>

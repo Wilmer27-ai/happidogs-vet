@@ -28,13 +28,16 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
 
     // Re-position on any scroll or resize (captures scrolling inside panels too)
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
 
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -91,7 +94,7 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -107,8 +110,7 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {/* ── Success message ── */}
           {savedMessage && (
@@ -210,10 +212,13 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -268,7 +273,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -284,8 +289,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {savedMessage && (
             <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
@@ -384,10 +388,13 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
 
   useEffect(() => {
     if (!open) return
-    updatePosition()
+    const frameId = requestAnimationFrame(() => {
+      updatePosition()
+    })
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
+      cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
     }
@@ -442,7 +449,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       <button
         type="button"
@@ -458,8 +465,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
       {open && (
         <div
           ref={dropdownRef}
-          style={dropdownStyle}
-          className="bg-white border border-gray-200 rounded-md shadow-2xl"
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
         >
           {savedMessage && (
             <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
