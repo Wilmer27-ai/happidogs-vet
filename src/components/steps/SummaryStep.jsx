@@ -311,7 +311,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   const handleGoToHistory = () => navigate('/consultation-history')
 
   return (
-    <div className="min-h-screen lg:h-screen flex flex-col bg-gray-300">
+    <div className="summary-step min-h-screen lg:h-screen flex flex-col bg-gray-300 print:min-h-0 print:h-auto print:block print:bg-white">
 
       {/* ── Toolbar ── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 print:hidden flex-shrink-0">
@@ -352,8 +352,8 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
       </div>
 
       {/* ── Scrollable A4 area ── */}
-      <div className="flex-1 overflow-auto py-8 px-4 print:p-0 print:overflow-visible">
-        <div className="bg-white mx-auto print:shadow-none print:mx-0 flex flex-col w-full max-w-[210mm] print:h-auto"
+      <div className="summary-print-wrap flex-1 overflow-auto py-8 px-4 print:p-0 print:overflow-visible print:h-auto print:block">
+        <div className="summary-print-page bg-white mx-auto print:shadow-none print:mx-auto flex flex-col w-full max-w-[210mm] print:h-auto"
           style={{ minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
 
           <div style={{ height: '7px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
@@ -573,10 +573,10 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                             ₱{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </span>
                           {customTotal !== null && (
-                            <span className="text-xs text-yellow-400 ml-1">(edited)</span>
+                            <span className="text-xs text-blue-400 ml-1">(edited)</span>
                           )}
                           <button onClick={() => { setTotalInput(totalAmount); setEditingTotal(true) }}
-                            className="ml-2 px-2.5 py-1 text-xs font-semibold text-yellow-600 bg-yellow-50 border border-yellow-300 rounded hover:bg-yellow-100 hover:border-yellow-400 transition-colors flex items-center gap-1">
+                            className="ml-2 px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-300 rounded hover:bg-blue-100 hover:border-blue-400 transition-colors flex items-center gap-1">
                             <FiEdit2 className="w-3.5 h-3.5" />
                             Edit
                           </button>
@@ -627,16 +627,89 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
       </div>
 
       <style>{`
+        /* Hide scrollbar on screen but keep scrolling */
+        .summary-print-wrap {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+
+        .summary-print-wrap::-webkit-scrollbar {
+          display: none;
+        }
+
         @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { margin: 0; background: white; }
-          @page { size: A4; margin: 0; }
-          .print\\:hidden { display: none !important; }
-          .print\\:block { display: block !important; }
-          .print\\:h-auto { min-height: auto !important; height: auto !important; }
-          table { page-break-inside: avoid; }
-          tr { page-break-inside: avoid; }
-          td { page-break-inside: avoid; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          @page {
+            size: A4;
+            margin: 8mm;
+          }
+
+          html, body, #root {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            height: auto !important;
+          }
+
+          .summary-step {
+            min-height: auto !important;
+            height: auto !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+
+          .summary-print-wrap {
+            display: block !important;
+            overflow: visible !important;
+            height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            flex: none !important;
+          }
+
+          /* This is the key: override the inline minHeight style */
+          .summary-print-page {
+            min-height: auto !important;
+            height: auto !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            page-break-after: avoid !important;
+            page-break-before: avoid !important;
+            display: block !important;
+          }
+
+          /* Hide decorative bars */
+          .summary-print-page > div:first-child,
+          .summary-print-page > div:last-child {
+            display: none !important;
+          }
+
+          /* Hide UI elements */
+          button {
+            display: none !important;
+          }
+
+          .print\:hidden {
+            display: none !important;
+          }
+
+          /* Preserve table and prevent breaks */
+          table {
+            page-break-inside: avoid !important;
+            width: 100%;
+            margin: 0 !important;
+          }
+
+          tr, td, th {
+            page-break-inside: avoid !important;
+          }
         }
       `}</style>
     </div>
