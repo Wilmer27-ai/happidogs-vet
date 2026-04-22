@@ -6,6 +6,7 @@ import { addDoc, collection } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useNavigate } from 'react-router-dom'
 import logo from '../../assets/happidogslogo.png'
+import PrintStyles from '../PrintStyles'
 
 function SummaryStep({ selectedClient, selectedPets, consultationData, medicinesData, onBack, onSave }) {
   const navigate = useNavigate()
@@ -626,92 +627,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         </div>
       </div>
 
-      <style>{`
-        /* Hide scrollbar on screen but keep scrolling */
-        .summary-print-wrap {
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-
-        .summary-print-wrap::-webkit-scrollbar {
-          display: none;
-        }
-
-        @media print {
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-
-          @page {
-            size: A4;
-            margin: 8mm;
-          }
-
-          html, body, #root {
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
-            height: auto !important;
-          }
-
-          .summary-step {
-            min-height: auto !important;
-            height: auto !important;
-            background: white !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          .summary-print-wrap {
-            display: block !important;
-            overflow: visible !important;
-            height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            flex: none !important;
-          }
-
-          /* This is the key: override the inline minHeight style */
-          .summary-print-page {
-            min-height: auto !important;
-            height: auto !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            box-shadow: none !important;
-            page-break-after: avoid !important;
-            page-break-before: avoid !important;
-            display: block !important;
-          }
-
-          /* Hide decorative bars */
-          .summary-print-page > div:first-child,
-          .summary-print-page > div:last-child {
-            display: none !important;
-          }
-
-          /* Hide UI elements */
-          button {
-            display: none !important;
-          }
-
-          .print\:hidden {
-            display: none !important;
-          }
-
-          /* Preserve table and prevent breaks */
-          table {
-            page-break-inside: avoid !important;
-            width: 100%;
-            margin: 0 !important;
-          }
-
-          tr, td, th {
-            page-break-inside: avoid !important;
-          }
-        }
-      `}</style>
+      <PrintStyles />
     </div>
   )
 }

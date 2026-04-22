@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi'
 import logo from '../assets/happidogslogo.png'
+import PrintStyles from '../components/PrintStyles'
 
 function ConsultationSummary() {
   const location = useLocation()
@@ -127,7 +128,7 @@ function ConsultationSummary() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-300">
+    <div className="consultation-summary min-h-screen flex flex-col bg-gray-300">
 
       {/* ── Toolbar ── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex flex-wrap items-center gap-2 print:hidden flex-shrink-0">
@@ -142,58 +143,61 @@ function ConsultationSummary() {
       </div>
 
       {/* ── Scrollable A4 area ── */}
-      <div className="flex-1 overflow-auto py-6 px-4 print:p-0 print:overflow-visible">
-        <div className="bg-white mx-auto print:shadow-none print:mx-0 flex flex-col w-full max-w-[210mm]"
+      <div className="summary-print-wrap flex-1 overflow-auto py-8 px-4 print:p-0 print:overflow-visible print:h-auto print:block">
+        <div className="summary-print-page bg-white mx-auto print:shadow-none print:mx-auto flex flex-col w-full max-w-[210mm] print:h-auto"
           style={{ minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
 
           {/* Top accent bar */}
           <div style={{ height: '7px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
 
-          <div className="flex flex-col flex-1 px-4 sm:px-10 py-6 sm:py-7">
+          <div className="flex flex-col flex-1 px-4 sm:px-10 py-6 sm:py-7 print:px-3 print:py-1 space-y-3 print:space-y-1">
 
             {/* ── Clinic Header ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-              <div className="flex items-center gap-3">
-                <img src={logo} alt="Happi Dogs" className="w-16 h-16 object-contain"
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-3 print:gap-0.5 print:mb-0.5">
+              <div className="flex items-center gap-3 print:gap-1.5">
+                <img src={logo} alt="Happi Dogs" className="w-12 h-12 print:w-10 print:h-10 object-contain"
                   onError={(e) => { e.target.style.display = 'none' }} />
                 <div>
-                  <h1 className="text-lg font-black uppercase tracking-wide text-gray-900 leading-tight">Happi Dogs</h1>
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-gray-500 leading-tight">Veterinary Clinic</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Pob. Ilaya, Lambunao, Iloilo</p>
-                  <p className="text-xs text-gray-400">Tel: (123) 456-7890</p>
+                  <h1 className="text-base print:text-xs font-black uppercase tracking-wide text-gray-900 leading-none print:leading-tight">Happi Dogs</h1>
+                  <h2 className="text-xs print:text-[9px] font-bold uppercase tracking-widest text-gray-500 leading-none print:leading-tight">Veterinary Clinic</h2>
+                  <p className="text-xs print:text-[9px] text-gray-400 mt-0.5 print:mt-0">Pob. Ilaya, Lambunao, Iloilo</p>
+                  <p className="text-xs print:text-[9px] text-gray-400">Tel: (123) 456-7890</p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="inline-block border-2 border-gray-900 px-4 py-2 mb-2">
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-900">Clinical Record</p>
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-900">& Official Receipt</p>
+              <div className="text-right print:text-right">
+                <div className="inline-block border-2 border-gray-900 px-4 py-2 print:px-1.5 print:py-0.5 mb-2 print:mb-0.5">
+                  <p className="text-xs print:text-[9px] font-black uppercase tracking-widest text-gray-900 leading-none">Clinical Record</p>
+                  <p className="text-xs print:text-[9px] font-black uppercase tracking-widest text-gray-900 leading-none">& Official Receipt</p>
                 </div>
-                <div className="text-xs text-gray-500 space-y-0.5">
+                <div className="text-xs print:text-[9px] text-gray-500 space-y-0 print:space-y-0">
                   <p><span className="font-semibold text-gray-700">Receipt No:</span> {receiptNo}</p>
                   <p><span className="font-semibold text-gray-700">Date:</span> {formatDate(date)}</p>
                 </div>
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="border-t-2 border-gray-900 border-b border-gray-300 mb-4" />
+            <div className="border-t-2 border-gray-900 border-b border-gray-300 mb-1 print:mb-0.5" />
 
             {/* ── Client Info ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 bg-gray-50 border border-gray-200 px-4 py-3">
-              <div className="space-y-1.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 print:gap-1 print:mb-1 bg-gray-50 border border-gray-200 px-4 py-3 print:px-1.5 print:py-1">
+              <div className="space-y-1.5 text-xs print:text-[9px]">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Owner's Name:</span>
                   <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
                     {clientName}
                   </span>
                 </div>
+                <div className="flex gap-2 items-baseline">
+                  <span className="text-gray-500 font-medium w-24 flex-shrink-0">Contact No.:</span>
+                  <span className="font-semibold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                    N/A
+                  </span>
+                </div>
               </div>
               <div className="space-y-1.5 text-xs">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">No. of Pets:</span>
-                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
-                    {uniquePetCount}
-                  </span>
+                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">{uniquePetCount}</span>
                 </div>
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">Pet Name(s):</span>
@@ -205,23 +209,23 @@ function ConsultationSummary() {
             </div>
 
             {/* ── Clinical Summary label ── */}
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1 print:mb-0.5">
               <div className="h-3.5 w-1 rounded-full bg-gray-900" />
-              <p className="text-xs font-black uppercase tracking-widest text-gray-900">Clinical Summary</p>
+              <p className="text-xs print:text-[9px] font-black uppercase tracking-widest text-gray-900">Clinical Summary</p>
             </div>
 
             {/* ── Table ── */}
-            <div className="w-full overflow-x-auto">
-              <table className="w-full min-w-[720px] text-xs border-collapse mb-4" style={{ borderTop: '2px solid #111827' }}>
+            <div className="w-full print:mb-1">
+              <table className="w-full text-xs border-collapse mb-3 print:mb-1 print:text-[9px]" style={{ borderTop: '2px solid #111827' }}>
                 <thead>
                   <tr style={{ background: '#111827' }} className="text-white">
-                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[12%]">Pet</th>
-                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[13%]">Activity</th>
-                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[23%]">Clinical Notes</th>
-                    <th className="px-2.5 py-2 text-left font-bold border-r border-gray-600 w-[22%]">Medicine / Item</th>
-                    <th className="px-2.5 py-2 text-center font-bold border-r border-gray-600 w-[10%]">Qty</th>
-                    <th className="px-2.5 py-2 text-right font-bold border-r border-gray-600 w-[10%]">Unit Price</th>
-                    <th className="px-2.5 py-2 text-right font-bold w-[10%]">Amount</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-left font-bold border-r border-gray-600 w-[12%]">Pet</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-left font-bold border-r border-gray-600 w-[13%]">Activity</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-left font-bold border-r border-gray-600 w-[23%]">Clinical Notes</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-left font-bold border-r border-gray-600 w-[22%]">Medicine / Item</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-center font-bold border-r border-gray-600 w-[10%]">Qty</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-right font-bold border-r border-gray-600 w-[10%]">Unit Price</th>
+                    <th className="px-2.5 py-2 print:px-1 print:py-0.5 text-right font-bold w-[10%]">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -233,22 +237,22 @@ function ConsultationSummary() {
                         className="border-b border-gray-200">
                         {row.isFirstInGroup && (
                           <td rowSpan={rows.length}
-                            className="px-2.5 py-2 border-r border-gray-200 font-black text-gray-900 align-top"
+                            className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 font-black text-gray-900 align-top"
                             style={{ borderLeft: '3px solid #111827' }}>
                             {row.petName}
                           </td>
                         )}
                         {row.isFirstInActivity && (
                           <td rowSpan={row.activityMedCount || 1}
-                            className="px-2.5 py-2 border-r border-gray-200 font-semibold text-gray-700 align-top whitespace-nowrap">
+                            className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 font-semibold text-gray-700 align-top whitespace-nowrap">
                             {row.activityType}
                           </td>
                         )}
                         {row.isFirstInActivity && (
                           <td rowSpan={row.activityMedCount || 1}
-                            className="px-2.5 py-2 border-r border-gray-200 text-gray-700 align-top">
+                            className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 text-gray-700 align-top">
                             {row.detailParts.length > 0 ? (
-                              <div className="space-y-0.5">
+                              <div className="space-y-0.5 print:space-y-0 print:text-[8px]">
                                 {row.detailParts.map((d, i) => (
                                   <div key={i}>
                                     <span className="font-semibold text-gray-500">{d.label}: </span>
@@ -259,16 +263,16 @@ function ConsultationSummary() {
                             ) : <span className="text-gray-300">—</span>}
                           </td>
                         )}
-                        <td className="px-2.5 py-2 border-r border-gray-200 text-gray-900">
+                        <td className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 text-gray-900">
                           {row.med ? row.med.medicineName : <span className="text-gray-300">—</span>}
                         </td>
-                        <td className="px-2.5 py-2 border-r border-gray-200 text-center text-gray-700">
+                        <td className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 text-center text-gray-700">
                           {row.med ? `${row.med.quantity} ${row.med.unit}` : '—'}
                         </td>
-                        <td className="px-2.5 py-2 border-r border-gray-200 text-right text-gray-700">
+                        <td className="px-2.5 py-2 print:px-1 print:py-0.5 border-r border-gray-200 text-right text-gray-700">
                           {row.med ? `₱${(row.med.pricePerUnit ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '—'}
                         </td>
-                        <td className="px-2.5 py-2 text-right font-semibold text-gray-900">
+                        <td className="px-2.5 py-2 print:px-1 print:py-0.5 text-right font-semibold text-gray-900">
                           {row.med
                             ? `₱${((row.med.pricePerUnit ?? 0) * (row.med.quantity || 0)).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                             : '—'}
@@ -281,33 +285,30 @@ function ConsultationSummary() {
             </div>
 
             {/* ── Billing Summary — read only, uses saved values ── */}
-            <div className="flex justify-end mb-4">
-              <div className="w-80">
-                <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex justify-end mb-2 print:mb-1">
+              <div className="w-full sm:w-80">
+                <div className="flex items-center gap-2 mb-1 print:mb-0.5">
                   <div className="h-3.5 w-1 rounded-full bg-gray-900" />
-                  <p className="text-xs font-black uppercase tracking-widest text-gray-900">Billing Summary</p>
+                  <p className="text-xs print:text-[9px] font-black uppercase tracking-widest text-gray-900">Billing Summary</p>
                 </div>
                 <div className="border border-gray-300 overflow-hidden">
-                  <div className="flex justify-between items-center px-3 py-2 text-xs bg-gray-50 border-b border-gray-200">
+                  <div className="flex justify-between items-center px-3 py-1.5 text-xs print:text-[9px] bg-gray-50 border-b border-gray-200">
                     <span className="text-gray-600">
                       Professional Fee
-                      <span className="text-gray-400 ml-1">(₱300 × {uniquePetCount} {uniquePetCount > 1 ? 'pets' : 'pet'})</span>
+                      <span className="text-gray-400 ml-1 print:text-[8px]">(₱300 × {uniquePetCount} {uniquePetCount > 1 ? 'pets' : 'pet'})</span>
                     </span>
                     <span className="font-semibold text-gray-900">
                       ₱{consultationFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center px-3 py-2 text-xs bg-gray-50 border-b border-gray-200">
+                  <div className="flex justify-between items-center px-3 py-1.5 text-xs print:text-[9px] bg-gray-50 border-b border-gray-200">
                     <span className="text-gray-600">Medications & Items</span>
                     <span className="font-semibold text-gray-900">
                       ₱{medicinesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center px-3 py-2.5" style={{ background: '#111827' }}>
-                    <span className="text-xs font-black uppercase tracking-wide text-white">
-                      Total Amount Due
-                      {isCustomTotal && <span className="text-yellow-400 ml-1 text-xs normal-case font-normal">(adjusted)</span>}
-                    </span>
+                  <div className="flex justify-between items-center px-3 py-1.5 print:py-1" style={{ background: '#111827' }}>
+                    <span className="text-xs print:text-[9px] font-black uppercase tracking-wide text-white">Total Amount Due</span>
                     <span className="text-sm font-black text-white">
                       ₱{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </span>
@@ -318,10 +319,10 @@ function ConsultationSummary() {
 
             {/* ── Follow-up ── */}
             {hasFollowUp && (
-              <div className="mb-4 border border-dashed border-gray-400 px-4 py-2.5 bg-gray-50">
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">📅 Follow-up Schedule</p>
+              <div className="mb-2 print:mb-0.5 border border-dashed border-gray-400 px-4 py-2.5 print:px-1.5 print:py-0.5 bg-gray-50">
+                <p className="text-xs print:text-[9px] font-bold text-gray-700 uppercase tracking-wide mb-0.5">📅 Follow-up Schedule</p>
                 {activities.filter(a => a.followUpDate).map((a, i) => (
-                  <p key={i} className="text-xs text-gray-600">
+                  <p key={i} className="text-xs print:text-[9px] text-gray-600">
                     <span className="font-semibold">{a.petName}</span> — {formatDate(a.followUpDate)}
                     {a.followUpNote && <span className="text-gray-500 ml-1 italic">({a.followUpNote})</span>}
                   </p>
@@ -329,39 +330,31 @@ function ConsultationSummary() {
               </div>
             )}
 
-            {/* Spacer */}
-            <div className="flex-1" />
+            <div className="flex-1 print:hidden" />
 
             {/* ── Vet Signature ── */}
-            <div className="flex justify-end mt-4 mb-6">
-              <div className="text-center w-60">
-                <div className="border-b-2 border-gray-400 mb-1.5 h-10" />
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Attending Veterinarian</p>
-                <p className="text-xs text-gray-500 mt-0.5">PRC License No.: _______________</p>
+            <div className="flex justify-end mt-2 print:mt-0.5 mb-2 print:mb-0.5">
+              <div className="text-center w-60 print:w-32">
+                <div className="border-b-2 border-gray-400 mb-1 print:mb-0.5 h-8 print:h-4" />
+                <p className="text-xs print:text-[8px] font-bold text-gray-700 uppercase tracking-wide leading-none">Attending Veterinarian</p>
+                <p className="text-xs print:text-[8px] text-gray-500 mt-0 print:mt-0 leading-none">PRC License No.: _______________</p>
               </div>
             </div>
 
             {/* ── Footer ── */}
-            <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
-              <p className="text-xs text-gray-400 italic">This is a computer-generated document.</p>
-              <p className="text-xs font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
+            <div className="pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
+              <p className="text-xs print:text-[8px] text-gray-400 italic">This is a computer-generated document.</p>
+              <p className="text-xs print:text-[8px] font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
             </div>
 
           </div>
 
           {/* Bottom accent bar */}
-          <div style={{ height: '5px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
+          <div style={{ backgroundImage: 'linear-gradient(to right, #d97706, #ec4899, #8b5cf6)' }} className="h-1 print:hidden"></div>
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          body { margin: 0; background: white; }
-          @page { size: A4; margin: 0; }
-          .print\\:hidden { display: none !important; }
-        }
-      `}</style>
+      <PrintStyles />
     </div>
   )
 }
