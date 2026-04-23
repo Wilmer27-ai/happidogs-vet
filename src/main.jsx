@@ -4,6 +4,7 @@ import { createHashRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import Layout from './layout.jsx'
 import { AuthProvider } from './pages/AuthContext'
+import { PrintProvider } from './contexts/PrintContext'
 import ProtectedRoute from './pages/ProtectedRoute.jsx'
 
 // Import pages
@@ -113,7 +114,9 @@ const router = createHashRouter([
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <RouterProvider router={router} />
+      <PrintProvider>
+        <RouterProvider router={router} />
+      </PrintProvider>
     </AuthProvider>
   </StrictMode>
 )

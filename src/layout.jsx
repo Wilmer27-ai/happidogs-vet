@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuth } from './pages/AuthContext'
+import { usePrintContext } from './contexts/PrintContext'
 import { 
   FiPlus, 
   FiFileText, 
@@ -23,6 +24,7 @@ import logo from './assets/happidogslogo.png'
 function Layout() {
   const location = useLocation()
   const { logout } = useAuth()
+  const { isPrinting } = usePrintContext()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -64,29 +66,32 @@ function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Mobile Header */}
-      <div className="lg:hidden print:hidden fixed top-0 left-0 right-0 z-[60] h-14 bg-gray-900 text-white flex items-center justify-between px-4 shadow">
-        <div className="flex items-center gap-2 min-w-0">
-          <img src={logo} alt="HappiDogs Logo" className="w-8 h-8 object-contain" />
-          <span className="text-sm font-semibold truncate">HappiDogs</span>
+      {/* Mobile Header - HIDDEN DURING PRINT */}
+      {!isPrinting && (
+        <div className="lg:hidden print:hidden fixed top-0 left-0 right-0 z-[60] h-14 bg-gray-900 text-white flex items-center justify-between px-4 shadow">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src={logo} alt="HappiDogs Logo" className="w-8 h-8 object-contain" />
+            <span className="text-sm font-semibold truncate">HappiDogs</span>
+          </div>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {isMobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
+          </button>
         </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
-        >
-          {isMobileMenuOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
-        </button>
-      </div>
+      )}
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:static top-14 bottom-0 left-0 z-[60] lg:top-0 lg:bottom-0
-        bg-gray-900 text-white flex flex-col
-        transform transition-all duration-300 ease-in-out print:hidden
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${isCollapsed ? 'lg:w-20' : 'w-72'}
-      `}>
+      {/* Sidebar - HIDDEN DURING PRINT */}
+      {!isPrinting && (
+        <aside className={`
+          fixed lg:static top-14 bottom-0 left-0 z-[60] lg:top-0 lg:bottom-0
+          bg-gray-900 text-white flex flex-col
+          transform transition-all duration-300 ease-in-out print:hidden
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isCollapsed ? 'lg:w-20' : 'w-72'}
+        `}>
         {/* Logo/Brand - Clickable to toggle collapse */}
         <div className={`p-6 border-b border-gray-800 flex-shrink-0 ${
           isCollapsed ? 'lg:py-4' : ''
@@ -205,9 +210,10 @@ function Layout() {
           </button>
         </div>
       </aside>
+      )}
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
+      {/* Mobile Overlay - HIDDEN DURING PRINT */}
+      {!isPrinting && isMobileMenuOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-[50]"
           onClick={() => setIsMobileMenuOpen(false)}
@@ -215,7 +221,7 @@ function Layout() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pt-14 lg:pt-0">
+      <main className={`flex-1 overflow-y-auto ${isPrinting ? 'pt-0' : 'pt-14 lg:pt-0'}`}>
         <Outlet />
       </main>
 

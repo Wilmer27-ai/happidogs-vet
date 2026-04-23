@@ -659,6 +659,7 @@ export const MASTER_DATA_DEFAULTS = {
   clinicName: 'Happi Dogs',
   clinicAddress: 'Pob. Ilaya, Lambunao, Iloilo',
   clinicPhone: '0915 325 2959',
+  attendingVeterinarian: '',
 }
 
 export const getMasterData = async () => {

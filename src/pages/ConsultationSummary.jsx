@@ -1,12 +1,27 @@
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi'
 import logo from '../assets/happidogslogo.png'
 import PrintStyles from '../components/PrintStyles'
+import { getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function ConsultationSummary() {
   const location = useLocation()
   const navigate = useNavigate()
   const group = location.state?.group
+  const [clinicName, setClinicName] = useState(MASTER_DATA_DEFAULTS.clinicName)
+  const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
+  const [clinicPhone, setClinicPhone] = useState(MASTER_DATA_DEFAULTS.clinicPhone)
+  const [attendingVeterinarian, setAttendingVeterinarian] = useState(MASTER_DATA_DEFAULTS.attendingVeterinarian)
+
+  useEffect(() => {
+    getMasterData().then((data) => {
+      if (data?.clinicName) setClinicName(data.clinicName)
+      if (data?.clinicAddress) setClinicAddress(data.clinicAddress)
+      if (data?.clinicPhone) setClinicPhone(data.clinicPhone)
+      setAttendingVeterinarian(data?.attendingVeterinarian ?? MASTER_DATA_DEFAULTS.attendingVeterinarian)
+    })
+  }, [])
 
   if (!group) {
     return (
@@ -147,9 +162,6 @@ function ConsultationSummary() {
         <div className="summary-print-page bg-white mx-auto print:shadow-none print:mx-auto flex flex-col w-full max-w-[210mm] print:h-auto"
           style={{ minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
 
-          {/* Top accent bar */}
-          <div style={{ height: '7px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
-
           <div className="flex flex-col flex-1 px-4 sm:px-10 py-6 sm:py-7 print:px-3 print:py-1 space-y-3 print:space-y-1">
 
             {/* ── Clinic Header ── */}
@@ -158,10 +170,10 @@ function ConsultationSummary() {
                 <img src={logo} alt="Happi Dogs" className="w-12 h-12 print:w-10 print:h-10 object-contain"
                   onError={(e) => { e.target.style.display = 'none' }} />
                 <div>
-                  <h1 className="text-base print:text-xs font-black uppercase tracking-wide text-gray-900 leading-none print:leading-tight">Happi Dogs</h1>
+                  <h1 className="text-base print:text-xs font-black uppercase tracking-wide text-gray-900 leading-none print:leading-tight">{clinicName}</h1>
                   <h2 className="text-xs print:text-[9px] font-bold uppercase tracking-widest text-gray-500 leading-none print:leading-tight">Veterinary Clinic</h2>
-                  <p className="text-xs print:text-[9px] text-gray-400 mt-0.5 print:mt-0">Pob. Ilaya, Lambunao, Iloilo</p>
-                  <p className="text-xs print:text-[9px] text-gray-400">Tel: (123) 456-7890</p>
+                  <p className="text-xs print:text-[9px] text-gray-400 mt-0.5 print:mt-0">{clinicAddress}</p>
+                  <p className="text-xs print:text-[9px] text-gray-400">Tel: {clinicPhone}</p>
                 </div>
               </div>
               <div className="text-right print:text-right">
@@ -179,17 +191,17 @@ function ConsultationSummary() {
             <div className="border-t-2 border-gray-900 border-b border-gray-300 mb-1 print:mb-0.5" />
 
             {/* ── Client Info ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 print:gap-1 print:mb-1 bg-gray-50 border border-gray-200 px-4 py-3 print:px-1.5 print:py-1">
+            <div className="summary-print-client-box grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 print:gap-1 print:mb-1 px-4 py-3 print:px-1.5 print:py-1">
               <div className="space-y-1.5 text-xs print:text-[9px]">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Owner's Name:</span>
-                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-bold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     {clientName}
                   </span>
                 </div>
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Contact No.:</span>
-                  <span className="font-semibold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-semibold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     N/A
                   </span>
                 </div>
@@ -197,11 +209,11 @@ function ConsultationSummary() {
               <div className="space-y-1.5 text-xs">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">No. of Pets:</span>
-                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">{uniquePetCount}</span>
+                  <span className="font-bold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">{uniquePetCount}</span>
                 </div>
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">Pet Name(s):</span>
-                  <span className="font-semibold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-semibold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     {groupedByPet.map(g => g.petName).join(', ')}
                   </span>
                 </div>
@@ -319,8 +331,8 @@ function ConsultationSummary() {
 
             {/* ── Follow-up ── */}
             {hasFollowUp && (
-              <div className="mb-2 print:mb-0.5 border border-dashed border-gray-400 px-4 py-2.5 print:px-1.5 print:py-0.5 bg-gray-50">
-                <p className="text-xs print:text-[9px] font-bold text-gray-700 uppercase tracking-wide mb-0.5">📅 Follow-up Schedule</p>
+              <div className="summary-print-followup-box mb-2 print:mb-0.5 px-4 py-2.5 print:px-1.5 print:py-0.5">
+                <p className="text-xs print:text-[9px] font-bold text-gray-700 uppercase tracking-wide mb-0.5">Follow-up Schedule</p>
                 {activities.filter(a => a.followUpDate).map((a, i) => (
                   <p key={i} className="text-xs print:text-[9px] text-gray-600">
                     <span className="font-semibold">{a.petName}</span> — {formatDate(a.followUpDate)}
@@ -335,22 +347,20 @@ function ConsultationSummary() {
             {/* ── Vet Signature ── */}
             <div className="flex justify-end mt-2 print:mt-0.5 mb-2 print:mb-0.5">
               <div className="text-center w-60 print:w-32">
-                <div className="border-b-2 border-gray-400 mb-1 print:mb-0.5 h-8 print:h-4" />
+                <p className="text-xs print:text-[8px] font-semibold text-gray-700 leading-none mb-0.5 print:mb-0">{attendingVeterinarian || ' '}</p>
+                <div className="border-b-2 border-gray-400 mb-1 print:mb-0.5 h-2 print:h-1" />
                 <p className="text-xs print:text-[8px] font-bold text-gray-700 uppercase tracking-wide leading-none">Attending Veterinarian</p>
-                <p className="text-xs print:text-[8px] text-gray-500 mt-0 print:mt-0 leading-none">PRC License No.: _______________</p>
               </div>
             </div>
 
             {/* ── Footer ── */}
-            <div className="pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
+            <div className="summary-print-footer pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
               <p className="text-xs print:text-[8px] text-gray-400 italic">This is a computer-generated document.</p>
               <p className="text-xs print:text-[8px] font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
             </div>
 
           </div>
 
-          {/* Bottom accent bar */}
-          <div style={{ backgroundImage: 'linear-gradient(to right, #d97706, #ec4899, #8b5cf6)' }} className="h-1 print:hidden"></div>
         </div>
       </div>
 

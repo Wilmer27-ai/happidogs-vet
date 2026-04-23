@@ -32,6 +32,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   const [clinicName, setClinicName] = useState(MASTER_DATA_DEFAULTS.clinicName)
   const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
   const [clinicPhone, setClinicPhone] = useState(MASTER_DATA_DEFAULTS.clinicPhone)
+  const [attendingVeterinarian, setAttendingVeterinarian] = useState(MASTER_DATA_DEFAULTS.attendingVeterinarian)
 
   // Load default fee and clinic info from masterData
   useEffect(() => {
@@ -42,6 +43,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
       if (data?.clinicName) setClinicName(data.clinicName)
       if (data?.clinicAddress) setClinicAddress(data.clinicAddress)
       if (data?.clinicPhone) setClinicPhone(data.clinicPhone)
+      setAttendingVeterinarian(data?.attendingVeterinarian ?? MASTER_DATA_DEFAULTS.attendingVeterinarian)
     })
   }, [])
 
@@ -357,8 +359,6 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         <div className="summary-print-page bg-white mx-auto print:shadow-none print:mx-auto flex flex-col w-full max-w-[210mm] print:h-auto"
           style={{ minHeight: '297mm', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }}>
 
-          <div style={{ height: '7px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
-
           <div className="flex flex-col flex-1 px-4 sm:px-10 py-6 sm:py-7 print:px-3 print:py-1 space-y-3 print:space-y-1">
 
             {/* Header */}
@@ -388,17 +388,17 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             <div className="border-t-2 border-gray-900 border-b border-gray-300 mb-1 print:mb-0.5" />
 
             {/* Client Info */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 print:gap-1 print:mb-1 bg-gray-50 border border-gray-200 px-4 py-3 print:px-1.5 print:py-1">
+            <div className="summary-print-client-box grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3 print:gap-1 print:mb-1 px-4 py-3 print:px-1.5 print:py-1">
               <div className="space-y-1.5 text-xs print:text-[9px]">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Owner's Name:</span>
-                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-bold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     {selectedClient?.firstName} {selectedClient?.lastName}
                   </span>
                 </div>
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-24 flex-shrink-0">Contact No.:</span>
-                  <span className="font-semibold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-semibold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     {selectedClient?.contactNumber || selectedClient?.phoneNumber || '______________________'}
                   </span>
                 </div>
@@ -406,11 +406,11 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
               <div className="space-y-1.5 text-xs">
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">No. of Pets:</span>
-                  <span className="font-bold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">{uniquePetCount}</span>
+                  <span className="font-bold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">{uniquePetCount}</span>
                 </div>
                 <div className="flex gap-2 items-baseline">
                   <span className="text-gray-500 font-medium w-20 flex-shrink-0">Pet Name(s):</span>
-                  <span className="font-semibold text-gray-900 border-b border-dotted border-gray-400 flex-1 pb-0.5">
+                  <span className="font-semibold text-gray-900 border-b border-gray-400 flex-1 pb-0.5">
                     {groupedByPet.map(g => g.petName).join(', ')}
                   </span>
                 </div>
@@ -594,8 +594,8 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
 
             {/* Follow-up */}
             {hasFollowUp && (
-              <div className="mb-2 print:mb-0.5 border border-dashed border-gray-400 px-4 py-2.5 print:px-1.5 print:py-0.5 bg-gray-50">
-                <p className="text-xs print:text-[9px] font-bold text-gray-700 uppercase tracking-wide mb-0.5">📅 Follow-up Schedule</p>
+              <div className="summary-print-followup-box mb-2 print:mb-0.5 px-4 py-2.5 print:px-1.5 print:py-0.5">
+                <p className="text-xs print:text-[9px] font-bold text-gray-700 uppercase tracking-wide mb-0.5">Follow-up Schedule</p>
                 {(consultationData || []).filter(a => a.followUpDate).map((a, i) => (
                   <p key={i} className="text-xs print:text-[9px] text-gray-600">
                     <span className="font-semibold">{a.petName}</span> — {formatDate(a.followUpDate)}
@@ -610,20 +610,19 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             {/* Vet Signature */}
             <div className="flex justify-end mt-2 print:mt-0.5 mb-2 print:mb-0.5">
               <div className="text-center w-60 print:w-32">
-                <div className="border-b-2 border-gray-400 mb-1 print:mb-0.5 h-8 print:h-4" />
-                <p className="text-xs print:text-[8px] font-bold text-gray-700 uppercase tracking-wide leading-none">Attending Veterinarian</p>
-                <p className="text-xs print:text-[8px] text-gray-500 mt-0 print:mt-0 leading-none">PRC License No.: _______________</p>
+                <p className="text-m print:text-[15px] font-semibold text-gray-700 leading-none mb-0.5 print:mb-0">{attendingVeterinarian || ' '}</p>
+                <div className="border-b-2 border-gray-400 mb-1 print:mb-0.5 h-2 print:h-1" />
+                <p className="text-base print:text-[8px] font-bold text-gray-700 uppercase tracking-wide leading-none">Attending Veterinarian</p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
+            <div className="summary-print-footer pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
               <p className="text-xs print:text-[8px] text-gray-400 italic">This is a computer-generated document.</p>
               <p className="text-xs print:text-[8px] font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
             </div>
           </div>
 
-          <div style={{ height: '5px', background: 'linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', flexShrink: 0 }} />
         </div>
       </div>
 

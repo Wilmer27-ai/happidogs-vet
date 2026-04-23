@@ -125,6 +125,7 @@ function MasterData() {
   const [clinicName, setClinicName] = useState(MASTER_DATA_DEFAULTS.clinicName)
   const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
   const [clinicPhone, setClinicPhone] = useState(MASTER_DATA_DEFAULTS.clinicPhone)
+  const [attendingVeterinarian, setAttendingVeterinarian] = useState(MASTER_DATA_DEFAULTS.attendingVeterinarian)
 
   const [newMedCategory, setNewMedCategory] = useState('')
   const [newStoreCategory, setNewStoreCategory] = useState('')
@@ -156,6 +157,7 @@ function MasterData() {
         setClinicName(data.clinicName ?? MASTER_DATA_DEFAULTS.clinicName)
         setClinicAddress(data.clinicAddress ?? MASTER_DATA_DEFAULTS.clinicAddress)
         setClinicPhone(data.clinicPhone ?? MASTER_DATA_DEFAULTS.clinicPhone)
+        setAttendingVeterinarian(data.attendingVeterinarian ?? MASTER_DATA_DEFAULTS.attendingVeterinarian)
       }
     } catch (error) {
       console.error('Error loading master data:', error)
@@ -185,6 +187,7 @@ function MasterData() {
         clinicName,
         clinicAddress,
         clinicPhone,
+        attendingVeterinarian,
       })
       setSaved(true)
       setIsDirty(false)
@@ -213,6 +216,7 @@ function MasterData() {
     setClinicName(MASTER_DATA_DEFAULTS.clinicName)
     setClinicAddress(MASTER_DATA_DEFAULTS.clinicAddress)
     setClinicPhone(MASTER_DATA_DEFAULTS.clinicPhone)
+    setAttendingVeterinarian(MASTER_DATA_DEFAULTS.attendingVeterinarian)
     markDirty()
   }
 
@@ -302,6 +306,16 @@ function MasterData() {
                   onChange={(e) => { setClinicPhone(e.target.value); markDirty() }}
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900"
                   placeholder="Phone Number"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Attending Veterinarian</label>
+                <input
+                  type="text"
+                  value={attendingVeterinarian}
+                  onChange={(e) => { setAttendingVeterinarian(e.target.value); markDirty() }}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900"
+                  placeholder="Vet Name"
                 />
               </div>
               <div>
