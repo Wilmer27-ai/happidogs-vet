@@ -48,6 +48,25 @@ function PrintStyles() {
         display: none;
       }
 
+      /* Mobile preview: keep exact A4 layout and scale it down as one piece */
+      @media screen and (max-width: 640px) {
+        .summary-print-wrap {
+          padding: 8px !important;
+          overflow: auto !important;
+          display: flex !important;
+          justify-content: center !important;
+          align-items: flex-start !important;
+        }
+
+        .summary-print-page {
+          width: 210mm !important;
+          max-width: none !important;
+          min-height: 297mm !important;
+          transform-origin: top center !important;
+          transform: scale(clamp(0.42, calc((100vw - 24px) / 794), 1)) !important;
+        }
+      }
+
       @media print {
         /* Force exact color printing */
         * {

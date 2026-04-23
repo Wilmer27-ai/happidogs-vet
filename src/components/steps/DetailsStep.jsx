@@ -67,7 +67,7 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ height: '80vh', maxHeight: '80vh' }}>
 
         {/* Header */}
