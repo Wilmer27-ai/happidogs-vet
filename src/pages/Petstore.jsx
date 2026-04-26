@@ -653,7 +653,7 @@ function PetStore() {
           </div>
         </div>
 
-        <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col">
+        <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col h-[580px]">
           {renderCartPanel()}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FiPlus, FiTrash2, FiArrowLeft, FiPackage, FiChevronDown, FiX } from 'react-icons/fi'
-import { addPurchaseOrder, addMedicine, addStoreItem, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { FiPlus, FiTrash2, FiArrowLeft, FiPackage, FiChevronDown, FiX, FiCalendar } from 'react-icons/fi'
+import { addPurchaseOrder, addMedicine, addStoreItem, getMasterData, saveMasterData, addExpense, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 // ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
 function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
@@ -859,7 +859,23 @@ function CreatePurchaseOrder() {
         }
       }
 
-      alert('Purchase order created successfully!')
+      // Create expense record if cash payment is selected
+      if (orderFormData.paymentTerms === '0') {
+        try {
+          await addExpense({
+            expenseName: `PO Purchase: ${selectedSupplier.supplierName}`,
+            category: 'Supplier Payment',
+            amount: totalAmount.toString(),
+            expenseDate: orderFormData.orderDate,
+            description: `Purchase Order ${orderNumber} - Cash Payment from ${selectedSupplier.supplierName}. Items: ${orderItems.map(i => i.itemName).join(', ')}`
+          })
+        } catch (expenseError) {
+          console.error('Warning: Failed to create expense record:', expenseError)
+          // Don't fail the entire operation if expense logging fails
+        }
+      }
+
+      alert(`Purchase order created successfully!${orderFormData.paymentTerms === '0' ? '\nExpense record created.' : ''}`)
       navigate('/suppliers')
     } catch (error) {
       console.error('Error creating purchase order:', error)
@@ -877,14 +893,26 @@ function CreatePurchaseOrder() {
 
         {/* ── LEFT: Form ── */}
         <div className="w-full lg:w-96 bg-white border-r border-gray-200 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-            <button onClick={() => navigate('/suppliers')} className="text-gray-600 hover:text-gray-900">
-              <FiArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h3 className="font-semibold text-gray-900">Add New Item</h3>
-              <p className="text-xs text-gray-400">{selectedSupplier.supplierName}</p>
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/suppliers')} className="text-gray-600 hover:text-gray-900">
+                <FiArrowLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h3 className="font-semibold text-gray-900">Add New Item</h3>
+                <p className="text-xs text-gray-400">{selectedSupplier.supplierName}</p>
+              </div>
             </div>
+            {orderFormData.paymentTerms === '0' && (
+              <div className="px-2.5 py-1 bg-green-100 text-green-800 rounded text-xs font-medium whitespace-nowrap">
+                Cash Payment
+              </div>
+            )}
+            {orderFormData.paymentTerms !== '0' && orderFormData.paymentTerms && (
+              <div className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium whitespace-nowrap">
+                Due: {new Date(orderFormData.paymentTerms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -898,11 +926,36 @@ function CreatePurchaseOrder() {
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Payment Terms *</label>
-                <input type="text" value={orderFormData.paymentTerms}
-                  onChange={(e) => setOrderFormData({ ...orderFormData, paymentTerms: e.target.value })}
-                  placeholder="e.g. 30, COD"
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                <label className="block text-xs font-medium text-gray-700 mb-2">Payment Terms *</label>
+                <div className="space-y-2">
+                  <select 
+                    value={orderFormData.paymentTerms === '0' ? 'cash' : 'terms'}
+                    onChange={(e) => {
+                      if (e.target.value === 'cash') {
+                        setOrderFormData({ ...orderFormData, paymentTerms: '0' })
+                      } else {
+                        setOrderFormData({ ...orderFormData, paymentTerms: '' })
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                    <option value="cash">Cash Payment</option>
+                    <option value="terms">Payment Terms</option>
+                  </select>
+                  {orderFormData.paymentTerms === '0' && (
+                    <p className="text-xs text-gray-500">Expense will be recorded automatically</p>
+                  )}
+                  {orderFormData.paymentTerms !== '0' && (
+                    <div className="flex items-center gap-2">
+                      <FiCalendar className="w-4 h-4 text-gray-400" />
+                      <input type="date" 
+                        value={orderFormData.paymentTerms}
+                        onChange={(e) => setOrderFormData({ ...orderFormData, paymentTerms: e.target.value })}
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                        min={orderFormData.orderDate}
+                        autoFocus />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

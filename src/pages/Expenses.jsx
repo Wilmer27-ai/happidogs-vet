@@ -1,7 +1,183 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiEdit2, FiTrash2, FiSearch, FiCalendar, FiSave, FiX, FiTrendingDown, FiFileText } from 'react-icons/fi'
-import { addExpense, getExpenses, updateExpense, deleteExpense, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { FiEdit2, FiTrash2, FiSearch, FiCalendar, FiSave, FiX, FiTrendingDown, FiFileText, FiPlus, FiChevronDown } from 'react-icons/fi'
+import { addExpense, getExpenses, updateExpense, deleteExpense, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
+// ── Category Dropdown Component ────────────────────────────────────────────────
+function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select category...' }) {
+  const [open, setOpen] = useState(false)
+  const [newCategory, setNewCategory] = useState('')
+  const [lastAddedCategory, setLastAddedCategory] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewCategory('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = async () => {
+    const trimmed = newCategory.trim()
+    if (!trimmed) return
+    if (categories.includes(trimmed)) {
+      onChange(trimmed)
+      setNewCategory('')
+      setOpen(false)
+      return
+    }
+
+    try {
+      const updatedCategories = [...categories, trimmed]
+      onCategoriesChange(updatedCategories)
+      
+      // Save to master data
+      await saveMasterData({
+        expenseCategories: updatedCategories,
+      })
+      
+      onChange(trimmed)
+      setLastAddedCategory(trimmed)
+      setSavedMessage(true)
+      setNewCategory('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedCategory(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error adding category:', error)
+      alert('Failed to add category.')
+    }
+  }
+
+  const handleDelete = async (category, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    
+    try {
+      const updatedCategories = categories.filter(c => c !== category)
+      onCategoriesChange(updatedCategories)
+      
+      // Save to master data
+      await saveMasterData({
+        expenseCategories: updatedCategories,
+      })
+      
+      if (value === category) onChange('')
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      alert('Failed to delete category.')
+    }
+  }
+
+  const handleSelect = (category) => {
+    onChange(category)
+    setOpen(false)
+    setNewCategory('')
+  }
+
+  return (
+    <div ref={ref} className="relative w-full">
+      {label && <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>}
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewCategory('') }}
+        className="w-full flex items-center justify-between px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-2xl z-50"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewCategory('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Type new category..."
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newCategory.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {categories.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No categories yet. Add one above.</p>
+            ) : (
+              categories.map(category => {
+                const isSelected = value === category
+                const isNewlyAdded = category === lastAddedCategory
+                return (
+                  <div
+                    key={category}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(category)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                        {category}
+                      </span>
+                      {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                    </div>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={(e) => handleDelete(category, e)}
+                      className="flex items-center gap-1 px-1.5 py-0.5 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                      title="Delete this category"
+                    >
+                      <FiTrash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Expenses Component ────────────────────────────────────────────────────
 function Expenses() {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -269,16 +445,12 @@ function Expenses() {
                 placeholder="Expense Name *"
               />
 
-              <select
-                required
+              <CategoryDropdown
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
-              >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, category: val })}
+                categories={categories}
+                onCategoriesChange={setCategories}
+              />
 
               <input
                 type="text"

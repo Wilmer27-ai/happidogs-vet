@@ -116,6 +116,7 @@ function MasterData() {
   const [storeCategories, setStoreCategories] = useState([...MASTER_DATA_DEFAULTS.storeCategories])
   const [activityTypes, setActivityTypes] = useState([...MASTER_DATA_DEFAULTS.activityTypes])
   const [petSpecies, setPetSpecies] = useState([...MASTER_DATA_DEFAULTS.petSpecies])
+  const [petBreeds, setPetBreeds] = useState([...MASTER_DATA_DEFAULTS.petBreeds])
   const [packUnits, setPackUnits] = useState([...MASTER_DATA_DEFAULTS.packUnits])
   const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
   const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
@@ -131,6 +132,7 @@ function MasterData() {
   const [newStoreCategory, setNewStoreCategory] = useState('')
   const [newActivityType, setNewActivityType] = useState('')
   const [newSpecies, setNewSpecies] = useState('')
+  const [newBreeds, setNewBreeds] = useState('')
   const [newPackUnit, setNewPackUnit] = useState('')
   const [newSubUnit, setNewSubUnit] = useState('')
   const [newBrand, setNewBrand] = useState('')
@@ -148,6 +150,7 @@ function MasterData() {
         setStoreCategories(data.storeCategories ?? [...MASTER_DATA_DEFAULTS.storeCategories])
         setActivityTypes(data.activityTypes ?? [...MASTER_DATA_DEFAULTS.activityTypes])
         setPetSpecies(data.petSpecies ?? [...MASTER_DATA_DEFAULTS.petSpecies])
+        setPetBreeds(data.petBreeds ?? [...MASTER_DATA_DEFAULTS.petBreeds])
         setPackUnits(data.packUnits ?? [...MASTER_DATA_DEFAULTS.packUnits])
         setSubUnits(data.subUnits ?? [...MASTER_DATA_DEFAULTS.subUnits])
         setBrands(data.brands ?? [...MASTER_DATA_DEFAULTS.brands])
@@ -178,6 +181,7 @@ function MasterData() {
         storeCategories,
         activityTypes,
         petSpecies,
+        petBreeds,
         packUnits,
         subUnits,
         brands,
@@ -207,6 +211,7 @@ function MasterData() {
     setStoreCategories([...MASTER_DATA_DEFAULTS.storeCategories])
     setActivityTypes([...MASTER_DATA_DEFAULTS.activityTypes])
     setPetSpecies([...MASTER_DATA_DEFAULTS.petSpecies])
+    setPetBreeds([...MASTER_DATA_DEFAULTS.petBreeds])
     setPackUnits([...MASTER_DATA_DEFAULTS.packUnits])
     setSubUnits([...MASTER_DATA_DEFAULTS.subUnits])
     setExpenseCategories([...MASTER_DATA_DEFAULTS.expenseCategories])
@@ -392,6 +397,15 @@ function MasterData() {
               onAdd={(val) => { setPetSpecies(prev => [...prev, val]); markDirty() }}
               newValue={newSpecies}
               setNewValue={setNewSpecies}
+            />
+            <CategorySection
+              title="Pet Breeds"
+              description="Shown in the breed dropdown when adding a new pet"
+              items={petBreeds}
+              onRemove={(i) => { setPetBreeds(prev => prev.filter((_, idx) => idx !== i)); markDirty() }}
+              onAdd={(val) => { setPetBreeds(prev => [...prev, val]); markDirty() }}
+              newValue={newBreeds}
+              setNewValue={setNewBreeds}
             />
             <CategorySection
               title="Pack Units"

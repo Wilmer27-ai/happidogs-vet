@@ -649,6 +649,7 @@ export const MASTER_DATA_DEFAULTS = {
   storeCategories: ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other'],
   activityTypes: ['Consultation', 'Vaccination', 'Deworming'],
   petSpecies: ['Canine', 'Feline', 'Avian', 'Rabbit', 'Guinea Pig', 'Hamster', 'Reptile', 'Fish', 'Other'],
+  petBreeds: ['Labrador Retriever', 'Golden Retriever', 'German Shepherd', 'Bulldog', 'Poodle', 'Beagle', 'Rottweiler', 'Dachshund', 'Siberian Husky', 'Boxer', 'Persian', 'Maine Coon', 'Siamese', 'Bengal', 'Ragdoll', 'Cockatiel', 'Budgie', 'Other'],
   packUnits: ['bottle', 'box', 'sack', 'vial', 'ampoule', 'sachet', 'tube', 'pack', 'bag', 'can'],
   subUnits: ['ml', 'tablet', 'capsule', 'kg', 'g', 'mg', 'pcs', 'dose'],
   brands: ['Apollo', 'Beaphar', 'Royal Canin', 'Purina', 'Iams', 'Pedigree', 'Generic'],

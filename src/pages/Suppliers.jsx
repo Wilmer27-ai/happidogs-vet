@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiShoppingCart, FiAlertCircle, FiCheck, FiPackage } from 'react-icons/fi'
-import { getSuppliers, addSupplier, updateSupplier, deleteSupplier, getPurchaseOrders, updatePurchaseOrder, deletePurchaseOrder } from '../firebase/services'
+import { getSuppliers, addSupplier, updateSupplier, deleteSupplier, getPurchaseOrders, updatePurchaseOrder, deletePurchaseOrder, addExpense } from '../firebase/services'
 
 function Suppliers() {
   const navigate = useNavigate()
@@ -29,7 +29,8 @@ function Suppliers() {
     supplierName: '',
     phoneNumber: '',
     address: '',
-    paymentTerms: ''
+    paymentTerms: '',
+    cashPayment: false
   })
 
   useEffect(() => {
@@ -163,7 +164,8 @@ function Suppliers() {
       supplierName: supplier.supplierName,
       phoneNumber: supplier.phoneNumber || '',
       address: supplier.address || '',
-      paymentTerms: supplier.paymentTerms || ''
+      paymentTerms: supplier.paymentTerms || '',
+      cashPayment: supplier.cashPayment || false
     })
     setIsSupplierModalOpen(true)
   }
@@ -193,7 +195,8 @@ function Suppliers() {
       supplierName: '',
       phoneNumber: '',
       address: '',
-      paymentTerms: ''
+      paymentTerms: '',
+      cashPayment: false
     })
   }
 
@@ -214,6 +217,24 @@ function Suppliers() {
         paymentStatus: 'Paid',
         paidDate: new Date().toISOString()
       })
+
+      // Create expense record for the payment
+      try {
+        const items = selectedOrderForPayment.items || []
+        const itemList = items.map(i => i.itemName).join(', ')
+        
+        await addExpense({
+          expenseName: `PO Payment: ${selectedOrderForPayment.supplierName}`,
+          category: 'Supplier Payment',
+          amount: selectedOrderForPayment.totalAmount.toString(),
+          expenseDate: new Date().toISOString().split('T')[0],
+          description: `Purchase Order ${selectedOrderForPayment.orderNumber} - Payment received. Items: ${itemList}`
+        })
+      } catch (expenseError) {
+        console.error('Warning: Failed to create expense record:', expenseError)
+        // Don't fail the entire operation if expense logging fails
+      }
+
       await loadData()
       setIsPaymentModalOpen(false)
       setSelectedOrderForPayment(null)
@@ -349,27 +370,24 @@ function Suppliers() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center justify-end gap-1">
+                              <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => handleCreatePurchaseOrder(supplier)}
-                                  className="text-green-600 hover:text-green-700 p-1.5"
-                                  title="Create Purchase Order"
+                                  className="px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
                                 >
-                                  <FiShoppingCart className="w-4 h-4" />
+                                  New PO
                                 </button>
                                 <button
                                   onClick={() => handleEditSupplier(supplier)}
-                                  className="text-blue-600 hover:text-blue-700 p-1.5"
-                                  title="Edit"
+                                  className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                                 >
-                                  <FiEdit2 className="w-4 h-4" />
+                                  Edit
                                 </button>
                                 <button
                                   onClick={() => handleDeleteSupplier(supplier.id)}
-                                  className="text-red-600 hover:text-red-700 p-1.5"
-                                  title="Delete"
+                                  className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                 >
-                                  <FiTrash2 className="w-4 h-4" />
+                                  Delete
                                 </button>
                               </div>
                             </td>
@@ -437,26 +455,24 @@ function Suppliers() {
                                 </span>
                               </td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center justify-end gap-1">
+                                <div className="flex items-center justify-end gap-2">
                                   {order.paymentStatus !== 'Paid' ? (
                                     <button
                                       onClick={() => handleMarkAsPaid(order)}
-                                      className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium"
+                                      className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 font-medium transition-colors"
                                     >
-                                      <FiCheck className="w-3 h-3" />
                                       Mark Paid
                                     </button>
                                   ) : (
-                                    <span className="text-xs text-gray-500">
+                                    <span className="text-xs text-gray-500 px-3 py-1.5">
                                       {new Date(order.paidDate).toLocaleDateString()}
                                     </span>
                                   )}
                                   <button
                                     onClick={() => handleDeletePurchaseOrder(order)}
-                                    className="text-red-600 hover:text-red-700 p-1.5"
-                                    title="Delete Order"
+                                    className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                   >
-                                    <FiTrash2 className="w-4 h-4" />
+                                    Delete
                                   </button>
                                 </div>
                               </td>
@@ -557,18 +573,40 @@ function Suppliers() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Terms (Days) *
+                    Payment Terms
                   </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={supplierFormData.paymentTerms}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, paymentTerms: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0 for COD, 7, 30, etc."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Enter 0 for Cash on Delivery (COD)</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <input
+                        type="checkbox"
+                        id="cashPayment"
+                        checked={supplierFormData.cashPayment}
+                        onChange={(e) => setSupplierFormData({ ...supplierFormData, cashPayment: e.target.checked, paymentTerms: e.target.checked ? '0' : '' })}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                      <label htmlFor="cashPayment" className="text-sm font-medium text-gray-700 cursor-pointer">
+                        Cash Payment (COD)
+                      </label>
+                    </div>
+                    
+                    {!supplierFormData.cashPayment && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Days for Payment *
+                        </label>
+                        <input
+                          type="number"
+                          required={!supplierFormData.cashPayment}
+                          min="1"
+                          value={supplierFormData.paymentTerms}
+                          onChange={(e) => setSupplierFormData({ ...supplierFormData, paymentTerms: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="7, 30, 60, etc."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Number of days to pay (e.g., Net 30, Net 60)</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -594,7 +632,7 @@ function Suppliers() {
 
       {/* Payment Confirmation Modal */}
       {isPaymentModalOpen && selectedOrderForPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+        <div className="fixed inset-0 bg-black/40 z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Confirm Payment</h2>
