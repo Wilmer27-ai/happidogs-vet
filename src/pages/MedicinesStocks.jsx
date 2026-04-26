@@ -1132,6 +1132,18 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
     return next
   }
 
+  const sanitizeForFirestore = (value) => {
+    if (value === undefined) return null
+    if (value === null) return null
+    if (Array.isArray(value)) return value.map(sanitizeForFirestore)
+    if (typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [k, sanitizeForFirestore(v)])
+      )
+    }
+    return value
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -1150,17 +1162,27 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
         await updateStoreItem(item.id, normalizedForm)
       }
 
-      // ── Log the edit ──
-      await logStockEdit({
-        itemId: item.id,
-        itemName: item.itemName || item.medicineName || '',
-        itemType: item._type,
-        action: 'edit',
-        changes,
-        editedAt: new Date().toISOString(),
-      })
+      // ── Log the edit (non-blocking for UI save success) ──
+      try {
+        const safeChanges = sanitizeForFirestore(
+          Object.keys(changes).length > 0
+            ? changes
+            : { note: { before: null, after: 'Saved with no field diff detected' } }
+        )
 
-      onSave()
+        await logStockEdit({
+          itemId: item.id,
+          itemName: item.itemName || item.medicineName || '',
+          itemType: item._type,
+          action: 'edit',
+          changes: safeChanges,
+          editedAt: new Date().toISOString(),
+        })
+      } catch (logErr) {
+        console.warn('Stock updated but edit log failed:', logErr)
+      }
+
+      await onSave()
       onClose()
     } catch (err) {
       console.error(err)
