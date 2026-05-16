@@ -764,9 +764,7 @@ function Dashboard() {
                         <p className="text-sm font-semibold text-gray-900">{ownerGroup.clientName}</p>
                         <p className="text-xs text-gray-500">Contact: {ownerGroup.phoneNumber}</p>
                       </div>
-                      <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                        {ownerGroup.pets.length} {ownerGroup.pets.length === 1 ? 'Pet' : 'Pets'}
-                      </span>
+                    
                     </div>
                   </button>
                 ))}
