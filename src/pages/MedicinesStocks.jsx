@@ -181,7 +181,7 @@ function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholde
 }
 
 // ── Reusable Category Dropdown with Add / Delete ──────────────────────────────
-function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...' }) {
+function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...', categoryType = 'medicine' }) {
   const [open, setOpen] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   const [dropdownStyle, setDropdownStyle] = useState({})
@@ -230,7 +230,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newCategory.trim()
     if (!trimmed) return
     if (categories.includes(trimmed)) {
@@ -239,16 +239,30 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
       setOpen(false)
       return
     }
-    onCategoriesChange([...categories, trimmed])
-    onChange(trimmed)
-    setLastAddedCategory(trimmed)
-    setSavedMessage(true)
-    setNewCategory('')
-    setTimeout(() => {
-      setOpen(false)
-      setLastAddedCategory(null)
-      setSavedMessage(false)
-    }, 1500)
+    
+    try {
+      const updatedCategories = [...categories, trimmed]
+      
+      // Save to master data first
+      const key = categoryType === 'store' ? 'storeCategories' : 'medicineCategories'
+      await saveMasterData({ [key]: updatedCategories })
+      
+      // Then update parent
+      onCategoriesChange(updatedCategories)
+      
+      onChange(trimmed)
+      setLastAddedCategory(trimmed)
+      setSavedMessage(true)
+      setNewCategory('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedCategory(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error adding category:', error)
+      alert('Failed to add category.')
+    }
   }
 
   const handleDelete = (category, e) => {
@@ -406,7 +420,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newBrand.trim()
     if (!trimmed) return
     if (brands.includes(trimmed)) {
@@ -415,16 +429,29 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
       setOpen(false)
       return
     }
-    onBrandsChange([...brands, trimmed])
-    onChange(trimmed)
-    setLastAddedBrand(trimmed)
-    setSavedMessage(true)
-    setNewBrand('')
-    setTimeout(() => {
-      setOpen(false)
-      setLastAddedBrand(null)
-      setSavedMessage(false)
-    }, 1500)
+    
+    try {
+      const updatedBrands = [...brands, trimmed]
+      
+      // Save to master data first
+      await saveMasterData({ brands: updatedBrands })
+      
+      // Then update parent
+      onBrandsChange(updatedBrands)
+      
+      onChange(trimmed)
+      setLastAddedBrand(trimmed)
+      setSavedMessage(true)
+      setNewBrand('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedBrand(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error adding brand:', error)
+      alert('Failed to add brand.')
+    }
   }
 
   const handleDelete = (brand, e) => {
@@ -533,7 +560,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
 }
 
 // ── Add Stock Modal ───────────────────────────────────────────────────────
-function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms, packUnits: propPackUnits, subUnits: propSubUnits, onPackUnitsChange, onSubUnitsChange }) {
+function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCategories, storeCategories: propStoreCategories, medicineForms: propMedicineForms, packUnits: propPackUnits, subUnits: propSubUnits, brands: propBrands, onPackUnitsChange, onSubUnitsChange }) {
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
   const medicineForms = propMedicineForms ?? MASTER_DATA_DEFAULTS.medicineForms
 
@@ -553,7 +580,20 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
   const [subUnits, setSubUnits] = useState([...MASTER_DATA_DEFAULTS.subUnits])
   const [medicineCategories, setMedicineCategories] = useState(propMedCategories ?? [...MASTER_DATA_DEFAULTS.medicineCategories])
   const [storeCategories, setStoreCategories] = useState(propStoreCategories ?? [...MASTER_DATA_DEFAULTS.storeCategories])
-  const [brands, setBrands] = useState([...MASTER_DATA_DEFAULTS.brands])
+  const [brands, setBrands] = useState(propBrands ?? [...MASTER_DATA_DEFAULTS.brands])
+
+  // Sync props to local state when they change
+  useEffect(() => {
+    if (propBrands) setBrands(propBrands)
+  }, [propBrands])
+
+  useEffect(() => {
+    if (propMedCategories) setMedicineCategories(propMedCategories)
+  }, [propMedCategories])
+
+  useEffect(() => {
+    if (propStoreCategories) setStoreCategories(propStoreCategories)
+  }, [propStoreCategories])
 
   const isMedicine = form.itemType === 'medicine'
   const isSyrup = isMedicine && form.medicineType === 'syrup'
@@ -789,6 +829,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                     categories={isMedicine ? medicineCategories : storeCategories}
                     onCategoriesChange={isMedicine ? handleMedicineCategoriesChange : handleStoreCategoriesChange}
                     placeholder="Select category"
+                    categoryType={isMedicine ? 'medicine' : 'store'}
                   />
                 </div>
               </div>
@@ -1328,6 +1369,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
                 categories={item._type === 'medicine' ? medicineCategories : storeCategories}
                 onCategoriesChange={item._type === 'medicine' ? handleLocalMedicineCategoriesChange : handleLocalStoreCategoriesChange}
                 placeholder="Select or add category"
+                categoryType={item._type === 'medicine' ? 'medicine' : 'store'}
               />
             </div>
             {item._type === 'medicine' && (
@@ -1734,6 +1776,7 @@ function MedicinesStocks() {
         if (masterData.medicineForms) setMedicineForms(masterData.medicineForms)
         if (masterData.packUnits) setPackUnits(masterData.packUnits)
         if (masterData.subUnits) setSubUnits(masterData.subUnits)
+        if (masterData.brands) setBrands(masterData.brands)
         if (masterData.lowStockThreshold != null) setLowStockThreshold(masterData.lowStockThreshold)
       }
     } catch (error) {
@@ -1885,6 +1928,7 @@ function MedicinesStocks() {
         medicineForms={medicineForms}
         packUnits={packUnits}
         subUnits={subUnits}
+        brands={brands}
         onPackUnitsChange={handlePackUnitsChange}
         onSubUnitsChange={handleSubUnitsChange}
       />

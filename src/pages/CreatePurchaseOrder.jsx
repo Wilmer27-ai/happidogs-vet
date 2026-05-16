@@ -238,7 +238,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newBrand.trim()
     if (!trimmed) return
     if (brands.includes(trimmed)) {
@@ -247,16 +247,22 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
       setOpen(false)
       return
     }
-    onBrandsChange([...brands, trimmed])
-    onChange(trimmed)
-    setLastAddedBrand(trimmed)
-    setSavedMessage(true)
-    setNewBrand('')
-    setTimeout(() => {
-      setOpen(false)
-      setLastAddedBrand(null)
-      setSavedMessage(false)
-    }, 1500)
+    const updatedBrands = [...brands, trimmed]
+    try {
+      await saveMasterData({ brands: updatedBrands })
+      onBrandsChange(updatedBrands)
+      onChange(trimmed)
+      setLastAddedBrand(trimmed)
+      setSavedMessage(true)
+      setNewBrand('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedBrand(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error saving brand:', error)
+    }
   }
 
   const handleDelete = (brand, e) => {
@@ -365,7 +371,7 @@ function BrandDropdown({ label, value, onChange, brands, onBrandsChange, placeho
 }
 
 // ── Reusable Category Dropdown with Add / Delete ──────────────────────────────
-function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...' }) {
+function CategoryDropdown({ label, value, onChange, categories, onCategoriesChange, placeholder = 'Select or type...', categoryType = 'medicine' }) {
   const [open, setOpen] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   const [dropdownStyle, setDropdownStyle] = useState({})
@@ -414,7 +420,7 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newCategory.trim()
     if (!trimmed) return
     if (categories.includes(trimmed)) {
@@ -423,16 +429,23 @@ function CategoryDropdown({ label, value, onChange, categories, onCategoriesChan
       setOpen(false)
       return
     }
-    onCategoriesChange([...categories, trimmed])
-    onChange(trimmed)
-    setLastAddedCategory(trimmed)
-    setSavedMessage(true)
-    setNewCategory('')
-    setTimeout(() => {
-      setOpen(false)
-      setLastAddedCategory(null)
-      setSavedMessage(false)
-    }, 1500)
+    const updatedCategories = [...categories, trimmed]
+    try {
+      const key = categoryType === 'medicine' ? 'medicineCategories' : 'storeCategories'
+      await saveMasterData({ [key]: updatedCategories })
+      onCategoriesChange(updatedCategories)
+      onChange(trimmed)
+      setLastAddedCategory(trimmed)
+      setSavedMessage(true)
+      setNewCategory('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedCategory(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error saving category:', error)
+    }
   }
 
   const handleDelete = (category, e) => {
@@ -624,6 +637,7 @@ function CreatePurchaseOrder() {
         if (data.subUnits?.length) setSubUnits(data.subUnits)
         if (data.medicineCategories?.length) setMedicineCategories(data.medicineCategories)
         if (data.storeCategories?.length) setStoreCategories(data.storeCategories)
+        if (data.brands?.length) setBrands(data.brands)
         if (data.medicineForms) setMedicineForms(data.medicineForms)
       }
     })
@@ -1012,6 +1026,7 @@ function CreatePurchaseOrder() {
                 categories={currentItem.itemType === 'medicine' ? medicineCategories : storeCategories}
                 onCategoriesChange={currentItem.itemType === 'medicine' ? handleMedicineCategoriesChange : handleStoreCategoriesChange}
                 placeholder="Select category"
+                categoryType={currentItem.itemType === 'medicine' ? 'medicine' : 'store'}
               />
             </div>
 
