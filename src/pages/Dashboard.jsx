@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiAlertCircle } from 'react-icons/fi'
+import { FiAlertCircle, FiCopy, FiCheck } from 'react-icons/fi'
 import { getAllPetActivities, getClients, getPets, getMedicines, getStoreItems, getExpenses, getMasterData, getSales, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function Dashboard() {
@@ -13,6 +13,7 @@ function Dashboard() {
   const [selectedFollowUpDate, setSelectedFollowUpDate] = useState(null)
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false)
   const [selectedOwnerForFollowUp, setSelectedOwnerForFollowUp] = useState(null)
+  const [copiedPhoneNumber, setCopiedPhoneNumber] = useState(null)
   const [calendarDate, setCalendarDate] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -376,6 +377,14 @@ function Dashboard() {
     setIsFollowUpModalOpen(false)
     setSelectedFollowUpDate(null)
     setSelectedOwnerForFollowUp(null)
+    setCopiedPhoneNumber(null)
+  }
+
+  const handleCopyPhoneNumber = (phoneNumber, e) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(phoneNumber)
+    setCopiedPhoneNumber(phoneNumber)
+    setTimeout(() => setCopiedPhoneNumber(null), 2000)
   }
 
   // Group follow-ups by owner for the modal
@@ -743,9 +752,25 @@ function Dashboard() {
                 </h3>
                 <p className="text-xs text-gray-500">{formatDate(selectedFollowUpDate)}</p>
               </div>
-              <button type="button" onClick={closeFollowUpModal} className="text-gray-400 hover:text-gray-600">
-                <FiAlertCircle className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedOwnerForFollowUp && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleCopyPhoneNumber(selectedOwnerForFollowUp.phoneNumber, e)}
+                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded hover:bg-gray-100"
+                    title="Copy phone number"
+                  >
+                    {copiedPhoneNumber === selectedOwnerForFollowUp.phoneNumber ? (
+                      <FiCheck className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <FiCopy className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+                <button type="button" onClick={closeFollowUpModal} className="text-gray-400 hover:text-gray-600">
+                  <FiAlertCircle className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Owner List View */}
@@ -763,7 +788,18 @@ function Dashboard() {
                         <p className="text-sm font-semibold text-gray-900">{ownerGroup.clientName}</p>
                         <p className="text-xs text-gray-500">Contact: {ownerGroup.phoneNumber}</p>
                       </div>
-                    
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyPhoneNumber(ownerGroup.phoneNumber, e)}
+                        className="flex-shrink-0 p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Copy phone number"
+                      >
+                        {copiedPhoneNumber === ownerGroup.phoneNumber ? (
+                          <FiCheck className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <FiCopy className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   </button>
                 ))}
