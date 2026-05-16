@@ -1,7 +1,175 @@
 // ClientsPets.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiUser, FiHeart } from 'react-icons/fi'
-import { getClients, addClient, updateClient, deleteClient, addPet, updatePet, deletePet, getPets } from '../firebase/services'
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiSearch, FiUser, FiHeart, FiChevronDown } from 'react-icons/fi'
+import { getClients, addClient, updateClient, deleteClient, addPet, updatePet, deletePet, getPets, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+
+// ── Dropdown Component for Species/Breed ──────────────────────────────────────
+function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholder = 'Select or type...' }) {
+  const [open, setOpen] = useState(false)
+  const [newItem, setNewItem] = useState('')
+  const [lastAddedItem, setLastAddedItem] = useState(null)
+  const [savedMessage, setSavedMessage] = useState(false)
+  const ref = useRef(null)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        ref.current && !ref.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false)
+        setNewItem('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const handleAdd = async () => {
+    const trimmed = newItem.trim()
+    if (!trimmed) return
+    if (items.includes(trimmed)) {
+      onChange(trimmed)
+      setNewItem('')
+      setOpen(false)
+      return
+    }
+
+    try {
+      const updatedItems = [...items, trimmed]
+      onItemsChange(updatedItems)
+      
+      // Save to master data
+      if (label === 'Species') {
+        await saveMasterData({ petSpecies: updatedItems })
+      } else if (label === 'Breed') {
+        await saveMasterData({ petBreeds: updatedItems })
+      }
+      
+      onChange(trimmed)
+      setLastAddedItem(trimmed)
+      setSavedMessage(true)
+      setNewItem('')
+      setTimeout(() => {
+        setOpen(false)
+        setLastAddedItem(null)
+        setSavedMessage(false)
+      }, 1500)
+    } catch (error) {
+      console.error('Error adding item:', error)
+      alert('Failed to add item.')
+    }
+  }
+
+  const handleDelete = async (item, e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    
+    try {
+      const updatedItems = items.filter(i => i !== item)
+      onItemsChange(updatedItems)
+      
+      // Save to master data
+      if (label === 'Species') {
+        await saveMasterData({ petSpecies: updatedItems })
+      } else if (label === 'Breed') {
+        await saveMasterData({ petBreeds: updatedItems })
+      }
+      
+      if (value === item) onChange('')
+    } catch (error) {
+      console.error('Error deleting item:', error)
+      alert('Failed to delete item.')
+    }
+  }
+
+  const handleSelect = (item) => {
+    onChange(item)
+    setOpen(false)
+    setNewItem('')
+  }
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label} <span className="text-red-500">*</span></label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setNewItem('') }}
+        className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-xl z-50"
+        >
+          {savedMessage && (
+            <div className="px-3 py-2 bg-green-50 border-b border-green-200 text-xs text-green-700 font-medium flex items-center gap-1.5">
+              <span className="w-4 h-4 bg-green-600 text-white rounded-full flex items-center justify-center text-xs">✓</span>
+              Saved to Master Data
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 p-2 border-b border-gray-100 bg-gray-50">
+            <input
+              type="text"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation()
+                if (e.key === 'Enter') { e.preventDefault(); handleAdd() }
+                if (e.key === 'Escape') { setOpen(false); setNewItem('') }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder={`Type new ${label.toLowerCase()}...`}
+              className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+              onClick={(e) => { e.stopPropagation(); handleAdd() }}
+              disabled={!newItem.trim()}
+              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <FiPlus className="w-3 h-3" />
+              Add
+            </button>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto">
+            {items.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No items yet. Add one above.</p>
+            ) : (
+              items.map(item => {
+                const isSelected = value === item
+                const isNewlyAdded = item === lastAddedItem
+                return (
+                  <div
+                    key={item}
+                    className={`flex items-center justify-between px-3 py-2 cursor-pointer group transition-colors
+                      ${isNewlyAdded ? 'bg-green-100 border-l-3 border-green-600' : isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                    onClick={() => handleSelect(item)}
+                  >
+                    <span className={`text-sm ${isNewlyAdded ? 'text-green-700 font-semibold' : isSelected ? 'text-blue-700 font-semibold' : 'text-gray-800'}`}>
+                      {item}
+                    </span>
+                    {isNewlyAdded && <span className="text-xs font-medium text-green-700">NEW</span>}
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ClientsPets() {
   const [clients, setClients] = useState([])
@@ -13,6 +181,10 @@ function ClientsPets() {
   const [isPetModalOpen, setIsPetModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState(null)
   const [editingPet, setEditingPet] = useState(null)
+  
+  // Master data states
+  const [petSpecies, setPetSpecies] = useState([...MASTER_DATA_DEFAULTS.petSpecies])
+  const [petBreeds, setPetBreeds] = useState([...MASTER_DATA_DEFAULTS.petBreeds])
   
   // Lazy loading states
   const [displayCountClients, setDisplayCountClients] = useState(20)
@@ -28,7 +200,7 @@ function ClientsPets() {
 
   const [petFormData, setPetFormData] = useState({
     name: '',
-    species: 'Dog',
+    species: '',
     breed: '',
     dateOfBirth: '',
     clientId: ''
@@ -67,12 +239,19 @@ function ClientsPets() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [clientsData, petsData] = await Promise.all([
+      const [clientsData, petsData, masterData] = await Promise.all([
         getClients(),
-        getPets()
+        getPets(),
+        getMasterData()
       ])
       
       setClients(clientsData)
+      
+      // Load master data
+      if (masterData) {
+        if (masterData.petSpecies?.length) setPetSpecies(masterData.petSpecies)
+        if (masterData.petBreeds?.length) setPetBreeds(masterData.petBreeds)
+      }
       
       // Enrich pets with client names
       const enrichedPets = petsData.map(pet => {
@@ -248,7 +427,7 @@ function ClientsPets() {
     setEditingPet(null)
     setPetFormData({
       name: '',
-      species: 'Dog',
+      species: '',
       breed: '',
       dateOfBirth: '',
       clientId: ''
@@ -459,7 +638,7 @@ function ClientsPets() {
 
       {/* Add/Edit Client Modal */}
       {isClientModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -552,7 +731,7 @@ function ClientsPets() {
 
       {/* Add/Edit Pet Modal */}
       {isPetModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -580,38 +759,22 @@ function ClientsPets() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Species <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      required
-                      value={petFormData.species}
-                      onChange={(e) => setPetFormData({ ...petFormData, species: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select</option>
-                      <option value="Dog">Dog</option>
-                      <option value="Cat">Cat</option>
-                      <option value="Bird">Bird</option>
-                      <option value="Rabbit">Rabbit</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Breed <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={petFormData.breed}
-                      onChange={(e) => setPetFormData({ ...petFormData, breed: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Golden Retriever"
-                    />
-                  </div>
+                  <ItemDropdown
+                    label="Species"
+                    value={petFormData.species}
+                    onChange={(value) => setPetFormData({ ...petFormData, species: value })}
+                    items={petSpecies}
+                    onItemsChange={setPetSpecies}
+                    placeholder="Select species..."
+                  />
+                  <ItemDropdown
+                    label="Breed"
+                    value={petFormData.breed}
+                    onChange={(value) => setPetFormData({ ...petFormData, breed: value })}
+                    items={petBreeds}
+                    onItemsChange={setPetBreeds}
+                    placeholder="Select breed..."
+                  />
                 </div>
 
                 <div>
