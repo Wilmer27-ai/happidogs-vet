@@ -2030,10 +2030,10 @@ function MedicinesStocks() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-hidden px-4 md:px-6 py-3">
-        <div className="bg-white rounded-md border border-gray-200 shadow-sm h-full overflow-hidden flex flex-col">
-          <div className="overflow-auto flex-1">
-            <div className="w-full overflow-x-auto">
+      <div className="px-4 md:px-6 py-3 flex-1 overflow-hidden">
+        <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
+          <div className="overflow-y-auto flex-1">
+            <div className="w-full">
               <table className="w-full min-w-[1100px] text-xs">
                 <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                   <tr>
