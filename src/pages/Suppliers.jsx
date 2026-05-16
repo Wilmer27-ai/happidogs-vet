@@ -27,6 +27,7 @@ function Suppliers() {
   
   const [supplierFormData, setSupplierFormData] = useState({
     supplierName: '',
+    contactPerson: '',
     phoneNumber: '',
     address: '',
     paymentTerms: '',
@@ -162,6 +163,7 @@ function Suppliers() {
     setEditingSupplier(supplier)
     setSupplierFormData({
       supplierName: supplier.supplierName,
+      contactPerson: supplier.contactPerson || '',
       phoneNumber: supplier.phoneNumber || '',
       address: supplier.address || '',
       paymentTerms: supplier.paymentTerms || '',
@@ -193,6 +195,7 @@ function Suppliers() {
     setEditingSupplier(null)
     setSupplierFormData({
       supplierName: '',
+      contactPerson: '',
       phoneNumber: '',
       address: '',
       paymentTerms: '',
@@ -540,6 +543,19 @@ function Suppliers() {
                     onChange={(e) => setSupplierFormData({ ...supplierFormData, supplierName: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Supplier name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Person
+                  </label>
+                  <input
+                    type="text"
+                    value={supplierFormData.contactPerson}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, contactPerson: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Contact person name"
                   />
                 </div>
 
