@@ -12,6 +12,7 @@ function Dashboard() {
   const observerActivityTarget = useRef(null)
   const [selectedFollowUpDate, setSelectedFollowUpDate] = useState(null)
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false)
+  const [selectedOwnerForFollowUp, setSelectedOwnerForFollowUp] = useState(null)
   const [calendarDate, setCalendarDate] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -375,6 +376,25 @@ function Dashboard() {
   const closeFollowUpModal = () => {
     setIsFollowUpModalOpen(false)
     setSelectedFollowUpDate(null)
+    setSelectedOwnerForFollowUp(null)
+  }
+
+  // Group follow-ups by owner for the modal
+  const groupFollowUpsByOwner = (dateKey) => {
+    const followUps = followUpsByDate[dateKey] || []
+    const grouped = {}
+    followUps.forEach(followUp => {
+      const ownerKey = followUp.clientName
+      if (!grouped[ownerKey]) {
+        grouped[ownerKey] = {
+          clientName: followUp.clientName,
+          phoneNumber: followUp.phoneNumber,
+          pets: []
+        }
+      }
+      grouped[ownerKey].pets.push(followUp)
+    })
+    return Object.values(grouped)
   }
 
   if (loading) {
@@ -716,33 +736,73 @@ function Dashboard() {
       </div>
       {isFollowUpModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[80vh]">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Follow-Ups</h3>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {selectedOwnerForFollowUp ? `${selectedOwnerForFollowUp.clientName}'s Pets` : 'Follow-Ups'}
+                </h3>
                 <p className="text-xs text-gray-500">{formatDate(selectedFollowUpDate)}</p>
               </div>
               <button type="button" onClick={closeFollowUpModal} className="text-gray-400 hover:text-gray-600">
                 <FiAlertCircle className="w-4 h-4" />
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto">
-              {(followUpsByDate[selectedFollowUpDate] || []).map((followUp) => (
-                <div key={followUp.id} className="px-4 py-3 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">{followUp.petName}</p>
-                    <span className="text-xs text-gray-500">{followUp.activityType}</span>
+
+            {/* Owner List View */}
+            {!selectedOwnerForFollowUp ? (
+              <div className="flex-1 overflow-y-auto">
+                {groupFollowUpsByOwner(selectedFollowUpDate).map((ownerGroup) => (
+                  <button
+                    key={ownerGroup.clientName}
+                    type="button"
+                    onClick={() => setSelectedOwnerForFollowUp(ownerGroup)}
+                    className="w-full px-4 py-3 border-b border-gray-100 hover:bg-blue-50 transition-colors text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{ownerGroup.clientName}</p>
+                        <p className="text-xs text-gray-500">Contact: {ownerGroup.phoneNumber}</p>
+                      </div>
+                      <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {ownerGroup.pets.length} {ownerGroup.pets.length === 1 ? 'Pet' : 'Pets'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Pet List View for Selected Owner */
+              <div className="flex-1 overflow-y-auto">
+                {selectedOwnerForFollowUp.pets.map((followUp) => (
+                  <div key={followUp.id} className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-900">{followUp.petName}</p>
+                      <span className="text-xs text-gray-500">{followUp.activityType}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      <span className="font-medium">Note:</span> {followUp.followUpNote || followUp.diagnosis || 'No notes'}
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500">Owner: {followUp.clientName}</p>
-                  <p className="text-xs text-gray-500">Contact: {followUp.phoneNumber}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {followUp.followUpNote || followUp.diagnosis || 'No notes'}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
-              <button type="button" onClick={closeFollowUpModal} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200">
+                ))}
+              </div>
+            )}
+
+            <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between gap-2 flex-shrink-0">
+              {selectedOwnerForFollowUp && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedOwnerForFollowUp(null)}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  Back
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={closeFollowUpModal}
+                className="ml-auto px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+              >
                 Close
               </button>
             </div>
