@@ -210,12 +210,11 @@ function Dashboard() {
         })
       }
 
-      // Upcoming follow-ups (all future, disappears after due date passes)
+      // All follow-ups (including past ones for reference)
       const upcomingFollowUps = activities
         .filter(c => {
           if (!c.followUpDate) return false
-          const followUpDate = new Date(c.followUpDate + 'T00:00:00')
-          return followUpDate >= today
+          return true
         })
         .map(c => {
           const client = clients.find(cl => cl.id === c.clientId)

@@ -775,38 +775,36 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Vitals</label>
                   <div className="border border-gray-200 rounded-md overflow-hidden">
-                    <div className="w-full overflow-x-auto">
-                      <table className="w-full min-w-[420px] text-xs">
-                        <thead className="bg-gray-100 border-b border-gray-200">
-                          <tr>
-                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Pet</th>
-                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Weight (kg)</th>
-                            <th className="px-2.5 py-1.5 text-left font-medium text-gray-600">Temp (°C)</th>
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100 border-b border-gray-200">
+                        <tr>
+                          <th className="px-2 py-1 text-left font-medium text-gray-600">Pet</th>
+                          <th className="px-2 py-1 text-left font-medium text-gray-600">Weight (kg)</th>
+                          <th className="px-2 py-1 text-left font-medium text-gray-600">Temp (°C)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPets.map((pet, index) => (
+                          <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-2 py-1 font-semibold text-gray-800">{pet.name}</td>
+                            <td className="px-1.5 py-0.5">
+                              <input type="number" step="0.1" min="0"
+                                value={petVitals[pet.id]?.weight || ''}
+                                onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
+                                className="w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="0" />
+                            </td>
+                            <td className="px-1.5 py-0.5">
+                              <input type="number" step="0.1" min="0"
+                                value={petVitals[pet.id]?.temperature || ''}
+                                onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
+                                className="w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="0" />
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {selectedPets.map((pet, index) => (
-                            <tr key={pet.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                              <td className="px-2.5 py-1.5 font-semibold text-gray-800">{pet.name}</td>
-                              <td className="px-2 py-1">
-                                <input type="number" step="0.1" min="0"
-                                  value={petVitals[pet.id]?.weight || ''}
-                                  onChange={(e) => updatePetVital(pet.id, 'weight', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                  placeholder="0" />
-                              </td>
-                              <td className="px-2 py-1">
-                                <input type="number" step="0.1" min="0"
-                                  value={petVitals[pet.id]?.temperature || ''}
-                                  onChange={(e) => updatePetVital(pet.id, 'temperature', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                  placeholder="0" />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
