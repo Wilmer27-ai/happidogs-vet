@@ -132,6 +132,7 @@ function StockEditHistory() {
             <option value="all">All Actions</option>
             <option value="edit">Edits Only</option>
             <option value="delete">Deletions Only</option>
+            <option value="void">Voids Only</option>
           </select>
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
             className="w-full md:w-auto px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
@@ -142,9 +143,9 @@ function StockEditHistory() {
         </div>
       </div>
 
-      {/* Table — takes all remaining height */}
-      <div className="flex-1 overflow-hidden min-h-0 px-4 md:px-6 py-3">
-        <div className="h-full bg-white rounded-md border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+      {/* Table — fixed height with lazy loading */}
+      <div className="px-4 md:px-6 py-3 flex-1 overflow-hidden min-h-0">
+        <div className="h-[calc(115vh-280px)] bg-white rounded-md border border-gray-200 shadow-sm flex flex-col overflow-hidden">
 
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -170,8 +171,8 @@ function StockEditHistory() {
             <div className="flex-1 overflow-auto min-h-0">
               <div className="w-full overflow-x-auto">
                 <table className="w-full min-w-[900px] text-xs border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-gray-900 text-white">
+                <thead className="sticky top-0 z-20">
+                  <tr className="sticky top-0 z-20 bg-gray-900 text-white">
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-700 w-40">Date & Time</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-700">Item</th>
                     <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-700 w-24">Type</th>

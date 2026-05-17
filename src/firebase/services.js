@@ -597,7 +597,7 @@ export const voidSale = async (sale, reason = "Manual void") => {
     
     // Log the void action in stock edit history
     await logStockEdit({
-      action: 'void-sale',
+      action: 'void',
       saleId,
       saleType: type || 'unknown',
       itemName: medicineName || itemName || 'Unknown',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi'
-import logo from '../assets/happidogslogo.png'
+import logo from '../assets/myLogo.png'
 import PrintStyles from '../components/PrintStyles'
 import { getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
