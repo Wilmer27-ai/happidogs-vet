@@ -584,7 +584,11 @@ function Dashboard() {
                       const day = i + 1
                       const dateKey = `${calendarDate.getFullYear()}-${String(calendarDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
                       const items = followUpsByDate[dateKey] || []
+                      const uniqueClientCount = new Set(items.map(f => f.clientName)).size
                       const isToday = day === today.getDate() && calendarDate.getMonth() === today.getMonth() && calendarDate.getFullYear() === today.getFullYear()
+                      const dateObj = new Date(dateKey)
+                      dateObj.setHours(0, 0, 0, 0)
+                      const isPastDate = dateObj < today && !isToday
                       return (
                         <button
                           key={dateKey}
@@ -593,22 +597,22 @@ function Dashboard() {
                           disabled={items.length === 0}
                           className={`h-14 rounded-md border text-left p-2 transition-colors ${
                             items.length > 0
-                              ? 'border-blue-200 hover:bg-blue-50'
+                              ? isPastDate ? 'border-gray-300 hover:bg-gray-100' : 'border-blue-200 hover:bg-blue-50'
                               : 'border-gray-200 text-gray-300 cursor-default'
                           } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
                         >
                           <div className="flex items-center justify-between">
                             <span className={`text-xs font-semibold ${items.length > 0 ? 'text-gray-900' : 'text-gray-300'}`}>{day}</span>
                             {items.length > 0 && (
-                              <span className="text-[10px] font-semibold bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
-                                {items.length}
+                              <span className={`text-[10px] font-semibold text-white px-1.5 py-0.5 rounded-full ${isPastDate ? 'bg-gray-500' : 'bg-blue-600'}`} title={`${uniqueClientCount} client${uniqueClientCount !== 1 ? 's' : ''}`}>
+                                {uniqueClientCount}
                               </span>
                             )}
                           </div>
                           {items.length > 0 && (
                             <div className="mt-1">
-                              <div className="h-1.5 w-full rounded-full bg-blue-200">
-                                <div className="h-1.5 rounded-full bg-blue-600" style={{ width: '100%' }}></div>
+                              <div className={`h-1.5 w-full rounded-full ${isPastDate ? 'bg-gray-200' : 'bg-blue-200'}`}>
+                                <div className={`h-1.5 rounded-full ${isPastDate ? 'bg-gray-500' : 'bg-blue-600'}`} style={{ width: '100%' }}></div>
                               </div>
                             </div>
                           )}
