@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2, FiEdit2 } from 'react-icons/fi'
-import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
+import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity, updatePetActivity, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
 import React from 'react'
@@ -204,6 +204,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [perPetMode, setPerPetMode] = useState(false)
   const [petMedicines, setPetMedicines] = useState({})
   const [activeMedPetId, setActiveMedPetId] = useState(null)
+  const [isEditConsultationOpen, setIsEditConsultationOpen] = useState(false)
+  const [editingConsultation, setEditingConsultation] = useState(null)
+  const [editingData, setEditingData] = useState({})
 
   const getCurrentDate = () => {
     const d = new Date()
@@ -588,6 +591,41 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     } catch (e) {
       console.error(e)
       alert('Failed to delete activity.')
+    }
+  }
+
+  const handleOpenEditConsultation = (activity) => {
+    setEditingConsultation(activity)
+    setEditingData({
+      diagnosis: activity.diagnosis || '',
+      treatment: activity.treatment || '',
+      note: activity.note || '',
+      followUpDate: activity.followUpDate || '',
+      followUpNote: activity.followUpNote || '',
+    })
+    setIsEditConsultationOpen(true)
+  }
+
+  const handleSaveEditConsultation = async () => {
+    if (!editingConsultation) return
+    try {
+      // Save to Firebase
+      await updatePetActivity(editingConsultation.id, editingData)
+      
+      // Update local state
+      const updatedActivity = {
+        ...editingConsultation,
+        ...editingData
+      }
+      setActivities(prev => prev.map(a => a.id === editingConsultation.id ? updatedActivity : a))
+      
+      setIsEditConsultationOpen(false)
+      setEditingConsultation(null)
+      setEditingData({})
+      alert('✅ Consultation updated successfully!')
+    } catch (e) {
+      console.error('Error updating activity:', e)
+      alert('❌ Failed to update consultation')
     }
   }
 
@@ -1354,12 +1392,18 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                     </div>
                                   ) : <span className="text-gray-400">—</span>}
                                 </td>
-                                <td className="px-2 py-2.5 text-center border border-gray-200" onClick={e => e.stopPropagation()}>
+                                <td className="px-2 py-2.5 text-center border border-gray-200 flex items-center justify-center gap-2" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => handleOpenEditConsultation(activity)}
+                                    className="bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-700 transition-colors p-1.5 rounded-md font-medium"
+                                    title="Edit consultation">
+                                    <FiEdit2 className="w-4 h-4" />
+                                  </button>
                                   <button
                                     onClick={() => handleDeleteActivity(activity.id)}
-                                    className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"
+                                    className="bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-colors p-1.5 rounded-md font-medium"
                                     title="Delete activity">
-                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                    <FiTrash2 className="w-4 h-4" />
                                   </button>
                                 </td>
                               </tr>
@@ -1384,6 +1428,113 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         </div>
 
       </div>
+
+      {/* Edit Consultation Modal */}
+      {isEditConsultationOpen && editingConsultation && (
+        <div className="fixed inset-0 bg-black/50 z-[80] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 sticky top-0 bg-white">
+              <div>
+                <h3 className="font-semibold text-gray-900">Edit Consultation</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{editingConsultation.petName || 'Pet'} • {new Date(editingConsultation.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsEditConsultationOpen(false)
+                  setEditingConsultation(null)
+                  setEditingData({})
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100">
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 space-y-3">
+              {/* Diagnosis */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Diagnosis</label>
+                <textarea
+                  value={editingData.diagnosis}
+                  onChange={(e) => setEditingData({ ...editingData, diagnosis: e.target.value })}
+                  rows="2"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Enter diagnosis..." />
+              </div>
+
+              {/* Treatment */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Treatment</label>
+                <textarea
+                  value={editingData.treatment}
+                  onChange={(e) => setEditingData({ ...editingData, treatment: e.target.value })}
+                  rows="2"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Enter treatment plan..." />
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Note
+                  <span className="ml-1 text-gray-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={editingData.note}
+                  onChange={(e) => setEditingData({ ...editingData, note: e.target.value })}
+                  rows="2"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  placeholder="Add any notes..." />
+              </div>
+
+              {/* Follow-up Section */}
+              <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                <label className="block text-xs font-medium text-gray-700 mb-3">Follow-up</label>
+                <div className="space-y-2">
+                  {/* Follow-up Date */}
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Follow-up Date</label>
+                    <input
+                      type="date"
+                      value={editingData.followUpDate}
+                      onChange={(e) => setEditingData({ ...editingData, followUpDate: e.target.value })}
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  {/* Follow-up Note */}
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Follow-up Note</label>
+                    <textarea
+                      value={editingData.followUpNote}
+                      onChange={(e) => setEditingData({ ...editingData, followUpNote: e.target.value })}
+                      rows="2"
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Add follow-up notes..." />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50 flex gap-2 justify-end sticky bottom-0">
+              <button
+                onClick={() => {
+                  setIsEditConsultationOpen(false)
+                  setEditingConsultation(null)
+                  setEditingData({})
+                }}
+                className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors font-medium">
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditConsultation}
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals — only once */}
       <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)}

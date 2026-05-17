@@ -72,6 +72,7 @@ function SalesHistory() {
         })),
         totalAmount: sale.totalAmount ?? 0,
         date: sale.date || sale.saleDate || sale.createdAt || '',
+        isVoided: sale.status === 'void',
       }
     }
 
@@ -88,6 +89,7 @@ function SalesHistory() {
       }],
       totalAmount: sale.totalAmount ?? 0,
       date: sale.saleDate || sale.date || sale.createdAt || '',
+      isVoided: sale.status === 'void',
     }
   }
 
@@ -126,7 +128,7 @@ function SalesHistory() {
 
   useEffect(() => { setDisplayCount(20) }, [searchQuery, dateFilter, typeFilter])
 
-  const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.totalAmount ?? 0), 0)
+  const totalRevenue = filteredSales.filter(s => !s.isVoided).reduce((sum, s) => sum + (s.totalAmount ?? 0), 0)
 
   const handleVoidClick = (sale) => {
     setSaleToVoid(sale)
@@ -240,9 +242,12 @@ function SalesHistory() {
               <tbody>
                 {displayedSales.map((sale, index) => (
                   <tr key={sale.id || index}
-                    className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
+                    className={`${sale.isVoided ? 'bg-red-50 opacity-75' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition-colors`}>
                     <td className="px-3 py-2.5 border border-gray-200 text-gray-600 whitespace-nowrap">
-                      {formatDate(sale.date)}
+                      <div className="flex items-center gap-2">
+                        {formatDate(sale.date)}
+                        {sale.isVoided && <span className="text-xs font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">VOID</span>}
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 border border-gray-200">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -293,12 +298,12 @@ function SalesHistory() {
                     <td className="px-3 py-2.5 border border-gray-200 text-center">
                       <button
                         onClick={() => handleVoidClick(sale)}
-                        disabled={voidLoading}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
-                        title="Void this sale and restore stock"
+                        disabled={voidLoading || sale.isVoided}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={sale.isVoided ? 'This sale has been voided' : 'Void this sale and restore stock'}
                       >
                         <FiTrash2 className="w-4 h-4" />
-                        Void
+                        {sale.isVoided ? 'Voided' : 'Void'}
                       </button>
                     </td>
                   </tr>

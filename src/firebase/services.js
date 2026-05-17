@@ -592,8 +592,12 @@ export const voidSale = async (sale, reason = "Manual void") => {
       }
     }
     
-    // Delete the sale record
-    await deleteDoc(doc(db, "sales", saleId));
+    // Mark the sale as voided instead of deleting it
+    await updateDoc(doc(db, "sales", saleId), {
+      status: 'void',
+      voidedAt: serverTimestamp(),
+      voidReason: reason,
+    });
     
     // Log the void action in stock edit history
     await logStockEdit({
