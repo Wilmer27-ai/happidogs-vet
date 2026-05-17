@@ -326,7 +326,8 @@ function SalesHistory() {
         onClose={handlePasswordClose}
         onConfirm={handlePasswordConfirm}
         title="Void Sale"
-        message={`Are you sure you want to void this sale? This will restore the stock and remove the transaction. Please enter your password to confirm.`}
+        message="Please verify by entering your password to confirm voiding this sale."
+        saleData={saleToVoid}
       />
     </div>
   )

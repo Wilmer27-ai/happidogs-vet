@@ -1,8 +1,8 @@
 // src/components/PasswordVerificationModal.jsx
 import { useState } from 'react'
-import { FiX, FiLock } from 'react-icons/fi'
+import { FiX, FiAlertCircle } from 'react-icons/fi'
 
-function PasswordVerificationModal({ isOpen, onClose, onConfirm, title = 'Password Required', message = 'Please enter your password to continue.' }) {
+function PasswordVerificationModal({ isOpen, onClose, onConfirm, title = 'Password Required', message = 'Please enter your password to continue.', saleData = null }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -35,13 +35,32 @@ function PasswordVerificationModal({ isOpen, onClose, onConfirm, title = 'Passwo
 
   if (!isOpen) return null
 
+  // Format sale data for display
+  const formatSaleInfo = () => {
+    if (!saleData) return null
+    
+    const saleType = saleData.type === 'consultation' ? 'Consultation' : (saleData.itemType === 'medicine' ? 'Medicine Sale' : 'Store Sale')
+    const displayName = saleData.clientName || saleData.itemName || 'Unknown'
+    const amount = saleData.totalAmount || 0
+    const items = saleData.items || (saleData.itemName ? [{ name: saleData.itemName, qty: saleData.quantity }] : [])
+    
+    return {
+      type: saleType,
+      name: displayName,
+      amount: amount,
+      items: items
+    }
+  }
+
+  const saleInfo = formatSaleInfo()
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-sm mx-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-red-50">
           <div className="flex items-center gap-2">
-            <FiLock className="w-5 h-5 text-gray-700" />
+            <FiAlertCircle className="w-5 h-5 text-red-600" />
             <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           </div>
           <button
@@ -55,8 +74,30 @@ function PasswordVerificationModal({ isOpen, onClose, onConfirm, title = 'Passwo
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Sale Data Display - Simplified */}
+          {saleInfo && (
+            <div className="bg-gray-50 rounded-lg p-3 space-y-2 border border-gray-200">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 font-semibold">{saleInfo.type}</span>
+                <span className="text-lg font-bold text-red-600">₱{saleInfo.amount.toLocaleString()}</span>
+              </div>
+              <div className="text-sm text-gray-700 font-medium truncate">{saleInfo.name}</div>
+              {saleInfo.items && saleInfo.items.length > 0 && (
+                <div className="text-xs text-gray-600">
+                  {saleInfo.items.slice(0, 3).map((item, idx) => (
+                    <div key={idx}>
+                      {item.name || item.medicineName || item.itemName}{item.qty ? ` × ${item.qty}` : ''}
+                    </div>
+                  ))}
+                  {saleInfo.items.length > 3 && <div className="text-gray-500">+{saleInfo.items.length - 3} more</div>}
+                </div>
+              )}
+            </div>
+          )}
+
           <p className="text-sm text-gray-600">{message}</p>
 
+          {/* Password Input */}
           <div>
             <input
               type="password"
@@ -79,7 +120,7 @@ function PasswordVerificationModal({ isOpen, onClose, onConfirm, title = 'Passwo
           )}
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={handleClose}
