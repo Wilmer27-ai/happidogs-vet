@@ -1,7 +1,8 @@
 // src/pages/SalesHistory.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag } from 'react-icons/fi'
-import { getSales } from '../firebase/services'
+import { FiSearch, FiShoppingBag, FiTrash2 } from 'react-icons/fi'
+import { getSales, voidSale } from '../firebase/services'
+import PasswordVerificationModal from '../components/PasswordVerificationModal'
 
 function SalesHistory() {
   const [sales, setSales] = useState([])
@@ -11,6 +12,11 @@ function SalesHistory() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [displayCount, setDisplayCount] = useState(20)
   const observerTarget = useRef(null)
+  
+  // Void/Password modal states
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [saleToVoid, setSaleToVoid] = useState(null)
+  const [voidLoading, setVoidLoading] = useState(false)
 
   useEffect(() => { loadSales() }, [])
 
@@ -122,6 +128,45 @@ function SalesHistory() {
 
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.totalAmount ?? 0), 0)
 
+  const handleVoidClick = (sale) => {
+    setSaleToVoid(sale)
+    setIsPasswordModalOpen(true)
+  }
+
+  const handlePasswordConfirm = async (password) => {
+    // Simple password check - you can configure this password
+    // For security, consider using environment variables or a more robust verification
+    const VOID_PASSWORD = 'admin123' // You can change this to your preferred password
+    
+    if (password !== VOID_PASSWORD) {
+      throw new Error('Incorrect password. Please try again.')
+    }
+
+    setVoidLoading(true)
+    try {
+      await voidSale(saleToVoid, 'Manual void by user')
+      alert('✅ Sale voided successfully. Stock has been restored.')
+      
+      // Reload sales
+      const updated = await getSales()
+      setSales(updated)
+      
+      // Close modal
+      setIsPasswordModalOpen(false)
+      setSaleToVoid(null)
+    } catch (error) {
+      console.error('Error voiding sale:', error)
+      throw new Error('Failed to void sale. Please try again.')
+    } finally {
+      setVoidLoading(false)
+    }
+  }
+
+  const handlePasswordClose = () => {
+    setIsPasswordModalOpen(false)
+    setSaleToVoid(null)
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Header */}
@@ -179,8 +224,8 @@ function SalesHistory() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-auto min-h-0">
-            <div className="w-full overflow-x-auto">
+          <div className="h-[calc(100vh-300px)] overflow-y-auto flex flex-col">
+            <div className="w-full overflow-x-auto flex-1">
               <table className="w-full min-w-[760px] text-xs border-collapse">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
                 <tr>
@@ -189,6 +234,7 @@ function SalesHistory() {
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Client / Item</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Items Sold</th>
                   <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide border border-gray-600">Total</th>
+                  <th className="px-3 py-2.5 text-center font-semibold uppercase tracking-wide border border-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -244,21 +290,44 @@ function SalesHistory() {
                     <td className="px-3 py-2.5 border border-gray-200 text-right font-bold text-gray-900">
                       ₱{(sale.totalAmount ?? 0).toLocaleString()}
                     </td>
-                  </tr>
-                ))}
-                {hasMore && (
-                  <tr ref={observerTarget}>
-                    <td colSpan="5" className="px-4 py-3 text-center text-xs text-gray-400">
-                      Loading more...
+                    <td className="px-3 py-2.5 border border-gray-200 text-center">
+                      <button
+                        onClick={() => handleVoidClick(sale)}
+                        disabled={voidLoading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+                        title="Void this sale and restore stock"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                        Void
+                      </button>
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
               </table>
             </div>
+
+            {/* Lazy Loading Indicator */}
+            {hasMore && (
+              <div ref={observerTarget} className="w-full py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                  <p className="text-xs text-gray-500 font-medium">Loading more sales...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Password Verification Modal */}
+      <PasswordVerificationModal
+        isOpen={isPasswordModalOpen}
+        onClose={handlePasswordClose}
+        onConfirm={handlePasswordConfirm}
+        title="Void Sale"
+        message={`Are you sure you want to void this sale? This will restore the stock and remove the transaction. Please enter your password to confirm.`}
+      />
     </div>
   )
 }

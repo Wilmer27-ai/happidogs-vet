@@ -449,6 +449,171 @@ export const getSales = async () => {
   }
 };
 
+export const deleteSale = async (saleId) => {
+  try {
+    await deleteDoc(doc(db, "sales", saleId));
+  } catch (error) {
+    console.error("Error deleting sale:", error);
+    throw error;
+  }
+};
+
+export const voidSale = async (sale, reason = "Manual void") => {
+  try {
+    const { id: saleId, type, items, itemId, medicineName, itemName, quantity, unit, medicineType } = sale;
+    
+    if (type === 'consultation') {
+      // For consultation sales, restore medicine stocks
+      if (items && items.length > 0) {
+        for (const item of items) {
+          if (item.medicineId) {
+            // Get fresh medicine data
+            const medRef = doc(db, "medicines", item.medicineId);
+            const medSnap = await getDoc(medRef);
+            
+            if (medSnap.exists()) {
+              const med = medSnap.data();
+              const qty = item.quantity || 0;
+              const itemUnit = item.unit || '';
+              
+              // Restore stock based on medicine type
+              if (med.medicineType === 'syrup') {
+                let mlToRestore = itemUnit === 'bottle' ? qty * (med.mlPerBottle ?? 0) : qty;
+                let looseMl = med.looseMl ?? 0;
+                let bottleCount = med.bottleCount ?? 0;
+                
+                looseMl += mlToRestore;
+                const bottlesFromLoose = Math.floor(looseMl / (med.mlPerBottle ?? 1));
+                bottleCount += bottlesFromLoose;
+                looseMl = looseMl % (med.mlPerBottle ?? 1);
+                
+                await updateDoc(medRef, {
+                  bottleCount,
+                  looseMl,
+                  stockQuantity: (bottleCount * (med.mlPerBottle ?? 0)) + looseMl,
+                });
+              } else if (med.medicineType === 'tablet') {
+                let tabletsToRestore = itemUnit === 'box' ? qty * (med.tabletsPerBox ?? 0) : qty;
+                let looseTablets = med.looseTablets ?? 0;
+                let boxCount = med.boxCount ?? 0;
+                
+                looseTablets += tabletsToRestore;
+                const boxesFromLoose = Math.floor(looseTablets / (med.tabletsPerBox ?? 1));
+                boxCount += boxesFromLoose;
+                looseTablets = looseTablets % (med.tabletsPerBox ?? 1);
+                
+                await updateDoc(medRef, {
+                  boxCount,
+                  looseTablets,
+                  stockQuantity: (boxCount * (med.tabletsPerBox ?? 0)) + looseTablets,
+                });
+              } else {
+                // Simple stock restoration
+                await updateDoc(medRef, {
+                  stockQuantity: (med.stockQuantity ?? 0) + qty,
+                });
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // For petstore sales (medicine or store item), restore the item stock
+      const collectionName = sale.itemType === 'medicine' ? 'medicines' : 'storeItems';
+      const itemRef = doc(db, collectionName, itemId);
+      const itemSnap = await getDoc(itemRef);
+      
+      if (itemSnap.exists()) {
+        const item = itemSnap.data();
+        const qty = quantity || 0;
+        const saleUnit = unit || '';
+        
+        if (collectionName === 'medicines') {
+          // Restore medicine stock
+          if (item.medicineType === 'syrup') {
+            let mlToRestore = saleUnit === 'bottle' ? qty * (item.mlPerBottle ?? 0) : qty;
+            let looseMl = item.looseMl ?? 0;
+            let bottleCount = item.bottleCount ?? 0;
+            
+            looseMl += mlToRestore;
+            const bottlesFromLoose = Math.floor(looseMl / (item.mlPerBottle ?? 1));
+            bottleCount += bottlesFromLoose;
+            looseMl = looseMl % (item.mlPerBottle ?? 1);
+            
+            await updateDoc(itemRef, {
+              bottleCount,
+              looseMl,
+              stockQuantity: (bottleCount * (item.mlPerBottle ?? 0)) + looseMl,
+            });
+          } else if (item.medicineType === 'tablet') {
+            let tabletsToRestore = saleUnit === 'box' ? qty * (item.tabletsPerBox ?? 0) : qty;
+            let looseTablets = item.looseTablets ?? 0;
+            let boxCount = item.boxCount ?? 0;
+            
+            looseTablets += tabletsToRestore;
+            const boxesFromLoose = Math.floor(looseTablets / (item.tabletsPerBox ?? 1));
+            boxCount += boxesFromLoose;
+            looseTablets = looseTablets % (item.tabletsPerBox ?? 1);
+            
+            await updateDoc(itemRef, {
+              boxCount,
+              looseTablets,
+              stockQuantity: (boxCount * (item.tabletsPerBox ?? 0)) + looseTablets,
+            });
+          } else {
+            await updateDoc(itemRef, {
+              stockQuantity: (item.stockQuantity ?? 0) + qty,
+            });
+          }
+        } else {
+          // Restore store item stock
+          const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food'];
+          if (foodCategories.includes(item.category)) {
+            let kgToRestore = saleUnit === 'sack' ? qty * (item.kgPerSack ?? 0) : qty;
+            let looseKg = item.looseKg ?? 0;
+            let sacksCount = item.sacksCount ?? 0;
+            
+            looseKg += kgToRestore;
+            const sacksFromLoose = Math.floor(looseKg / (item.kgPerSack ?? 1));
+            sacksCount += sacksFromLoose;
+            looseKg = looseKg % (item.kgPerSack ?? 1);
+            
+            await updateDoc(itemRef, {
+              sacksCount,
+              looseKg,
+              stockQuantity: (sacksCount * (item.kgPerSack ?? 0)) + looseKg,
+            });
+          } else {
+            await updateDoc(itemRef, {
+              stockQuantity: (item.stockQuantity ?? 0) + qty,
+            });
+          }
+        }
+      }
+    }
+    
+    // Delete the sale record
+    await deleteDoc(doc(db, "sales", saleId));
+    
+    // Log the void action in stock edit history
+    await logStockEdit({
+      action: 'void-sale',
+      saleId,
+      saleType: type || 'unknown',
+      itemName: medicineName || itemName || 'Unknown',
+      itemType: sale.itemType || 'unknown',
+      quantity,
+      unit,
+      reason,
+      voidDate: new Date().toISOString(),
+    });
+    
+  } catch (error) {
+    console.error("Error voiding sale:", error);
+    throw error;
+  }
+};
+
 // ==================== HELPER FUNCTIONS ====================
 // Helper function to calculate available selling units
 export const calculateAvailableUnits = (item) => {
