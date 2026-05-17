@@ -226,7 +226,7 @@ function SalesHistory() {
             </div>
           </div>
         ) : (
-          <div className="h-[calc(100vh-300px)] overflow-y-auto flex flex-col">
+          <div className="h-[calc(120vh-300px)] overflow-y-auto flex flex-col">
             <div className="w-full overflow-x-auto flex-1">
               <table className="w-full min-w-[760px] text-xs border-collapse">
               <thead className="bg-gradient-to-r from-gray-800 to-gray-700 text-white sticky top-0 z-10">
