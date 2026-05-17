@@ -5,7 +5,7 @@ import { deductMedicineStock, saveSalesRecord, getMedicines, getMasterData, MAST
 import { addDoc, collection } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useNavigate } from 'react-router-dom'
-import logo from '../../assets/MyLogo.png'
+import logo from '../../assets/myLogo.png'
 import PrintStyles from '../PrintStyles'
 
 function SummaryStep({ selectedClient, selectedPets, consultationData, medicinesData, onBack, onSave }) {
