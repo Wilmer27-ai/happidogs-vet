@@ -498,19 +498,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
         selectedPets.flatMap(pet => {
           const vitals = petVitals[pet.id] || { weight: '', temperature: '' }
           const meds = perPetMode ? (petMedicines[pet.id] || []) : selectedMedicines
-          return formData.activityTypes.map(activityType =>
+          return [
             addPetActivity({
               petId: pet.id,
               petName: pet.name,
               clientId: selectedClient.id,
               clientName: `${selectedClient.firstName} ${selectedClient.lastName}`,
-              activityType,
+              activityTypes: formData.activityTypes,
+              activityType: formData.activityTypes.join(', '),
               date: formData.date,
               weight: vitals.weight || '',
               temperature: vitals.temperature || '',
               diagnosis: formData.activityTypes.includes('Consultation') ? (formData.diagnosis || '') : '',
               treatment: formData.activityTypes.includes('Consultation') ? (formData.treatment || '') : '',
-              note: (activityType === 'Vaccination' || activityType === 'Deworming') ? (formData.note || '') : '',   // ← add this
+              note: (formData.activityTypes.includes('Vaccination') || formData.activityTypes.includes('Deworming')) ? (formData.note || '') : '',
               followUpDate: formData.hasFollowUp ? (formData.followUpDate || '') : '',
               followUpNote: formData.hasFollowUp ? (formData.followUpNote || '') : '',
               medicines: meds.map(med => ({
@@ -522,7 +523,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 subtotal: med.subtotal ?? 0
               }))
             })
-          )
+          ]
         })
       )
 
@@ -537,7 +538,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       setSelectedMedicines([])
       setPetMedicines({})
       setSuccessMessage(
-        `${formData.activityTypes.length} activity type${formData.activityTypes.length > 1 ? 's' : ''} saved for ${selectedPets.length} pet${selectedPets.length > 1 ? 's' : ''}`
+        `Activity saved for ${selectedPets.length} pet${selectedPets.length > 1 ? 's' : ''} (${formData.activityTypes.join(', ')})`
       )
       setTimeout(() => setSuccessMessage(''), 3000)
       await loadActivities()
@@ -797,7 +798,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     </div>
                     {formData.activityTypes.length > 1 && (
                       <p className="text-xs text-blue-600 mt-1">
-                        {formData.activityTypes.length} types — saves {formData.activityTypes.length} records per pet
+                        {formData.activityTypes.length} types — saves 1 combined record per pet
                       </p>
                     )}
                   </div>
@@ -1252,9 +1253,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 ) : (
                   <>
                     <FiPlus className="w-4 h-4" />
-                    Add {formData.activityTypes.length > 1
-                      ? `${formData.activityTypes.length} Activities`
-                      : 'Activity'} for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}
+                    Save Activity ({formData.activityTypes.join(', ')}) for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}
                   </>
                 )}
               </button>

@@ -130,6 +130,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         petId: activity.petId,
         petName: activity.petName,
         activityType: activity.activityType,
+        activityTypes: activity.activityTypes || [],
         date: activity.date || date,
         weight: activity.weight || '',
         temperature: activity.temperature || '',
@@ -281,7 +282,8 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         isCustomTotal: customTotal !== null,
         petCount: uniquePetCount,
         petNames: groupedByPet.map(g => g.petName),
-        activityTypes: [...new Set(snapshotActivities.map(a => a.activityType))],
+        activityTypes: [...new Set(snapshotActivities.flatMap(a => a.activityTypes || []))],
+
         items: saleItems,
         createdAt: new Date().toISOString(),
       }
