@@ -191,6 +191,20 @@ export const deleteMedicine = async (id) => {
   await deleteDoc(doc(db, 'medicines', id))
 }
 
+export const findMedicineByNameAndCategory = async (medicineName, category, brand = '') => {
+  try {
+    const medicines = await getMedicines()
+    return medicines.find(m => 
+      m.medicineName?.toLowerCase() === medicineName.toLowerCase() &&
+      m.category?.toLowerCase() === category.toLowerCase() &&
+      (brand === '' || m.brand?.toLowerCase() === brand.toLowerCase())
+    ) || null
+  } catch (error) {
+    console.error("Error finding medicine:", error)
+    return null
+  }
+}
+
 // ==================== FOLLOW UPS ====================
 export const addFollowUp = async (followUpData) => {
   try {
@@ -420,6 +434,20 @@ export const updateStoreItem = async (id, data) => {
 
 export const deleteStoreItem = async (id) => {
   await deleteDoc(doc(db, 'storeItems', id))
+}
+
+export const findStoreItemByNameAndCategory = async (itemName, category, brand = '') => {
+  try {
+    const storeItems = await getStoreItems()
+    return storeItems.find(s => 
+      s.itemName?.toLowerCase() === itemName.toLowerCase() &&
+      s.category?.toLowerCase() === category.toLowerCase() &&
+      (brand === '' || s.brand?.toLowerCase() === brand.toLowerCase())
+    ) || null
+  } catch (error) {
+    console.error("Error finding store item:", error)
+    return null
+  }
 }
 
 // ==================== SALES ====================

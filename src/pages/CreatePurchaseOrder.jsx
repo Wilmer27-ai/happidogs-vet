@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FiPlus, FiTrash2, FiArrowLeft, FiPackage, FiChevronDown, FiX, FiCalendar } from 'react-icons/fi'
-import { addPurchaseOrder, addMedicine, addStoreItem, getMasterData, saveMasterData, addExpense, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { FiPlus, FiTrash2, FiArrowLeft, FiPackage, FiChevronDown, FiX, FiCalendar, FiRefreshCw, FiChevronUp } from 'react-icons/fi'
+import { addPurchaseOrder, addMedicine, addStoreItem, getMasterData, saveMasterData, addExpense, getPurchaseOrders, updateMedicine, updateStoreItem, findMedicineByNameAndCategory, findStoreItemByNameAndCategory, getMedicines, getStoreItems, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 // ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
 function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
@@ -592,6 +592,13 @@ function CreatePurchaseOrder() {
     medicineType: 'tablet',
   })
 
+  const [previouslyOrderedItems, setPreviouslyOrderedItems] = useState([])
+  const [showRestockModal, setShowRestockModal] = useState(false)
+  const [loadingRestock, setLoadingRestock] = useState(false)
+  const [displayedItems, setDisplayedItems] = useState([])
+  const [itemsPage, setItemsPage] = useState(0)
+  const ITEMS_PER_PAGE = 10
+
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
 
   const getMedicineLabels = (medicineType) => {
@@ -642,6 +649,77 @@ function CreatePurchaseOrder() {
       }
     })
   }, [selectedSupplier, navigate])
+
+  // Load items from current inventory for this supplier
+  useEffect(() => {
+    const loadSupplierItems = async () => {
+      try {
+        setLoadingRestock(true)
+        
+        // Get all medicines and store items
+        const [medicines, storeItems] = await Promise.all([
+          getMedicines(),
+          getStoreItems()
+        ])
+        
+        // Filter items by supplier
+        const medicinesBySupplier = medicines.filter(m => m.supplierName === selectedSupplier.supplierName)
+        const storeItemsBySupplier = storeItems.filter(s => s.supplierName === selectedSupplier.supplierName)
+        
+        // Combine and format for restock
+        const allItems = [
+          ...medicinesBySupplier.map(m => ({
+            ...m,
+            itemType: 'medicine',
+            medicineType: m.medicineType || 'tablet',
+            itemName: m.medicineName,
+            purchasePrice: m.purchasePrice || 0
+          })),
+          ...storeItemsBySupplier.map(s => ({
+            ...s,
+            itemType: 'store',
+            itemName: s.itemName,
+            purchasePrice: s.purchasePrice || 0
+          }))
+        ]
+        
+        // Sort by item name
+        allItems.sort((a, b) => a.itemName.localeCompare(b.itemName))
+        
+        setPreviouslyOrderedItems(allItems)
+      } catch (error) {
+        console.error('Error loading supplier items:', error)
+        setPreviouslyOrderedItems([])
+      } finally {
+        setLoadingRestock(false)
+      }
+    }
+    
+    if (selectedSupplier?.supplierName) {
+      loadSupplierItems()
+    }
+  }, [selectedSupplier])
+
+  // Load all items for modal when opened
+  useEffect(() => {
+    if (showRestockModal && previouslyOrderedItems.length > 0 && displayedItems.length === 0) {
+      setDisplayedItems(previouslyOrderedItems)
+    }
+  }, [showRestockModal, previouslyOrderedItems])
+
+  const handleRestockItemSelect = (item) => {
+    handleRestockItem(item)
+    setShowRestockModal(false)
+  }
+
+  const handleOpenRestockModal = () => {
+    setDisplayedItems([])
+    setShowRestockModal(true)
+  }
+
+  const handleCloseRestockModal = () => {
+    setShowRestockModal(false)
+  }
 
   const handlePackUnitsChange = (units) => {
     setPackUnits(units)
@@ -762,6 +840,37 @@ function CreatePurchaseOrder() {
   const handleRemoveOrderItem = (index) =>
     setOrderItems(prev => prev.filter((_, i) => i !== index))
 
+  const handleRestockItem = (item) => {
+    // Populate current item form with restock item details
+    setCurrentItem({
+      itemType: item.itemType,
+      itemName: item.itemName,
+      category: item.category,
+      brand: item.brand || '',
+      description: item.description || '',
+      quantity: '', // User should set quantity
+      packUnit: item.packUnit,
+      unitsPerPack: item.unitsPerPack || '',
+      subUnit: item.subUnit || '',
+      packageSize: item.packageSize || '',
+      packageUnit: item.packageUnit || 'pcs',
+      purchasePrice: item.purchasePrice || '',
+      sellingPricePerUnit: item.sellingPricePerUnit || '',
+      sellingPricePerPack: item.sellingPricePerPack || '',
+      sellingPrice: item.sellingPrice || '',
+      expirationDate: item.expirationDate || '',
+      medicineType: item.medicineType || 'tablet',
+    })
+    
+    // Scroll to form smoothly
+    setTimeout(() => {
+      const formSection = document.querySelector('[data-form-anchor]')
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
+  }
+
   const calculateOrderTotal = () =>
     orderItems.reduce((sum, item) => sum + (item.purchasePrice * item.quantity), 0)
 
@@ -790,85 +899,178 @@ function CreatePurchaseOrder() {
       for (const item of orderItems) {
         if (item.itemType === 'medicine') {
           if (isItemSyrup(item)) {
-            await addMedicine({
-              medicineName: item.itemName, category: item.category,
-              brand: item.brand || '', description: item.description || '',
-              medicineType: 'syrup',
-              bottleCount: item.quantity - 1,
-              looseMl: item.unitsPerPack,
-              mlPerBottle: item.unitsPerPack,
-              stockQuantity: item.quantity * item.unitsPerPack,
-              unit: item.packUnit,
-              sellingPricePerMl: item.sellingPricePerUnit,
-              sellingPricePerBottle: item.sellingPricePerPack,
-              purchasePrice: item.purchasePrice,
-              expirationDate: item.expirationDate,
-              supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
-              createdAt: new Date().toISOString()
-            })
+            // Try to find existing syrup medicine
+            const existingSyrup = await findMedicineByNameAndCategory(item.itemName, item.category, item.brand || '')
+            
+            if (existingSyrup) {
+              // Update existing syrup - add to stock
+              const newStockQuantity = (existingSyrup.stockQuantity || 0) + (item.quantity * item.unitsPerPack)
+              const newBottleCount = (existingSyrup.bottleCount || 0) + (item.quantity - 1)
+              
+              await updateMedicine(existingSyrup.id, {
+                stockQuantity: newStockQuantity,
+                bottleCount: newBottleCount,
+                looseMl: item.unitsPerPack,
+                mlPerBottle: item.unitsPerPack,
+                sellingPricePerMl: item.sellingPricePerUnit,
+                sellingPricePerBottle: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+              })
+            } else {
+              // Create new syrup medicine
+              await addMedicine({
+                medicineName: item.itemName, category: item.category,
+                brand: item.brand || '', description: item.description || '',
+                medicineType: 'syrup',
+                bottleCount: item.quantity - 1,
+                looseMl: item.unitsPerPack,
+                mlPerBottle: item.unitsPerPack,
+                stockQuantity: item.quantity * item.unitsPerPack,
+                unit: item.packUnit,
+                sellingPricePerMl: item.sellingPricePerUnit,
+                sellingPricePerBottle: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+                supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
+                createdAt: new Date().toISOString()
+              })
+            }
           } else if (isItemTablet(item)) {
-            await addMedicine({
-              medicineName: item.itemName, category: item.category,
-              brand: item.brand || '', description: item.description || '',
-              medicineType: 'tablet',
-              boxCount: item.quantity - 1,
-              looseTablets: item.unitsPerPack,
-              tabletsPerBox: item.unitsPerPack,
-              stockQuantity: item.quantity * item.unitsPerPack,
-              unit: item.packUnit,
-              sellingPricePerTablet: item.sellingPricePerUnit,
-              sellingPricePerBox: item.sellingPricePerPack,
-              purchasePrice: item.purchasePrice,
-              expirationDate: item.expirationDate,
-              supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
-              createdAt: new Date().toISOString()
-            })
+            // Try to find existing tablet medicine
+            const existingTablet = await findMedicineByNameAndCategory(item.itemName, item.category, item.brand || '')
+            
+            if (existingTablet) {
+              // Update existing tablet - add to stock
+              const newStockQuantity = (existingTablet.stockQuantity || 0) + (item.quantity * item.unitsPerPack)
+              const newBoxCount = (existingTablet.boxCount || 0) + (item.quantity - 1)
+              
+              await updateMedicine(existingTablet.id, {
+                stockQuantity: newStockQuantity,
+                boxCount: newBoxCount,
+                looseTablets: item.unitsPerPack,
+                tabletsPerBox: item.unitsPerPack,
+                sellingPricePerTablet: item.sellingPricePerUnit,
+                sellingPricePerBox: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+              })
+            } else {
+              // Create new tablet medicine
+              await addMedicine({
+                medicineName: item.itemName, category: item.category,
+                brand: item.brand || '', description: item.description || '',
+                medicineType: 'tablet',
+                boxCount: item.quantity - 1,
+                looseTablets: item.unitsPerPack,
+                tabletsPerBox: item.unitsPerPack,
+                stockQuantity: item.quantity * item.unitsPerPack,
+                unit: item.packUnit,
+                sellingPricePerTablet: item.sellingPricePerUnit,
+                sellingPricePerBox: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+                supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
+                createdAt: new Date().toISOString()
+              })
+            }
           } else {
-            await addMedicine({
-              medicineName: item.itemName, category: item.category,
-              brand: item.brand || '', description: item.description || '',
-              medicineType: item.medicineType || 'other',
-              stockQuantity: item.quantity,
-              unit: item.packUnit,
-              sellingPrice: item.sellingPrice,
-              purchasePrice: item.purchasePrice,
-              expirationDate: item.expirationDate,
-              supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
-              createdAt: new Date().toISOString()
-            })
+            // Regular medicine (non-syrup, non-tablet)
+            const existingMedicine = await findMedicineByNameAndCategory(item.itemName, item.category, item.brand || '')
+            
+            if (existingMedicine) {
+              // Update existing medicine - add to stock
+              const newStockQuantity = (existingMedicine.stockQuantity || 0) + item.quantity
+              
+              await updateMedicine(existingMedicine.id, {
+                stockQuantity: newStockQuantity,
+                sellingPrice: item.sellingPrice,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+              })
+            } else {
+              // Create new medicine
+              await addMedicine({
+                medicineName: item.itemName, category: item.category,
+                brand: item.brand || '', description: item.description || '',
+                medicineType: item.medicineType || 'other',
+                stockQuantity: item.quantity,
+                unit: item.packUnit,
+                sellingPrice: item.sellingPrice,
+                purchasePrice: item.purchasePrice,
+                expirationDate: item.expirationDate,
+                supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
+                createdAt: new Date().toISOString()
+              })
+            }
           }
         } else if (item.itemType === 'store') {
           if (isItemFoodCategory(item)) {
-            await addStoreItem({
-              itemName: item.itemName, category: item.category,
-              brand: item.brand || '', description: item.description || '',
-              stockQuantity: item.quantity * item.unitsPerPack,
-              sacksCount: item.quantity - 1,
-              looseKg: item.unitsPerPack,
-              kgPerSack: item.unitsPerPack,
-              unit: item.packUnit,
-              sellingPricePerKg: item.sellingPricePerUnit,
-              sellingPricePerSack: item.sellingPricePerPack,
-              purchasePrice: item.purchasePrice,
-              hasBundle: false,
-              supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
-              createdAt: new Date().toISOString()
-            })
+            // Try to find existing food item
+            const existingFood = await findStoreItemByNameAndCategory(item.itemName, item.category, item.brand || '')
+            
+            if (existingFood) {
+              // Update existing food item - add to stock
+              const newStockQuantity = (existingFood.stockQuantity || 0) + (item.quantity * item.unitsPerPack)
+              const newSacksCount = (existingFood.sacksCount || 0) + (item.quantity - 1)
+              
+              await updateStoreItem(existingFood.id, {
+                stockQuantity: newStockQuantity,
+                sacksCount: newSacksCount,
+                looseKg: item.unitsPerPack,
+                kgPerSack: item.unitsPerPack,
+                sellingPricePerKg: item.sellingPricePerUnit,
+                sellingPricePerSack: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+              })
+            } else {
+              // Create new food item
+              await addStoreItem({
+                itemName: item.itemName, category: item.category,
+                brand: item.brand || '', description: item.description || '',
+                stockQuantity: item.quantity * item.unitsPerPack,
+                sacksCount: item.quantity - 1,
+                looseKg: item.unitsPerPack,
+                kgPerSack: item.unitsPerPack,
+                unit: item.packUnit,
+                sellingPricePerKg: item.sellingPricePerUnit,
+                sellingPricePerSack: item.sellingPricePerPack,
+                purchasePrice: item.purchasePrice,
+                hasBundle: false,
+                supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
+                createdAt: new Date().toISOString()
+              })
+            }
           } else {
+            // Regular store item (non-food)
             const totalStock = item.packageSize ? item.quantity * item.packageSize : item.quantity
-            await addStoreItem({
-              itemName: item.itemName, category: item.category,
-              brand: item.brand || '', description: item.description || '',
-              stockQuantity: totalStock,
-              unit: item.packageSize ? (item.packageUnit || 'pcs') : item.packUnit,
-              packageUnit: item.packUnit,
-              packageSize: item.packageSize || null,
-              purchasePrice: item.purchasePrice,
-              sellingPrice: item.sellingPrice,
-              hasBundle: false,
-              supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
-              createdAt: new Date().toISOString()
-            })
+            const existingStoreItem = await findStoreItemByNameAndCategory(item.itemName, item.category, item.brand || '')
+            
+            if (existingStoreItem) {
+              // Update existing store item - add to stock
+              const newStockQuantity = (existingStoreItem.stockQuantity || 0) + totalStock
+              
+              await updateStoreItem(existingStoreItem.id, {
+                stockQuantity: newStockQuantity,
+                purchasePrice: item.purchasePrice,
+                sellingPrice: item.sellingPrice,
+              })
+            } else {
+              // Create new store item
+              await addStoreItem({
+                itemName: item.itemName, category: item.category,
+                brand: item.brand || '', description: item.description || '',
+                stockQuantity: totalStock,
+                unit: item.packageSize ? (item.packageUnit || 'pcs') : item.packUnit,
+                packageUnit: item.packUnit,
+                packageSize: item.packageSize || null,
+                purchasePrice: item.purchasePrice,
+                sellingPrice: item.sellingPrice,
+                hasBundle: false,
+                supplierId: selectedSupplier.id, supplierName: selectedSupplier.supplierName,
+                createdAt: new Date().toISOString()
+              })
+            }
           }
         }
       }
@@ -906,8 +1108,8 @@ function CreatePurchaseOrder() {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
         {/* ── LEFT: Form ── */}
-        <div className="w-full lg:w-96 bg-white border-r border-gray-200 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2">
+        <div className="w-full lg:w-96 bg-white border-r border-gray-200 flex flex-col lg:h-screen">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between gap-2 flex-shrink-0">
             <div className="flex items-center gap-2">
               <button onClick={() => navigate('/suppliers')} className="text-gray-600 hover:text-gray-900">
                 <FiArrowLeft className="w-5 h-5" />
@@ -917,18 +1119,39 @@ function CreatePurchaseOrder() {
                 <p className="text-xs text-gray-400">{selectedSupplier.supplierName}</p>
               </div>
             </div>
-            {orderFormData.paymentTerms === '0' && (
-              <div className="px-2.5 py-1 bg-green-100 text-green-800 rounded text-xs font-medium whitespace-nowrap">
-                Cash Payment
-              </div>
-            )}
-            {orderFormData.paymentTerms !== '0' && orderFormData.paymentTerms && (
-              <div className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium whitespace-nowrap">
-                Due: {new Date(orderFormData.paymentTerms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {loadingRestock && displayedItems.length === 0 && (
+                <div className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                  Loading items...
+                </div>
+              )}
+              {!loadingRestock && previouslyOrderedItems.length > 0 && (
+                <button
+                  onClick={handleOpenRestockModal}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap"
+                >
+                  <FiRefreshCw className="w-3.5 h-3.5" /> Restock ({previouslyOrderedItems.length})
+                </button>
+              )}
+              {!loadingRestock && previouslyOrderedItems.length === 0 && (
+                <div className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+                  No previous orders
+                </div>
+              )}
+              {orderFormData.paymentTerms === '0' && (
+                <div className="px-2.5 py-1 bg-green-100 text-green-800 rounded text-xs font-medium whitespace-nowrap">
+                  Cash Payment
+                </div>
+              )}
+              {orderFormData.paymentTerms !== '0' && orderFormData.paymentTerms && (
+                <div className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium whitespace-nowrap">
+                  Due: {new Date(orderFormData.paymentTerms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Form Content - Scrollable */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
             {/* Order Date & Payment Terms */}
@@ -1228,9 +1451,9 @@ function CreatePurchaseOrder() {
           </div>
 
           {/* Add Button */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0" data-form-anchor>
             <button onClick={handleAddItemToOrder}
-              className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 font-medium flex items-center justify-center gap-2">
+              className="w-full px-4 py-2.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm">
               <FiPlus className="w-4 h-4" /> Add Item to Order
             </button>
           </div>
@@ -1381,6 +1604,69 @@ function CreatePurchaseOrder() {
           </div>
         </div>
 
+        {/* ── RESTOCK MODAL ── */}
+        {showRestockModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Restock Items</h2>
+                <button
+                  onClick={handleCloseRestockModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              {loadingRestock && displayedItems.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-gray-500">Loading items...</p>
+                </div>
+              ) : previouslyOrderedItems.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center p-6">
+                  <p className="text-gray-500 text-center">No previously ordered items</p>
+                </div>
+              ) : (
+                <div
+                  className="flex-1 overflow-y-auto"
+                >
+                  <div className="divide-y divide-gray-200">
+                    {displayedItems.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => handleRestockItemSelect(item)}
+                        className="p-4 hover:bg-blue-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900">{item.itemName}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {item.brand && (
+                                <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                  {item.brand}
+                                </span>
+                              )}
+                              {item.category && (
+                                <span className="text-xs text-gray-600">
+                                  {item.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm font-semibold text-blue-600 flex-shrink-0">
+                            ₱{typeof item.purchasePrice === 'number' ? item.purchasePrice.toFixed(2) : item.purchasePrice || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
