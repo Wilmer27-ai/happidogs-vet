@@ -97,7 +97,7 @@ function Reports() {
       return !isNaN(d) && d >= rangeStart
     })
   })()
-  const filteredExpenses = filterByDate(data.expenses, 'expenseDate')
+  const filteredExpenses = filterByDate(data.expenses, 'expenseDate').filter(e => e.category !== 'Bank Deposit')
   const filteredConsultations = filterByDate(data.consultations, 'createdAt')
 
   const totalRevenue = filteredSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0)
