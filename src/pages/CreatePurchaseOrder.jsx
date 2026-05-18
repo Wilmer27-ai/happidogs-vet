@@ -878,7 +878,7 @@ function CreatePurchaseOrder() {
         try {
           await addExpense({
             expenseName: `PO Purchase: ${selectedSupplier.supplierName}`,
-            category: 'Supplier Payment',
+            category: 'Purchase Orders',
             amount: totalAmount.toString(),
             expenseDate: orderFormData.orderDate,
             description: `Purchase Order ${orderNumber} - Cash Payment from ${selectedSupplier.supplierName}. Items: ${orderItems.map(i => i.itemName).join(', ')}`

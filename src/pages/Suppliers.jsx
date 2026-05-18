@@ -228,7 +228,7 @@ function Suppliers() {
         
         await addExpense({
           expenseName: `PO Payment: ${selectedOrderForPayment.supplierName}`,
-          category: 'Supplier Payment',
+          category: 'Purchase Orders',
           amount: selectedOrderForPayment.totalAmount.toString(),
           expenseDate: new Date().toISOString().split('T')[0],
           description: `Purchase Order ${selectedOrderForPayment.orderNumber} - Payment received. Items: ${itemList}`

@@ -857,7 +857,7 @@ export const MASTER_DATA_DEFAULTS = {
   packUnits: ['bottle', 'box', 'sack', 'vial', 'ampoule', 'sachet', 'tube', 'pack', 'bag', 'can'],
   subUnits: ['ml', 'tablet', 'capsule', 'kg', 'g', 'mg', 'pcs', 'dose'],
   brands: ['Apollo', 'Beaphar', 'Royal Canin', 'Purina', 'Iams', 'Pedigree', 'Generic'],
-  expenseCategories: ['Supplies', 'Medicine Inventory', 'Store Inventory', 'Utilities', 'Rent', 'Salaries', 'Equipment', 'Maintenance', 'Transportation', 'Marketing', 'Other'],
+  expenseCategories: ['Supplies', 'Medicine Inventory', 'Store Inventory', 'Purchase Orders', 'Utilities', 'Rent', 'Salaries', 'Equipment', 'Maintenance', 'Transportation', 'Marketing', 'Other'],
   paymentMethods: ['Cash', 'GCash', 'Bank Transfer', 'Check', 'Credit Card'],
   medicineForms: { tablet: 'Tablet / Capsule', syrup: 'Syrup / Liquid', vial: 'Vial / Injectable', other: 'Other' },
   lowStockThreshold: 10,
