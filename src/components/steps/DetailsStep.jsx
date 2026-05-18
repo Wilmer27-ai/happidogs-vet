@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2, FiEdit2 } from 'react-icons/fi'
+import { FiPlus, FiSearch, FiX, FiPackage, FiMinus, FiTrash2, FiEdit2, FiChevronLeft, FiChevronRight, FiMenu } from 'react-icons/fi'
 import { getClients, getPets, addPetActivity, getPetActivities, getMedicines, deletePetActivity, updatePetActivity, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
 import AddClientModal from '../AddClientModal'
 import AddPetModal from '../AddPetModal'
@@ -207,6 +207,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [isEditConsultationOpen, setIsEditConsultationOpen] = useState(false)
   const [editingConsultation, setEditingConsultation] = useState(null)
   const [editingData, setEditingData] = useState({})
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false)
 
   const getCurrentDate = () => {
     const d = new Date()
@@ -597,10 +598,13 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
   const handleOpenEditConsultation = (activity) => {
     setEditingConsultation(activity)
+    const actTypes = activity.activityTypes || (activity.activityType ? activity.activityType.split(', ').filter(Boolean) : [])
     setEditingData({
+      activityTypes: actTypes,
       diagnosis: activity.diagnosis || '',
       treatment: activity.treatment || '',
       note: activity.note || '',
+      medicines: (activity.medicines || []).map(m => ({ ...m })),
       followUpDate: activity.followUpDate || '',
       followUpNote: activity.followUpNote || '',
     })
@@ -610,13 +614,19 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const handleSaveEditConsultation = async () => {
     if (!editingConsultation) return
     try {
+      // Construct update data with combined activityType string
+      const updateData = {
+        ...editingData,
+        activityType: (editingData.activityTypes || []).join(', '),
+      }
+      
       // Save to Firebase
-      await updatePetActivity(editingConsultation.id, editingData)
+      await updatePetActivity(editingConsultation.id, updateData)
       
       // Update local state
       const updatedActivity = {
         ...editingConsultation,
-        ...editingData
+        ...updateData
       }
       setActivities(prev => prev.map(a => a.id === editingConsultation.id ? updatedActivity : a))
       
@@ -663,13 +673,30 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
       <div className="flex-1 flex overflow-hidden">
 
-        {/* ── LEFT PANEL ── */}
-        <div className={`${showForm ? 'flex' : 'hidden'} lg:flex w-full lg:w-[420px] xl:w-[460px] border-r border-gray-200 bg-white flex-col flex-shrink-0`}>
-          <div className="px-4 py-3 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900 text-sm">Pet Consultation Form</h3>
+        {/* ── LEFT PANEL — Form (Collapsible) ── */}
+        <div className={`${showForm ? 'flex' : 'hidden'} lg:flex ${isFormCollapsed ? 'lg:w-12' : 'w-full lg:w-[420px] xl:w-[460px]'} border-r border-gray-200 bg-white flex-col flex-shrink-0 transition-all duration-300`}>
+          <div className="px-3 sm:px-4 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-5">
+            {!isFormCollapsed && (
+              <h3 className="font-semibold text-gray-900 text-sm">Pet Consultation Form</h3>
+            )}
+            <button
+              onClick={() => setIsFormCollapsed(!isFormCollapsed)}
+              title={isFormCollapsed ? 'Expand form' : 'Collapse form'}
+              className={`${isFormCollapsed ? 'mx-auto' : 'ml-auto'} text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-all font-medium flex items-center gap-1`}>
+              {isFormCollapsed ? (
+                <FiChevronRight className="w-3 h-3" />
+              ) : (
+                <>
+                  <FiMenu className="w-5 h-5" />
+                  <span className="hidden sm:inline text-xs">Hide</span>
+                </>
+              )}
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          {!isFormCollapsed && (
+            <>
+              <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3">
 
             {/* Owner */}
             <div className="relative" style={{ zIndex: 50 }}>
@@ -896,7 +923,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 <div className="border border-gray-200 rounded-md bg-white overflow-hidden">
 
                   {/* Header row */}
-                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-3 py-2 border-b border-gray-100">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Medicines</span>
                       {(() => {
@@ -908,7 +935,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                         ) : null
                       })()}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
                       {selectedPets.length > 1 && (
                         <label className="flex items-center gap-1.5 cursor-pointer select-none">
                           <span className={`text-xs font-medium transition-colors ${perPetMode ? 'text-gray-700' : 'text-gray-400'}`}>Per pet</span>
@@ -920,8 +947,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                       )}
                       {!perPetMode && (
                         <button type="button" onClick={handleOpenMedModal}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
-                          <FiPlus className="w-3 h-3" /> Add
+                          className="flex items-center justify-center gap-1 px-2.5 py-1.5 sm:py-1 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 active:bg-gray-900 transition-colors">
+                          <FiPlus className="w-4 h-4 sm:w-3 sm:h-3" /> <span className="sm:inline">Add</span>
                         </button>
                       )}
                     </div>
@@ -1235,29 +1262,31 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
             )}
           </div>
 
-          {/* Submit */}
-          {selectedClient && selectedPets.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-200 bg-white space-y-2">
-              {successMessage && (
-                <div className="bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-3 py-2 rounded-md">
-                  {successMessage}
+              {/* Submit */}
+              {selectedClient && selectedPets.length > 0 && (
+                <div className="px-3 sm:px-4 py-3 border-t border-gray-200 bg-white space-y-2 sticky bottom-0">
+                  {successMessage && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 text-xs font-medium px-3 py-2 rounded-md">
+                      {successMessage}
+                    </div>
+                  )}
+                  <button onClick={handleSubmit} disabled={savingActivity}
+                    className="w-full py-3 sm:py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 active:bg-green-800 transition-colors font-medium flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    {savingActivity ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <FiPlus className="w-4 h-4" />
+                        Save Activity ({formData.activityTypes.join(', ')}) for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
-              <button onClick={handleSubmit} disabled={savingActivity}
-                className="w-full py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed">
-                {savingActivity ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FiPlus className="w-4 h-4" />
-                    Save Activity ({formData.activityTypes.join(', ')}) for {selectedPets.length} Pet{selectedPets.length > 1 ? 's' : ''}
-                  </>
-                )}
-              </button>
-            </div>
+            </>
           )}
         </div>
 
@@ -1451,6 +1480,39 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
             {/* Content */}
             <div className="px-5 py-4 space-y-3">
+              {/* Activity Type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Activity Type</label>
+                <div className="border border-gray-300 rounded-md px-3 py-2 space-y-1.5 bg-white">
+                  {activityTypes.map(type => (
+                    <label key={type} className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={(editingData.activityTypes || []).includes(type)}
+                        onChange={() => {
+                          setEditingData(prev => {
+                            const exists = (prev.activityTypes || []).includes(type)
+                            return {
+                              ...prev,
+                              activityTypes: exists
+                                ? (prev.activityTypes || []).filter(t => t !== type)
+                                : [...(prev.activityTypes || []), type]
+                            }
+                          })
+                        }}
+                        className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-xs font-medium text-gray-800">{type}</span>
+                    </label>
+                  ))}
+                </div>
+                {(editingData.activityTypes || []).length > 1 && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    {(editingData.activityTypes || []).length} types selected
+                  </p>
+                )}
+              </div>
+
               {/* Diagnosis */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Diagnosis</label>
@@ -1485,6 +1547,147 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                   rows="2"
                   className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="Add any notes..." />
+              </div>
+
+              {/* Medicines */}
+              <div className="border border-gray-200 rounded-md bg-white overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Medicines</span>
+                    {(editingData.medicines || []).length > 0 && (
+                      <span className="text-xs font-semibold bg-gray-800 text-white px-1.5 py-0.5 rounded-full leading-none">{(editingData.medicines || []).length}</span>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => {
+                    if (allMedicines.length > 0) {
+                      setEditingData(prev => ({
+                        ...prev,
+                        medicines: [...(prev.medicines || []), buildMedEntry(allMedicines[0])]
+                      }))
+                    }
+                  }}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
+                    <FiPlus className="w-3 h-3" /> Add
+                  </button>
+                </div>
+                {(editingData.medicines || []).length === 0 ? (
+                  <div className="py-4 text-center text-gray-400 text-xs">
+                    No medicines added
+                  </div>
+                ) : (
+                  <div>
+                    {(editingData.medicines || []).map((med, idx) => {
+                      const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
+                      const subtotal = (med.pricePerUnit ?? 0) * (med.quantity || 0)
+                      return (
+                        <div key={med.id || idx} className={`px-3 py-2 ${idx < (editingData.medicines || []).length - 1 ? 'border-b border-gray-100' : ''}`}>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate">{med.medicineName}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                ₱{(med.pricePerUnit ?? 0).toLocaleString()}/{med.sellUnit ?? med.unit}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button type="button" onClick={() => {
+                                setEditingData(prev => ({
+                                  ...prev,
+                                  medicines: (prev.medicines || []).map((m, i) =>
+                                    i === idx ? { ...m, quantity: Math.max(0, (m.quantity || 0) - step) } : m
+                                  )
+                                }))
+                              }}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                <FiMinus className="w-2.5 h-2.5" />
+                              </button>
+                              <input type="text" inputMode="decimal" value={med.quantity || 0}
+                                onChange={(e) => {
+                                  const num = parseFloat(e.target.value) || 0
+                                  if (num >= 0) {
+                                    setEditingData(prev => ({
+                                      ...prev,
+                                      medicines: (prev.medicines || []).map((m, i) =>
+                                        i === idx ? { ...m, quantity: num, subtotal: num * (m.pricePerUnit ?? 0) } : m
+                                      )
+                                    }))
+                                  }
+                                }}
+                                onFocus={(e) => e.target.select()}
+                                className="w-10 text-center text-xs border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white" />
+                              <button type="button" onClick={() => {
+                                setEditingData(prev => ({
+                                  ...prev,
+                                  medicines: (prev.medicines || []).map((m, i) =>
+                                    i === idx ? { ...m, quantity: (m.quantity || 0) + step } : m
+                                  )
+                                }))
+                              }}
+                                className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+                                <FiPlus className="w-2.5 h-2.5" />
+                              </button>
+                              <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>\
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {med.editingPrice ? (
+                                <div className="flex items-center gap-1 bg-blue-50 px-2 py-1.5 rounded border border-blue-300">
+                                  <span className="text-xs font-semibold text-gray-700">₱</span>
+                                  <input type="number" min="0" step="0.01"
+                                    value={med.finalPrice !== undefined ? med.finalPrice : subtotal}
+                                    onChange={(e) => {
+                                      const newPrice = parseFloat(e.target.value) || 0
+                                      setEditingData(prev => ({
+                                        ...prev,
+                                        medicines: (prev.medicines || []).map((m, i) =>
+                                          i === idx ? { ...m, finalPrice: newPrice } : m
+                                        )
+                                      }))
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-14 text-xs font-bold text-right border-0 focus:outline-none focus:ring-0 bg-transparent [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden"
+                                    style={{ appearance: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                                    autoFocus />
+                                  <button type="button"
+                                    onClick={() => {
+                                      setEditingData(prev => ({
+                                        ...prev,
+                                        medicines: (prev.medicines || []).map((m, i) =>
+                                          i === idx ? { ...m, editingPrice: false } : m
+                                        )
+                                      }))
+                                    }}
+                                    className="px-1.5 py-0.5 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">Save</button>
+                                </div>
+                              ) : (
+                                <button type="button" title="Click to edit price"
+                                  onClick={() => {
+                                    setEditingData(prev => ({
+                                      ...prev,
+                                      medicines: (prev.medicines || []).map((m, i) =>
+                                        i === idx ? { ...m, editingPrice: true } : m
+                                      )
+                                    }))
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100 hover:border-blue-400 transition-all group shadow-sm">
+                                  <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700 tabular-nums">₱{subtotal.toLocaleString()}</p>
+                                  <span className="text-xs font-semibold text-blue-600 group-hover:text-blue-700 whitespace-nowrap">Edit</span>
+                                </button>
+                              )}
+                              <button type="button" onClick={() => {
+                                setEditingData(prev => ({
+                                  ...prev,
+                                  medicines: (prev.medicines || []).filter((_, i) => i !== idx)
+                                }))
+                              }}
+                                className="text-gray-300 hover:text-red-500 transition-colors">
+                                <FiX className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Follow-up Section */}
