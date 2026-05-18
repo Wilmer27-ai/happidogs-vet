@@ -200,21 +200,23 @@ function Reports() {
     const rangeStart = getDateRangeFilter()
     const auditEvents = []
     
-    // Sales (both consultation and POS)
-    filteredSales.forEach(sale => {
-      const saleDate = sale.type === 'consultation'
-        ? new Date((sale.date || '') + 'T00:00:00')
-        : (sale.saleDate?.toDate ? sale.saleDate.toDate() : new Date(sale.saleDate || sale.createdAt))
-      auditEvents.push({
-        date: isNaN(saleDate) ? new Date() : saleDate,
-        type: sale.type === 'consultation' ? 'Consultation' : 'Sale',
-        description: sale.type === 'consultation'
-          ? `Consultation — ${sale.clientName || 'Client'}${sale.petNames?.length ? ' (' + sale.petNames.join(', ') + ')' : ''}`
-          : `POS Sale — ${sale.itemName || (sale.items?.length ? sale.items.length + ' items' : 'items')}`,
-        amount: sale.totalAmount || 0,
-        reference: sale.id
+    // Sales (both consultation and POS) - EXCLUDE VOIDED SALES
+    filteredSales
+      .filter(s => s.status !== 'void')  // Only show active sales
+      .forEach(sale => {
+        const saleDate = sale.type === 'consultation'
+          ? new Date((sale.date || '') + 'T00:00:00')
+          : (sale.saleDate?.toDate ? sale.saleDate.toDate() : new Date(sale.saleDate || sale.createdAt))
+        auditEvents.push({
+          date: isNaN(saleDate) ? new Date() : saleDate,
+          type: sale.type === 'consultation' ? 'Consultation' : 'Sale',
+          description: sale.type === 'consultation'
+            ? `Consultation — ${sale.clientName || 'Client'}${sale.petNames?.length ? ' (' + sale.petNames.join(', ') + ')' : ''}`
+            : `POS Sale — ${sale.itemName || (sale.items?.length ? sale.items.length + ' items' : 'items')}`,
+          amount: sale.totalAmount || 0,
+          reference: sale.id
+        })
       })
-    })
     
     // Expense activities
     filteredExpenses.forEach(exp => {
@@ -227,17 +229,33 @@ function Reports() {
       })
     })
     
-    // Stock edit history
+    // Stock edit history - SHOW VOID RECORDS DIFFERENTLY
     data.stockHistory.forEach(log => {
       const logDate = log.createdAt?.toDate ? log.createdAt.toDate() : new Date(log.editedAt || log.createdAt)
       if (rangeStart && logDate < rangeStart) return
-      auditEvents.push({
-        date: logDate,
-        type: 'Stock Edit',
-        description: `${log.action === 'delete' ? 'Deleted' : 'Edited'} ${log.itemType === 'medicine' ? 'medicine' : 'store item'}: ${log.itemName || ''}`,
-        amount: 0,
-        reference: log.id
-      })
+      
+      // Show void records with special type and description
+      if (log.action === 'void') {
+        // Find the original voided sale to get the amount
+        const voidedSale = filteredSales.find(s => s.id === log.saleId)
+        const voidAmount = voidedSale ? -(voidedSale.totalAmount || 0) : 0
+        
+        auditEvents.push({
+          date: logDate,
+          type: 'Voided Sale',
+          description: `Voided Sale — ${log.itemName || 'Unknown'}${log.saleType ? ' (' + log.saleType + ')' : ''} — Reason: ${log.reason || 'Manual void'}`,
+          amount: voidAmount,
+          reference: log.saleId || log.id
+        })
+      } else {
+        auditEvents.push({
+          date: logDate,
+          type: 'Stock Edit',
+          description: `${log.action === 'delete' ? 'Deleted' : 'Edited'} ${log.itemType === 'medicine' ? 'medicine' : 'store item'}: ${log.itemName || ''}`,
+          amount: 0,
+          reference: log.id
+        })
+      }
     })
     
     return auditEvents.sort((a, b) => b.date - a.date)
@@ -313,17 +331,37 @@ function Reports() {
 
     // ── SALES ──
     sections.push('SALES')
-    sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount']))
-    filteredSales.forEach(s => {
-      const d = s.type === 'consultation'
-        ? fmtDate((s.date || '') + 'T00:00:00')
-        : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
-      const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
-      const client = s.clientName || ''
-      const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
-      const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
-      sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount)]))
-    })
+    sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Status']))
+    filteredSales
+      .filter(s => s.status !== 'void')  // Exclude voided sales from main section
+      .forEach(s => {
+        const d = s.type === 'consultation'
+          ? fmtDate((s.date || '') + 'T00:00:00')
+          : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
+        const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
+        const client = s.clientName || ''
+        const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
+        const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
+        sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount), 'Active']))
+      })
+    sections.push('')
+
+    // ── VOIDED SALES ──
+    sections.push('VOIDED SALES')
+    sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Voided Date']))
+    filteredSales
+      .filter(s => s.status === 'void')  // Only show voided sales
+      .forEach(s => {
+        const d = s.type === 'consultation'
+          ? fmtDate((s.date || '') + 'T00:00:00')
+          : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
+        const voidDate = s.voidedAt?.toDate ? s.voidedAt.toDate() : new Date(s.voidedAt || '')
+        const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
+        const client = s.clientName || ''
+        const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
+        const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
+        sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount), fmtDate(voidDate)]))
+      })
     sections.push('')
 
     // ── EXPENSES ──
@@ -720,7 +758,7 @@ function Reports() {
             <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
               <h2 className="text-sm font-semibold text-gray-900 mb-3">Activity Audit Trail</h2>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                 <div className="p-3 border border-gray-200 rounded">
                   <p className="text-xs text-gray-600 mb-0.5">Total Activities</p>
                   <p className="text-2xl font-bold text-gray-900">{auditTrail.length}</p>
@@ -728,12 +766,17 @@ function Reports() {
                 
                 <div className="p-3 border border-green-200 bg-green-50 rounded">
                   <p className="text-xs text-green-700 mb-0.5">Sales</p>
-                  <p className="text-2xl font-bold text-green-900">{filteredSales.length}</p>
+                  <p className="text-2xl font-bold text-green-900">{filteredSales.filter(s => s.status !== 'void').length}</p>
                 </div>
                 
                 <div className="p-3 border border-red-200 bg-red-50 rounded">
-                  <p className="text-xs text-red-700 mb-0.5">Expenses</p>
-                  <p className="text-2xl font-bold text-red-900">{filteredExpenses.length}</p>
+                  <p className="text-xs text-red-700 mb-0.5">Voided Sales</p>
+                  <p className="text-2xl font-bold text-red-900">{filteredSales.filter(s => s.status === 'void').length}</p>
+                </div>
+                
+                <div className="p-3 border border-orange-200 bg-orange-50 rounded">
+                  <p className="text-xs text-orange-700 mb-0.5">Expenses</p>
+                  <p className="text-2xl font-bold text-orange-900">{filteredExpenses.length}</p>
                 </div>
                 
                 <div className="p-3 border border-blue-200 bg-blue-50 rounded">
@@ -770,8 +813,9 @@ function Reports() {
                           <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
                             event.type === 'Sale' ? 'bg-green-100 text-green-800' :
                             event.type === 'Consultation' ? 'bg-blue-100 text-blue-800' :
+                            event.type === 'Voided Sale' ? 'bg-red-100 text-red-800' :
                             event.type === 'Stock Edit' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
+                            'bg-gray-100 text-gray-800'
                           }`}>
                             {event.type}
                           </span>
