@@ -16,6 +16,7 @@ function PetStore() {
   const [showCheckoutModal, setShowCheckoutModal] = useState(false)
 
   const [displayCount, setDisplayCount] = useState(20)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
   const observerTarget = useRef(null)
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
@@ -300,6 +301,9 @@ function PetStore() {
 
   const handleCheckout = async () => {
     if (order.length === 0) { alert('Order is empty!'); return }
+    if (checkoutLoading) return
+    
+    setCheckoutLoading(true)
     try {
       for (const orderItem of order) {
         const qty = parseFloat(orderItem.quantity)
@@ -383,6 +387,8 @@ function PetStore() {
     } catch (error) {
       console.error('Error processing sale:', error)
       alert('Failed to process sale. Please try again.')
+    } finally {
+      setCheckoutLoading(false)
     }
   }
 
@@ -714,16 +720,27 @@ function PetStore() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowCheckoutModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors"
+                  disabled={checkoutLoading}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors flex items-center justify-center gap-2"
+                  disabled={checkoutLoading}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:hover:bg-gray-400"
                 >
-                  <FiShoppingBag className="w-4 h-4" />
-                  Confirm Sale
+                  {checkoutLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <FiShoppingBag className="w-4 h-4" />
+                      Confirm Sale
+                    </>
+                  )}
                 </button>
               </div>
             </div>

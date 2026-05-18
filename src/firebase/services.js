@@ -460,7 +460,12 @@ export const deleteSale = async (saleId) => {
 
 export const voidSale = async (sale, reason = "Manual void") => {
   try {
-    const { id: saleId, type, items, itemId, medicineName, itemName, quantity, unit, medicineType } = sale;
+    const saleId = sale.id;
+    const type = sale.type;
+    const items = sale.items;
+    const itemId = sale.itemId;
+    const quantity = sale.quantity ?? 0;
+    const unit = sale.unit || '';
     
     if (type === 'consultation') {
       // For consultation sales, restore medicine stocks
@@ -487,6 +492,8 @@ export const voidSale = async (sale, reason = "Manual void") => {
                 bottleCount += bottlesFromLoose;
                 looseMl = looseMl % (med.mlPerBottle ?? 1);
                 
+                console.log(`[VOID] Syrup: restored ${mlToRestore}ml, bottles=${bottleCount}, loose=${looseMl}`);
+                
                 await updateDoc(medRef, {
                   bottleCount,
                   looseMl,
@@ -502,15 +509,19 @@ export const voidSale = async (sale, reason = "Manual void") => {
                 boxCount += boxesFromLoose;
                 looseTablets = looseTablets % (med.tabletsPerBox ?? 1);
                 
+                console.log(`[VOID] Tablet: restored ${tabletsToRestore} tablets, boxes=${boxCount}, loose=${looseTablets}`);
+                
                 await updateDoc(medRef, {
                   boxCount,
                   looseTablets,
                   stockQuantity: (boxCount * (med.tabletsPerBox ?? 0)) + looseTablets,
                 });
               } else {
-                // Simple stock restoration
+                const newStock = (med.stockQuantity ?? 0) + qty;
+                console.log(`[VOID] Simple medicine: old=${med.stockQuantity}, +${qty}, new=${newStock}`);
+                
                 await updateDoc(medRef, {
-                  stockQuantity: (med.stockQuantity ?? 0) + qty,
+                  stockQuantity: newStock,
                 });
               }
             }
@@ -519,14 +530,21 @@ export const voidSale = async (sale, reason = "Manual void") => {
       }
     } else {
       // For petstore sales (medicine or store item), restore the item stock
+      if (!itemId) {
+        console.warn("[VOID] No itemId found in sale - cannot restore stock");
+        throw new Error("Sale missing itemId for stock restoration");
+      }
+      
       const collectionName = sale.itemType === 'medicine' ? 'medicines' : 'storeItems';
       const itemRef = doc(db, collectionName, itemId);
       const itemSnap = await getDoc(itemRef);
       
       if (itemSnap.exists()) {
         const item = itemSnap.data();
-        const qty = quantity || 0;
-        const saleUnit = unit || '';
+        const qty = quantity;
+        const saleUnit = unit;
+        
+        console.log(`[VOID] Restoring ${qty} ${saleUnit} from ${collectionName}/${itemId}`);
         
         if (collectionName === 'medicines') {
           // Restore medicine stock
@@ -539,6 +557,8 @@ export const voidSale = async (sale, reason = "Manual void") => {
             const bottlesFromLoose = Math.floor(looseMl / (item.mlPerBottle ?? 1));
             bottleCount += bottlesFromLoose;
             looseMl = looseMl % (item.mlPerBottle ?? 1);
+            
+            console.log(`[VOID] Petstore Syrup: ${mlToRestore}ml restore, bottles=${bottleCount}, loose=${looseMl}`);
             
             await updateDoc(itemRef, {
               bottleCount,
@@ -555,14 +575,19 @@ export const voidSale = async (sale, reason = "Manual void") => {
             boxCount += boxesFromLoose;
             looseTablets = looseTablets % (item.tabletsPerBox ?? 1);
             
+            console.log(`[VOID] Petstore Tablet: ${tabletsToRestore} tablets restore, boxes=${boxCount}, loose=${looseTablets}`);
+            
             await updateDoc(itemRef, {
               boxCount,
               looseTablets,
               stockQuantity: (boxCount * (item.tabletsPerBox ?? 0)) + looseTablets,
             });
           } else {
+            const newStock = (item.stockQuantity ?? 0) + qty;
+            console.log(`[VOID] Petstore Medicine: old=${item.stockQuantity}, +${qty}, new=${newStock}`);
+            
             await updateDoc(itemRef, {
-              stockQuantity: (item.stockQuantity ?? 0) + qty,
+              stockQuantity: newStock,
             });
           }
         } else {
@@ -578,17 +603,25 @@ export const voidSale = async (sale, reason = "Manual void") => {
             sacksCount += sacksFromLoose;
             looseKg = looseKg % (item.kgPerSack ?? 1);
             
+            console.log(`[VOID] Food: ${kgToRestore}kg restore, sacks=${sacksCount}, loose=${looseKg}`);
+            
             await updateDoc(itemRef, {
               sacksCount,
               looseKg,
               stockQuantity: (sacksCount * (item.kgPerSack ?? 0)) + looseKg,
             });
           } else {
+            const newStock = (item.stockQuantity ?? 0) + qty;
+            console.log(`[VOID] Store Item: old=${item.stockQuantity}, +${qty}, new=${newStock}`);
+            
             await updateDoc(itemRef, {
-              stockQuantity: (item.stockQuantity ?? 0) + qty,
+              stockQuantity: newStock,
             });
           }
         }
+      } else {
+        console.warn(`[VOID] Item not found: ${itemId} in ${collectionName}`);
+        throw new Error(`Item not found for void operation: ${itemId}`);
       }
     }
     
@@ -604,13 +637,15 @@ export const voidSale = async (sale, reason = "Manual void") => {
       action: 'void',
       saleId,
       saleType: type || 'unknown',
-      itemName: medicineName || itemName || 'Unknown',
+      itemName: sale.medicineName || sale.itemName || 'Unknown',
       itemType: sale.itemType || 'unknown',
       quantity,
       unit,
       reason,
       voidDate: new Date().toISOString(),
     });
+    
+    console.log(`[VOID] Sale ${saleId} successfully voided`);
     
   } catch (error) {
     console.error("Error voiding sale:", error);
