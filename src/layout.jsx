@@ -134,7 +134,7 @@ function Layout() {
             </div>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold tracking-tight">HappiDogs</h1>
-              <p className="text-sm text-gray-400 truncate">Veterinary Services</p>
+              <p className="text-sm text-gray-400 truncate">Veterinary Clinic</p>
             </div>
           </div>
         </div>
