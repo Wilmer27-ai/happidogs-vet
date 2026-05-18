@@ -97,15 +97,15 @@ function Dashboard() {
         })
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
-      // Today's expenses
+      // Today's expenses (exclude bank deposits)
       const todayExpenses = expenses.filter(e => {
         const expenseDate = new Date(e.expenseDate)
         expenseDate.setHours(0, 0, 0, 0)
-        return expenseDate.getTime() === today.getTime()
+        return expenseDate.getTime() === today.getTime() && e.category !== 'Bank Deposit'
       })
       const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
       const monthExpensesTotal = expenses
-        .filter(e => new Date(e.expenseDate) >= monthAgo)
+        .filter(e => new Date(e.expenseDate) >= monthAgo && e.category !== 'Bank Deposit')
         .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
 
       // Week revenue
@@ -165,12 +165,14 @@ function Dashboard() {
       }))
 
       const monthlyExpensesMap = {}
-      expenses.forEach(e => {
-        const d = new Date(e.expenseDate || e.createdAt || Date.now())
-        if (d < startMonth || d >= endMonth) return
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        monthlyExpensesMap[key] = (monthlyExpensesMap[key] || 0) + (parseFloat(e.amount) || 0)
-      })
+      expenses
+        .filter(e => e.category !== 'Bank Deposit')
+        .forEach(e => {
+          const d = new Date(e.expenseDate || e.createdAt || Date.now())
+          if (d < startMonth || d >= endMonth) return
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          monthlyExpensesMap[key] = (monthlyExpensesMap[key] || 0) + (parseFloat(e.amount) || 0)
+        })
 
       const monthlyExpensesTrend = months.map(m => ({
         label: m.label,
