@@ -89,7 +89,12 @@ function Dashboard() {
         return consultDate.getTime() === today.getTime()
       })
       const todayRevenue = consultationSales
-        .filter(s => { const d = new Date(s.date + 'T00:00:00'); d.setHours(0,0,0,0); return d.getTime() === today.getTime() })
+        .filter(s => {
+          if (s.status === 'void') return false
+          const d = new Date(s.date + 'T00:00:00')
+          d.setHours(0,0,0,0)
+          return d.getTime() === today.getTime()
+        })
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
       // Today's expenses
@@ -105,23 +110,28 @@ function Dashboard() {
 
       // Week revenue
       const weekRevenue = consultationSales
-        .filter(s => new Date(s.date + 'T00:00:00') >= weekAgo)
+        .filter(s => s.status !== 'void' && new Date(s.date + 'T00:00:00') >= weekAgo)
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
       // Month revenue
       const monthRevenue = consultationSales
-        .filter(s => new Date(s.date + 'T00:00:00') >= monthAgo)
+        .filter(s => s.status !== 'void' && new Date(s.date + 'T00:00:00') >= monthAgo)
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
       // Store sales (petstore only)
       const todaySalesTotal = storeSales
-        .filter(s => { const d = new Date(s.saleDate); d.setHours(0,0,0,0); return d.getTime() === today.getTime() })
+        .filter(s => {
+          if (s.status === 'void') return false
+          const d = new Date(s.saleDate)
+          d.setHours(0,0,0,0)
+          return d.getTime() === today.getTime()
+        })
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
       const weekSalesTotal = storeSales
-        .filter(s => new Date(s.saleDate) >= weekAgo)
+        .filter(s => s.status !== 'void' && new Date(s.saleDate) >= weekAgo)
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
       const monthSalesTotal = storeSales
-        .filter(s => new Date(s.saleDate) >= monthAgo)
+        .filter(s => s.status !== 'void' && new Date(s.saleDate) >= monthAgo)
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
       // Monthly sales trend (selected year, Jan-Dec, total sales)
@@ -137,14 +147,16 @@ function Dashboard() {
       })
 
       const monthlyTotalsMap = {}
-      ;[...consultationSales, ...storeSales].forEach(s => {
-        const d = s.type === 'consultation'
-          ? new Date((s.date || '') + 'T00:00:00')
-          : new Date(s.saleDate || s.createdAt || Date.now())
-        if (d < startMonth || d >= endMonth) return
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        monthlyTotalsMap[key] = (monthlyTotalsMap[key] || 0) + (s.totalAmount || 0)
-      })
+      ;[...consultationSales, ...storeSales]
+        .filter(s => s.status !== 'void')
+        .forEach(s => {
+          const d = s.type === 'consultation'
+            ? new Date((s.date || '') + 'T00:00:00')
+            : new Date(s.saleDate || s.createdAt || Date.now())
+          if (d < startMonth || d >= endMonth) return
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          monthlyTotalsMap[key] = (monthlyTotalsMap[key] || 0) + (s.totalAmount || 0)
+        })
 
       const monthlySalesTrend = months.map(m => ({
         label: m.label,
@@ -173,6 +185,7 @@ function Dashboard() {
         const productMap = {}
         storeSales
           .filter(s => {
+            if (s.status === 'void') return false
             const d = new Date(s.saleDate || s.createdAt || Date.now())
             return d >= productMonthStart && d < productMonthEnd
           })
@@ -234,17 +247,19 @@ function Dashboard() {
 
       // Recent activity: last 10 events across sales and expenses, newest first
       const recentActivity = [
-        ...sales.map(s => ({
-          date: s.type === 'consultation'
-            ? new Date((s.date || '') + 'T00:00:00')
-            : new Date(s.saleDate || s.createdAt || Date.now()),
-          type: s.type === 'consultation' ? 'Consultation' : 'POS Sale',
-          label: s.type === 'consultation'
-            ? `${s.clientName || 'Client'}${s.petNames?.length ? ' — ' + s.petNames.join(', ') : ''}`
-            : `${s.itemName || 'Sale'} × ${s.quantity || 1}`,
-          amount: s.totalAmount || 0,
-          positive: true
-        })),
+        ...sales
+          .filter(s => s.status !== 'void')
+          .map(s => ({
+            date: s.type === 'consultation'
+              ? new Date((s.date || '') + 'T00:00:00')
+              : new Date(s.saleDate || s.createdAt || Date.now()),
+            type: s.type === 'consultation' ? 'Consultation' : 'POS Sale',
+            label: s.type === 'consultation'
+              ? `${s.clientName || 'Client'}${s.petNames?.length ? ' — ' + s.petNames.join(', ') : ''}`
+              : `${s.itemName || 'Sale'} × ${s.quantity || 1}`,
+            amount: s.totalAmount || 0,
+            positive: true
+          })),
         ...expenses.map(e => ({
           date: new Date(e.expenseDate || e.createdAt || Date.now()),
           type: 'Expense',
