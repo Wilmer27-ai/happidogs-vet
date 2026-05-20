@@ -23,6 +23,7 @@ import logo from './assets/myLogo.png'
 
 function Layout() {
   const location = useLocation()
+  const isPetStoreRoute = location.pathname === '/pet-store'
   const { logout } = useAuth()
   const { isPrinting } = usePrintContext()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -221,7 +222,7 @@ function Layout() {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto ${isPrinting ? 'pt-0' : 'pt-14 lg:pt-0'}`}>
+      <main className={`flex-1 ${isPetStoreRoute ? 'overflow-hidden' : 'overflow-y-auto'} ${isPrinting ? 'pt-0' : 'pt-14 lg:pt-0'}`}>
         <Outlet />
       </main>
 

@@ -510,8 +510,8 @@ function PetStore() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
+    <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4 flex-shrink-0">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
           <div className="flex items-center gap-2">
@@ -550,8 +550,8 @@ function PetStore() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row gap-4 p-3 md:p-4 overflow-hidden min-h-0">
-        <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col h-[580px]">
+        <div className="flex-1 flex flex-col md:flex-row gap-4 p-3 md:p-4 overflow-hidden min-h-0">
+        <div className="flex-1 bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0">
           <div className="overflow-auto flex-1">
             {loading ? (
               <div className="flex items-center justify-center h-full">
@@ -568,7 +568,7 @@ function PetStore() {
                 </div>
               </div>
             ) : (
-              <div className="p-4 md:p-5 overflow-auto">
+              <div className="p-4 md:p-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {displayedItems.map((item) => {
                     const out = isOutOfStock(item)
@@ -651,7 +651,7 @@ function PetStore() {
           </div>
         </div>
 
-        <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col h-[580px]">
+        <div className="hidden md:flex w-80 lg:w-96 bg-white rounded-lg border border-gray-200 flex-col min-h-0">
           {renderCartPanel()}
         </div>
       </div>
