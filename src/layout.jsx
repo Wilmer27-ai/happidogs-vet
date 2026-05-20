@@ -19,7 +19,7 @@ import {
   FiAlertCircle
 } from 'react-icons/fi'
 import { useState } from 'react'
-import logo from './assets/myLogo.png'
+import logo from './assets/myLogo.svg'
 
 function Layout() {
   const location = useLocation()

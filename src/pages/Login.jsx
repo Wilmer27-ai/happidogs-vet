@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../firebase/config'
 import { useNavigate } from 'react-router-dom'
 import { FiMail, FiLock, FiAlertCircle } from 'react-icons/fi'
-import logo from '../assets/happidogslogo.png'
+import logo from '../assets/myLogo.svg'
 import bgImage from '../assets/604516753_794350086958004_3672337843038144316_n.jpg'
 
 function Login() {
@@ -61,7 +61,7 @@ function Login() {
               <img src={logo} alt="HappiDogs Logo" className="w-24 h-24 object-contain" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">HappiDogs</h1>
-            <p className="text-gray-600">Veterinary Services</p> 
+            <p className="text-gray-600">Veterinary Clinic</p> 
           </div>
 
           {/* Error Message */}
