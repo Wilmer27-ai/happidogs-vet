@@ -1,10 +1,12 @@
 // src/pages/SalesHistory.jsx
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag, FiTrash2 } from 'react-icons/fi'
+import { useNavigate } from 'react-router-dom'
+import { FiSearch, FiShoppingBag, FiTrash2, FiArrowLeft } from 'react-icons/fi'
 import { getSales, voidSale } from '../firebase/services'
 import PasswordVerificationModal from '../components/PasswordVerificationModal'
 
 function SalesHistory() {
+  const navigate = useNavigate()
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -181,6 +183,14 @@ function SalesHistory() {
               <span className="ml-1 font-medium text-green-600">₱{totalRevenue.toLocaleString()} total</span>
             </p>
           </div>
+          <button
+            onClick={() => navigate('/pet-store')}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-xs md:text-sm transition-colors"
+            title="Back to Petstore"
+          >
+            <FiArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
         </div>
 
         <div className="flex flex-col md:flex-row gap-3">

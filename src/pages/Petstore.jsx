@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart } from 'react-icons/fi'
+import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart, FiArrowLeft } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale } from '../firebase/services'
 
@@ -283,12 +283,9 @@ function PetStore() {
     if (isNaN(num) || num < 0) return
     setOrder(order.map(i => {
       if (i.id !== id || i._type !== type) return i
-      const qty = parseFloat(i.quantity)
-      const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0
       return {
         ...i,
-        finalPrice: value,                                       // ← store final price
-        pricePerUnit: safeQty > 0 ? num / safeQty : 0            // ← back-calculate per unit
+        finalPrice: value  // ← only store final price, don't back-calculate
       }
     }))
   }
@@ -464,25 +461,19 @@ function PetStore() {
                 <div className="flex-1">
                   {orderItem.editingPrice ? (
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-gray-500">Final: ₱</span>
+                      <span className="text-xs text-gray-500">Final price: ₱</span>
                       <input
                         type="text"
                         inputMode="decimal"
-                        min="0"
-                        step="0.01"
-                        value={orderItem.finalPrice !== undefined ? orderItem.finalPrice : calculateItemTotal(orderItem)}
+                        placeholder={calculateItemTotal(orderItem).toString()}
+                        value={orderItem.finalPrice !== undefined ? orderItem.finalPrice : ''}
                         onChange={(e) => handlePriceEdit(orderItem.id, orderItem._type, e.target.value)}
-                        className="w-20 px-2 py-1 text-sm text-right border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900 font-semibold"
+                        className="flex-1 px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900 font-semibold"
                         autoFocus
                       />
                     </div>
                   ) : (
-                    <div>
-                      <p className="text-sm text-gray-600 font-medium">₱<span className="text-lg font-bold text-gray-900">{orderItem.pricePerUnit?.toLocaleString()}</span>/{orderItem.sellUnit}</p>
-                      {orderItem.finalPrice !== undefined && (
-                        <span className="text-xs text-blue-600 font-medium">(edited)</span>
-                      )}
-                    </div>
+                    <p className="text-sm text-gray-600 font-medium">₱<span className="text-lg font-bold text-gray-900">{calculateItemTotal(orderItem).toLocaleString()}</span></p>
                   )}
                 </div>
                 <button
@@ -524,6 +515,7 @@ function PetStore() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
           <div className="flex items-center gap-2">
+        
             <button
               onClick={() => navigate('/sales-history')}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-xs md:text-sm"
@@ -705,7 +697,8 @@ function PetStore() {
                   <div className="flex-1 mr-3">
                     <p className="font-medium text-gray-900">{orderItem.itemName}</p>
                     <p className="text-xs text-gray-500">
-                      {orderItem.quantity} {orderItem.sellUnit} × ₱{orderItem.pricePerUnit?.toLocaleString()}
+                      ₱{calculateItemTotal(orderItem).toLocaleString()}
+                      {orderItem.finalPrice !== undefined && orderItem.finalPrice !== '' && <span className="text-blue-600 ml-1">(edited)</span>}
                     </p>
                   </div>
                   <p className="font-semibold text-gray-900 whitespace-nowrap">₱{calculateItemTotal(orderItem).toLocaleString()}</p>
