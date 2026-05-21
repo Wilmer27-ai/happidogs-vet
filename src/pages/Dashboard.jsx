@@ -20,6 +20,9 @@ function Dashboard() {
   })
   const [salesYear, setSalesYear] = useState(new Date().getFullYear())
   const [productMonth, setProductMonth] = useState(new Date().getMonth())
+  const [salesMonth, setSalesMonth] = useState(new Date().getMonth())
+  const [weeklyMonth, setWeeklyMonth] = useState(new Date().getMonth())
+  const [weeklyYear, setWeeklyYear] = useState(new Date().getFullYear())
   const [stats, setStats] = useState({
     totalClients: 0,
     totalPets: 0,
@@ -45,7 +48,7 @@ function Dashboard() {
 
   useEffect(() => {
     loadDashboardData()
-  }, [salesYear, productMonth])
+  }, [salesYear, productMonth, salesMonth, weeklyMonth, weeklyYear])
 
   const loadDashboardData = async () => {
     setLoading(true)
@@ -175,6 +178,10 @@ function Dashboard() {
         value: monthlyTotalsMap[m.key] || 0
       }))
 
+      // Selected month total for quick dropdown view
+      const selectedMonthKey = `${salesYear}-${String(salesMonth + 1).padStart(2, '0')}`
+      const selectedMonthTotal = monthlyTotalsMap[selectedMonthKey] || 0
+
       const monthlyExpensesMap = {}
       expenses
         .filter(e => e.category !== 'Bank Deposit')
@@ -218,19 +225,26 @@ function Dashboard() {
       const lowStockItems = allItems.filter(item => item.stockQuantity <= lowStockThreshold && item.stockQuantity > 0).length
       const outOfStockItems = allItems.filter(item => item.stockQuantity === 0).length
 
-      // Weekly trend (last 7 days)
+      // Weekly trend (last 7 days) for selected weeklyMonth/weeklyYear (defaults to current)
       const weeklyTrend = []
+      const weeklyMonthStart = new Date(weeklyYear, weeklyMonth, 1)
+      const weeklyMonthEnd = new Date(weeklyYear, weeklyMonth + 1, 0)
+      const weeklyRef = (weeklyYear === today.getFullYear() && weeklyMonth === today.getMonth())
+        ? new Date(today)
+        : new Date(weeklyMonthEnd)
       for (let i = 6; i >= 0; i--) {
-        const date = new Date(today)
-        date.setDate(date.getDate() - i)
+        const date = new Date(weeklyRef)
+        date.setDate(weeklyRef.getDate() - i)
         date.setHours(0, 0, 0, 0)
-        
+
+        if (date < weeklyMonthStart) continue
+
         const dayConsultations = consultations.filter(c => {
           const consultDate = new Date(c.date)
           consultDate.setHours(0, 0, 0, 0)
           return consultDate.getTime() === date.getTime()
         })
-        
+
         weeklyTrend.push({
           day: date.toLocaleDateString('en-US', { weekday: 'short' }),
           count: dayConsultations.length
@@ -300,6 +314,8 @@ function Dashboard() {
         monthlySalesRange,
         monthlyExpensesTrend,
         monthlyProductSales,
+        selectedMonth: salesMonth,
+        selectedMonthTotal,
         lowStockItems,
         outOfStockItems,
         upcomingFollowUps,
@@ -482,8 +498,23 @@ function Dashboard() {
             <p className="text-2xl font-bold text-gray-900">₱{(stats.todayRevenue + stats.todaySales).toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500">Monthly Sales</p>
-            <p className="text-2xl font-bold text-gray-900">₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">Monthly Sales</p>
+                <p className="text-2xl font-bold text-gray-900">₱{(typeof stats.selectedMonthTotal === 'number' ? stats.selectedMonthTotal : (stats.monthRevenue + stats.monthSales)).toLocaleString()}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={salesMonth}
+                  onChange={(e) => setSalesMonth(parseInt(e.target.value, 10))}
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                >
+                  {monthOptions.map((label, idx) => (
+                    <option key={label} value={idx}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <p className="text-xs font-semibold text-gray-700 mt-0.5">Cash on hand: ₱{((stats.monthRevenue + stats.monthSales) - (stats.monthBankDeposits || 0)).toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
@@ -502,9 +533,31 @@ function Dashboard() {
 
           {/* Col 1: Weekly Chart + Revenue/Expense Summary */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-sm font-semibold text-gray-900">Weekly Consultations</h3>
-              <p className="text-xs text-gray-500">Last 7 days</p>
+            <div className="px-4 py-2.5 border-b border-gray-200 flex-shrink-0 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Weekly Consultations</h3>
+                <p className="text-xs text-gray-500">Week view</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={weeklyMonth}
+                  onChange={(e) => setWeeklyMonth(parseInt(e.target.value, 10))}
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                >
+                  {monthOptions.map((label, idx) => (
+                    <option key={label} value={idx}>{label}</option>
+                  ))}
+                </select>
+                <select
+                  value={weeklyYear}
+                  onChange={(e) => setWeeklyYear(parseInt(e.target.value, 10))}
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
               <div className="flex items-end justify-between gap-2 h-24">
