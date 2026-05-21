@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './pages/AuthContext'
 import { usePrintContext } from './contexts/PrintContext'
 import { 
@@ -24,7 +24,7 @@ import logo from './assets/myLogo.svg'
 function Layout() {
   const location = useLocation()
   const isPetStoreRoute = location.pathname === '/pet-store'
-  const { logout } = useAuth()
+  const { logout, canAccessPath, homeRoute } = useAuth()
   const { isPrinting } = usePrintContext()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -61,9 +61,15 @@ function Layout() {
     { name: 'Expenses', path: '/expenses', icon: FiDollarSign },
     { name: 'Master Data', path: '/master-data', icon: FiDatabase },
     { name: 'Reports', path: '/reports', icon: FiBarChart2 },
+    { name: 'Account Management', path: '/account-management', icon: FiSettings },
   ]
 
   const isActive = (path) => location.pathname === path
+  const visibleNavigation = navigation.filter((item) => canAccessPath(item.path))
+
+  if (!canAccessPath(location.pathname)) {
+    return <Navigate to={homeRoute} replace />
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -142,7 +148,7 @@ function Layout() {
 
         {/* Navigation */}
         <nav className="flex-1 min-h-0 px-4 py-6 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <Link
               key={item.path}
               to={item.path}

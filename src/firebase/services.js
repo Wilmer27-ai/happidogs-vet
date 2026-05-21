@@ -486,6 +486,109 @@ export const deleteSale = async (saleId) => {
   }
 };
 
+// ==================== ACCESS ACCOUNTS ====================
+export const createAccessInvite = async (inviteData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'accessInvites'), {
+      ...inviteData,
+      active: true,
+      used: false,
+      createdAt: serverTimestamp(),
+    })
+    return { id: docRef.id, ...inviteData, active: true, used: false }
+  } catch (error) {
+    console.error('Error creating access invite:', error)
+    throw error
+  }
+}
+
+export const getAccessInvites = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'accessInvites'))
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => new Date(b.createdAt?.toDate?.() || b.createdAt || 0) - new Date(a.createdAt?.toDate?.() || a.createdAt || 0))
+  } catch (error) {
+    console.error('Error getting access invites:', error)
+    throw error
+  }
+}
+
+export const getAccessInviteByToken = async (token) => {
+  try {
+    const q = query(collection(db, 'accessInvites'), where('token', '==', token))
+    const snapshot = await getDocs(q)
+    const invite = snapshot.docs[0]
+    return invite ? { id: invite.id, ...invite.data() } : null
+  } catch (error) {
+    console.error('Error getting access invite:', error)
+    throw error
+  }
+}
+
+export const updateAccessInvite = async (inviteId, data) => {
+  try {
+    const ref = doc(db, 'accessInvites', inviteId)
+    await updateDoc(ref, data)
+  } catch (error) {
+    console.error('Error updating access invite:', error)
+    throw error
+  }
+}
+
+export const getAppUsers = async () => {
+  try {
+    const snapshot = await getDocs(collection(db, 'appUsers'))
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => new Date(b.createdAt?.toDate?.() || b.createdAt || 0) - new Date(a.createdAt?.toDate?.() || a.createdAt || 0))
+  } catch (error) {
+    console.error('Error getting app users:', error)
+    throw error
+  }
+}
+
+export const getAppUserByUid = async (uid) => {
+  try {
+    const docRef = doc(db, 'appUsers', uid)
+    const snapshot = await getDoc(docRef)
+    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null
+  } catch (error) {
+    console.error('Error getting app user:', error)
+    throw error
+  }
+}
+
+export const setAppUserProfile = async (uid, data) => {
+  try {
+    const docRef = doc(db, 'appUsers', uid)
+    await setDoc(docRef, data, { merge: true })
+    return { id: uid, ...data }
+  } catch (error) {
+    console.error('Error saving app user profile:', error)
+    throw error
+  }
+}
+
+export const updateAppUserProfile = async (uid, data) => {
+  try {
+    const docRef = doc(db, 'appUsers', uid)
+    await updateDoc(docRef, data)
+  } catch (error) {
+    console.error('Error updating app user profile:', error)
+    throw error
+  }
+}
+
+export const deleteAppUserProfile = async (uid) => {
+  try {
+    await deleteDoc(doc(db, 'appUsers', uid))
+  } catch (error) {
+    console.error('Error deleting app user profile:', error)
+    throw error
+  }
+}
+
 export const voidSale = async (sale, reason = "Manual void") => {
   try {
     const saleId = sale.id;

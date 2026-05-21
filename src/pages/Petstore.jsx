@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart, FiArrowLeft } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from './AuthContext'
 import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale } from '../firebase/services'
 
 function PetStore() {
   const navigate = useNavigate()
+  const { canAccessPath } = useAuth()
   const [storeItems, setStoreItems] = useState([])
   const [medicines, setMedicines] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,6 +20,7 @@ function PetStore() {
   const [displayCount, setDisplayCount] = useState(20)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const observerTarget = useRef(null)
+  const canOpenSalesHistory = canAccessPath('/sales-history')
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
   const storeCategories = ['Dog Food', 'Cat Food', 'Bird Food', 'Treats & Snacks', 'Toys', 'Accessories', 'Grooming', 'Health & Wellness', 'Bedding', 'Other']
@@ -524,14 +527,15 @@ function PetStore() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
           <div className="flex items-center gap-2">
-        
-            <button
-              onClick={() => navigate('/sales-history')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-xs md:text-sm"
-            >
-              <FiClock className="w-4 h-4" />
-              <span className="hidden sm:inline">Sales History</span>
-            </button>
+            {canOpenSalesHistory && (
+              <button
+                onClick={() => navigate('/sales-history')}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-xs md:text-sm"
+              >
+                <FiClock className="w-4 h-4" />
+                <span className="hidden sm:inline">Sales History</span>
+              </button>
+            )}
           </div>
         </div>
 

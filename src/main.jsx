@@ -21,12 +21,17 @@ import NewConsultation from './pages/NewConsultation.jsx'
 import PetActivityHistory from './pages/PetActivityHistory.jsx'
 import PetRecords from './pages/PetRecords.jsx'
 import Petstore from './pages/Petstore.jsx'
+import AccountManagement from './pages/AccountManagement.jsx'
 import Reports from './pages/Reports.jsx'
 import SalesHistory from './pages/SalesHistory.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 import StockEditHistory from './pages/StockEditHistory.jsx'
 
 const router = createHashRouter([
+  {
+    path: '/access-invite/:token',
+    element: <AccountManagement />
+  },
   {
     path: '/login',
     element: <Login />
@@ -98,6 +103,10 @@ const router = createHashRouter([
       {
         path: '/reports',
         element: <Reports />
+      },
+      {
+        path: '/account-management',
+        element: <AccountManagement />
       },
       {
         path: '/pet-activity',
