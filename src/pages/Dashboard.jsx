@@ -98,14 +98,25 @@ function Dashboard() {
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0)
 
       // Today's expenses (exclude bank deposits)
+      const bankDeposits = expenses.filter(e => e.category === 'Bank Deposit')
       const todayExpenses = expenses.filter(e => {
         const expenseDate = new Date(e.expenseDate)
         expenseDate.setHours(0, 0, 0, 0)
         return expenseDate.getTime() === today.getTime() && e.category !== 'Bank Deposit'
       })
+      const todayBankDepositTotal = bankDeposits
+        .filter(e => {
+          const depositDate = new Date(e.expenseDate)
+          depositDate.setHours(0, 0, 0, 0)
+          return depositDate.getTime() === today.getTime()
+        })
+        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
       const todayExpensesTotal = todayExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
       const monthExpensesTotal = expenses
         .filter(e => new Date(e.expenseDate) >= monthAgo && e.category !== 'Bank Deposit')
+        .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
+      const monthBankDepositTotal = bankDeposits
+        .filter(e => new Date(e.expenseDate) >= monthAgo)
         .reduce((sum, e) => sum + parseFloat(e.amount || 0), 0)
 
       // Week revenue
@@ -278,11 +289,13 @@ function Dashboard() {
         todayRevenue,
         todaySales: todaySalesTotal,
         todayExpenses: todayExpensesTotal,
+        todayBankDeposits: todayBankDepositTotal,
         weekRevenue,
         weekSales: weekSalesTotal,
         monthRevenue,
         monthSales: monthSalesTotal,
         monthExpenses: monthExpensesTotal,
+        monthBankDeposits: monthBankDepositTotal,
         monthlySalesTrend,
         monthlySalesRange,
         monthlyExpensesTrend,
@@ -434,7 +447,7 @@ function Dashboard() {
   }
 
   const maxConsultations = Math.max(...stats.weeklyTrend.map(d => d.count), 1)
-  const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses
+  const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses - (stats.todayBankDeposits || 0)
   const maxMonthlySales = Math.max(...stats.monthlySalesTrend.map(item => item.value), 1)
   const maxProductTotal = Math.max(...stats.monthlyProductSales.map(item => item.total), 1)
   const chartMax = 100000
@@ -471,6 +484,7 @@ function Dashboard() {
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
             <p className="text-xs text-gray-500">Monthly Sales</p>
             <p className="text-2xl font-bold text-gray-900">₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}</p>
+            <p className="text-xs font-semibold text-gray-700 mt-0.5">Cash on hand: ₱{((stats.monthRevenue + stats.monthSales) - (stats.monthBankDeposits || 0)).toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
             <p className="text-xs text-gray-500">Daily Expenses</p>

@@ -89,20 +89,32 @@ function Reports() {
   // filteredSales: handle both consultation sales ('date' field) and POS sales ('saleDate' field)
   const filteredSales = (() => {
     const rangeStart = getDateRangeFilter()
-    if (!rangeStart) return data.sales
-    return data.sales.filter(s => {
+    const activeSales = data.sales.filter(s => s.status !== 'void')
+    if (!rangeStart) return activeSales
+    return activeSales.filter(s => {
       const d = s.type === 'consultation'
         ? new Date((s.date || '') + 'T00:00:00')
         : (s.saleDate?.toDate ? s.saleDate.toDate() : new Date(s.saleDate || s.createdAt))
       return !isNaN(d) && d >= rangeStart
     })
   })()
+  const toNumber = (value) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }
+
+  const getSaleLineItems = (sale) => (sale.items?.length ? sale.items : [sale])
+
   const filteredExpenses = filterByDate(data.expenses, 'expenseDate').filter(e => e.category !== 'Bank Deposit')
+  const filteredBankDeposits = filterByDate(data.expenses, 'expenseDate').filter(e => e.category === 'Bank Deposit')
   const filteredConsultations = filterByDate(data.consultations, 'createdAt')
 
-  const totalRevenue = filteredSales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0)
+  const totalRevenue = filteredSales.reduce((sum, sale) => sum + toNumber(sale.totalAmount), 0)
   const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0)
-  const totalProfit = totalRevenue - totalExpenses
+  const totalBankDeposits = filteredBankDeposits.reduce((sum, dep) => sum + parseFloat(dep.amount || 0), 0)
+  const cashOnHand = totalRevenue - totalExpenses - totalBankDeposits
+  // Net profit should account for bank deposits moved out of cash
+  const totalProfit = totalRevenue - totalExpenses - totalBankDeposits
   const profitMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0
 
   const totalConsultations = filteredConsultations.length
@@ -132,8 +144,8 @@ function Reports() {
   }
   const inventoryValue = allInventory.reduce((sum, item) => sum + calcItemValue(item), 0)
 
-  const consultationRevenue = filteredSales.filter(s => s.type === 'consultation').reduce((sum, s) => sum + (s.totalAmount || 0), 0)
-  const storeRevenue = filteredSales.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + (s.totalAmount || 0), 0)
+  const consultationRevenue = filteredSales.filter(s => s.type === 'consultation').reduce((sum, s) => sum + toNumber(s.totalAmount), 0)
+  const storeRevenue = filteredSales.filter(s => s.type !== 'consultation').reduce((sum, s) => sum + toNumber(s.totalAmount), 0)
 
   const getStockDisplay = (item) => {
     if (item.medicineType === 'syrup') {
@@ -172,13 +184,19 @@ function Reports() {
   }
 
   const salesByCategory = filteredSales.reduce((acc, sale) => {
-    sale.items?.forEach(item => {
-      const category = item.category || 'Uncategorized'
+    getSaleLineItems(sale).forEach(item => {
+      const category = item.category || item.medicineCategory || item.itemType || 'Uncategorized'
       if (!acc[category]) {
         acc[category] = { revenue: 0, quantity: 0 }
       }
-      acc[category].revenue += item.subtotal || 0
-      acc[category].quantity += item.quantity || 0
+      const quantity = toNumber(item.quantity) || 1
+      const revenue = item.subtotal != null
+        ? toNumber(item.subtotal)
+        : (item.totalAmount != null
+          ? toNumber(item.totalAmount)
+          : toNumber(item.pricePerUnit) * quantity)
+      acc[category].revenue += revenue
+      acc[category].quantity += quantity
     })
     return acc
   }, {})
@@ -203,9 +221,7 @@ function Reports() {
     const auditEvents = []
     
     // Sales (both consultation and POS) - EXCLUDE VOIDED SALES
-    filteredSales
-      .filter(s => s.status !== 'void')  // Only show active sales
-      .forEach(sale => {
+    filteredSales.forEach(sale => {
         const saleDate = sale.type === 'consultation'
           ? new Date((sale.date || '') + 'T00:00:00')
           : (sale.saleDate?.toDate ? sale.saleDate.toDate() : new Date(sale.saleDate || sale.createdAt))
@@ -319,6 +335,8 @@ function Reports() {
     sections.push(row(['Consultation Revenue', fmtAmt(consultationRevenue)]))
     sections.push(row(['Store Revenue', fmtAmt(storeRevenue)]))
     sections.push(row(['Total Expenses', fmtAmt(totalExpenses)]))
+    sections.push(row(['Bank Deposits', fmtAmt(totalBankDeposits)]))
+    sections.push(row(['Cash on Hand', fmtAmt(cashOnHand)]))
     sections.push(row(['Net Profit', fmtAmt(totalProfit)]))
     sections.push(row(['Profit Margin (%)', profitMargin]))
     sections.push(row(['Total Inventory Value', fmtAmt(inventoryValue)]))
@@ -351,7 +369,7 @@ function Reports() {
     // ── VOIDED SALES ──
     sections.push('VOIDED SALES')
     sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Voided Date']))
-    filteredSales
+    data.sales
       .filter(s => s.status === 'void')  // Only show voided sales
       .forEach(s => {
         const d = s.type === 'consultation'
@@ -491,7 +509,7 @@ function Reports() {
         {activeTab === 'overview' && (
           <>
             {/* Key Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
                 <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-xl font-bold text-gray-900">₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -508,6 +526,12 @@ function Reports() {
                 <p className="text-xs text-gray-600 mb-1">Total Stocks Value</p>
                 <p className="text-xl font-bold text-gray-900">₱{inventoryValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{allInventory.length} items</p>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                <p className="text-xs text-gray-600 mb-1">Cash on Hand</p>
+                <p className="text-xl font-bold text-gray-900">₱{cashOnHand.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className="text-xs text-gray-500 mt-0.5">After deposits and expenses</p>
               </div>
             </div>
 
@@ -630,7 +654,7 @@ function Reports() {
         {/* Financial Tab */}
         {activeTab === 'financial' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
               <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
                 <p className="text-xs text-gray-600 mb-1">Total Revenue</p>
                 <p className="text-2xl font-bold text-gray-900">₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
@@ -649,6 +673,12 @@ function Reports() {
                   ₱{totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Margin: {profitMargin}%</p>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
+                <p className="text-xs text-gray-600 mb-1">Bank Deposits</p>
+                <p className="text-2xl font-bold text-gray-900">₱{totalBankDeposits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-gray-500 mt-1">Moved to bank</p>
               </div>
             </div>
 
@@ -671,6 +701,11 @@ function Reports() {
                 <div className="flex justify-between items-center py-2 border-b border-t font-semibold">
                   <span>Expenses</span>
                   <span>₱{totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+
+                <div className="flex justify-between items-center py-2 border-b font-semibold">
+                  <span>Bank Deposits</span>
+                  <span>₱{totalBankDeposits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
                 
                 <div className="pl-4 text-xs space-y-1">
@@ -714,7 +749,7 @@ function Reports() {
               <div className="bg-white border border-gray-200 rounded-md shadow-sm p-4">
                 <p className="text-xs text-gray-600 mb-1">Items Sold</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {filteredSales.reduce((sum, sale) => sum + (sale.items?.reduce((s, i) => s + i.quantity, 0) || 0), 0)}
+                  {filteredSales.reduce((sum, sale) => sum + getSaleLineItems(sale).reduce((lineSum, item) => lineSum + (toNumber(item.quantity) || 1), 0), 0)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Total units</p>
               </div>

@@ -262,6 +262,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         (activity.medicines || []).map(m => ({
           medicineId: m.medicineId,
           medicineName: m.medicineName,
+          category: m.category || 'Uncategorized',
           quantity: m.quantity,
           unit: m.unit,
           pricePerUnit: m.pricePerUnit,
