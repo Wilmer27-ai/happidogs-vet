@@ -1796,22 +1796,26 @@ function MedicinesStocks() {
       if (item.medicineType === 'syrup') {
         const bottles = item.bottleCount ?? 0
         const ml = item.looseMl ?? 0
+        const packLabel = item.packUnit || 'bottle'
+        const unitLabel = item.subUnit || 'ml'
         return (
           <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-gray-900">{bottles} Bottle{bottles !== 1 ? 's' : ''}</span>
+            <span className="text-gray-900">{bottles} {packLabel}{bottles !== 1 ? 's' : ''}</span>
             <span className="text-gray-400">|</span>
-            <span className="text-gray-900">{ml} ml</span>
+            <span className="text-gray-900">{ml} {unitLabel}</span>
           </div>
         )
       }
       if (item.medicineType === 'tablet') {
         const boxes = item.boxCount ?? 0
         const tabs = item.looseTablets ?? 0
+        const packLabel = item.packUnit || 'box'
+        const unitLabel = item.subUnit || 'tablet'
         return (
           <div className="flex items-center gap-1 whitespace-nowrap">
-            <span className="text-gray-900">{boxes} Box{boxes !== 1 ? 'es' : ''}</span>
+            <span className="text-gray-900">{boxes} {packLabel}{boxes !== 1 ? 'es' : ''}</span>
             <span className="text-gray-400">|</span>
-            <span className="text-gray-900">{tabs} Tablets</span>
+            <span className="text-gray-900">{tabs} {unitLabel}{tabs !== 1 ? 's' : ''}</span>
           </div>
         )
       }
@@ -1820,11 +1824,13 @@ function MedicinesStocks() {
     if (isFood(item)) {
       const sacks = item.sacksCount ?? 0
       const kg = item.looseKg ?? 0
+      const packLabel = item.packUnit || 'sack'
+      const unitLabel = item.subUnit || 'kg'
       return (
         <div className="flex items-center gap-1 whitespace-nowrap">
-          <span className="text-gray-900">{sacks} Sack{sacks !== 1 ? 's' : ''}</span>
+          <span className="text-gray-900">{sacks} {packLabel}{sacks !== 1 ? 's' : ''}</span>
           <span className="text-gray-400">|</span>
-          <span className="text-gray-900">{kg} Kilos</span>
+          <span className="text-gray-900">{kg} {unitLabel}</span>
         </div>
       )
     }
@@ -1835,22 +1841,22 @@ function MedicinesStocks() {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return (
         <div className="text-right leading-tight">
-          <p className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/ml</p>
-          <p className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/bottle</p>
+          <p className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/{item.subUnit || 'ml'}</p>
+          <p className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/{item.packUnit || 'bottle'}</p>
         </div>
       )
       if (item.medicineType === 'tablet') return (
         <div className="text-right leading-tight">
-          <p className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tablet</p>
-          <p className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/box</p>
+          <p className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/{item.subUnit || 'tablet'}</p>
+          <p className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/{item.packUnit || 'box'}</p>
         </div>
       )
       return <p className="text-right text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit}</p>
     }
     if (isFood(item)) return (
       <div className="text-right leading-tight">
-        <p className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/kg</p>
-        <p className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/sack</p>
+        <p className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/{item.subUnit || 'kg'}</p>
+        <p className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/{item.packUnit || 'sack'}</p>
       </div>
     )
     return <p className="text-right text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit ?? 'pcs'}</p>
@@ -1893,7 +1899,12 @@ function MedicinesStocks() {
     return matchesSearch && matchesCategory && matchesType && matchesStock
   })
 
-  const displayedItems = filteredItems.slice(0, displayCount)
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    const nameA = (a.itemName || '').toLowerCase()
+    const nameB = (b.itemName || '').toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
+  const displayedItems = sortedItems.slice(0, displayCount)
   const hasMore = displayCount < filteredItems.length
 
   useEffect(() => {

@@ -26,6 +26,15 @@ function PetStore() {
 
   const isFood = (item) => foodCategories.includes(item?.category)
 
+  const getPackLabel = (item) => item?.packUnit || (item?.medicineType === 'syrup' ? 'bottle' : item?.medicineType === 'tablet' ? 'box' : isFood(item) ? 'sack' : 'pack')
+  const getSubLabel = (item) => item?.subUnit || (item?.medicineType === 'syrup' ? 'ml' : item?.medicineType === 'tablet' ? 'tablet' : isFood(item) ? 'kg' : item?.unit || 'unit')
+  const getSellUnitLabel = (item, sellUnit) => {
+    if (item?._type === 'medicine' && item?.medicineType === 'syrup') return sellUnit === 'bottle' ? getPackLabel(item) : getSubLabel(item)
+    if (item?._type === 'medicine' && item?.medicineType === 'tablet') return sellUnit === 'box' ? getPackLabel(item) : getSubLabel(item)
+    if (isFood(item)) return sellUnit === 'sack' ? getPackLabel(item) : getSubLabel(item)
+    return sellUnit || item?.unit || 'unit'
+  }
+
   const getTypeLabel = (item) => {
     if (item._type === 'medicine') {
       return item.medicineType ? item.medicineType.charAt(0).toUpperCase() + item.medicineType.slice(1) : 'Medicine'
@@ -73,21 +82,21 @@ function PetStore() {
       if (item.medicineType === 'syrup') return (
         <div className="text-xs space-y-0.5">
           <div className="flex gap-1 items-center">
-            <span className="text-gray-900 font-medium">{item.bottleCount ?? 0}btl</span>
+            <span className="text-gray-900 font-medium">{item.bottleCount ?? 0}{getPackLabel(item)}</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-900 font-medium">{item.looseMl ?? 0}ml</span>
+            <span className="text-gray-900 font-medium">{item.looseMl ?? 0}{getSubLabel(item)}</span>
           </div>
-          <div className="text-gray-400">Total: {((item.bottleCount ?? 0) * (item.mlPerBottle ?? 0)) + (item.looseMl ?? 0)}ml</div>
+          <div className="text-gray-400">Total: {((item.bottleCount ?? 0) * (item.mlPerBottle ?? 0)) + (item.looseMl ?? 0)} {getSubLabel(item)}</div>
         </div>
       )
       if (item.medicineType === 'tablet') return (
         <div className="text-xs space-y-0.5">
           <div className="flex gap-1 items-center">
-            <span className="text-gray-900 font-medium">{item.boxCount ?? 0}box</span>
+            <span className="text-gray-900 font-medium">{item.boxCount ?? 0}{getPackLabel(item)}</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-900 font-medium">{item.looseTablets ?? 0}tab</span>
+            <span className="text-gray-900 font-medium">{item.looseTablets ?? 0}{getSubLabel(item)}</span>
           </div>
-          <div className="text-gray-400">Total: {((item.boxCount ?? 0) * (item.tabletsPerBox ?? 0)) + (item.looseTablets ?? 0)}tab</div>
+          <div className="text-gray-400">Total: {((item.boxCount ?? 0) * (item.tabletsPerBox ?? 0)) + (item.looseTablets ?? 0)} {getSubLabel(item)}</div>
         </div>
       )
       return <span className="text-xs text-gray-900 font-medium">{item.stockQuantity ?? 0} {item.unit ?? ''}</span>
@@ -95,11 +104,11 @@ function PetStore() {
     if (isFood(item)) return (
       <div className="text-xs space-y-0.5">
         <div className="flex gap-1 items-center">
-          <span className="text-gray-900 font-medium">{item.sacksCount ?? 0}sk</span>
+          <span className="text-gray-900 font-medium">{item.sacksCount ?? 0}{getPackLabel(item)}</span>
           <span className="text-gray-300">|</span>
-          <span className="text-gray-900 font-medium">{item.looseKg ?? 0}kg</span>
+          <span className="text-gray-900 font-medium">{item.looseKg ?? 0}{getSubLabel(item)}</span>
         </div>
-        <div className="text-gray-400">Total: {((item.sacksCount ?? 0) * (item.kgPerSack ?? 0)) + (item.looseKg ?? 0)}kg</div>
+        <div className="text-gray-400">Total: {((item.sacksCount ?? 0) * (item.kgPerSack ?? 0)) + (item.looseKg ?? 0)} {getSubLabel(item)}</div>
       </div>
     )
     return <span className="text-xs text-gray-900 font-medium">{item.stockQuantity ?? 0} {item.unit ?? 'pcs'}</span>
@@ -109,22 +118,22 @@ function PetStore() {
     if (item._type === 'medicine') {
       if (item.medicineType === 'syrup') return (
         <div className="text-xs space-y-0.5">
-          <div className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/ml</div>
-          <div className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/btl</div>
+          <div className="text-gray-900">₱{item.sellingPricePerMl?.toLocaleString()}/{getSubLabel(item)}</div>
+          <div className="text-gray-900">₱{item.sellingPricePerBottle?.toLocaleString()}/{getPackLabel(item)}</div>
         </div>
       )
       if (item.medicineType === 'tablet') return (
         <div className="text-xs space-y-0.5">
-          <div className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/tab</div>
-          <div className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/box</div>
+          <div className="text-gray-900">₱{item.sellingPricePerTablet?.toLocaleString()}/{getSubLabel(item)}</div>
+          <div className="text-gray-900">₱{item.sellingPricePerBox?.toLocaleString()}/{getPackLabel(item)}</div>
         </div>
       )
       return <span className="text-xs text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit}</span>
     }
     if (isFood(item)) return (
       <div className="text-xs space-y-0.5">
-        <div className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/kg</div>
-        <div className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/sack</div>
+        <div className="text-gray-900">₱{item.sellingPricePerKg?.toLocaleString()}/{getSubLabel(item)}</div>
+        <div className="text-gray-900">₱{item.sellingPricePerSack?.toLocaleString()}/{getPackLabel(item)}</div>
       </div>
     )
     return <span className="text-xs text-gray-900">₱{item.sellingPrice?.toLocaleString()}/{item.unit ?? 'pcs'}</span>
@@ -319,7 +328,7 @@ function PetStore() {
           category: orderItem.category,
           brand: orderItem.brand || '',
           quantity: qty,
-          unit,
+          unit: getSellUnitLabel(orderItem, unit),
           sellingPrice: effectivePricePerUnit,              // ← effective per-unit price
           totalAmount,
           profit: totalAmount - ((orderItem.purchasePrice ?? 0) * qty),
@@ -430,9 +439,9 @@ function PetStore() {
                     onChange={(e) => handleSellUnitChange(orderItem.id, orderItem._type, e.target.value)}
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-700"
                   >
-                    {orderItem._type === 'medicine' && orderItem.medicineType === 'syrup' && (<><option value="ml">per ml</option><option value="bottle">per bottle</option></>)}
-                    {orderItem._type === 'medicine' && orderItem.medicineType === 'tablet' && (<><option value="tablet">per tablet</option><option value="box">per box</option></>)}
-                    {orderItem._type === 'store' && isFood(orderItem) && (<><option value="kg">per kg</option><option value="sack">per sack</option></>)}
+                    {orderItem._type === 'medicine' && orderItem.medicineType === 'syrup' && (<><option value="ml">per {getSubLabel(orderItem)}</option><option value="bottle">per {getPackLabel(orderItem)}</option></>)}
+                    {orderItem._type === 'medicine' && orderItem.medicineType === 'tablet' && (<><option value="tablet">per {getSubLabel(orderItem)}</option><option value="box">per {getPackLabel(orderItem)}</option></>)}
+                    {orderItem._type === 'store' && isFood(orderItem) && (<><option value="kg">per {getSubLabel(orderItem)}</option><option value="sack">per {getPackLabel(orderItem)}</option></>)}
                   </select>
                 </div>
               )}
@@ -449,7 +458,7 @@ function PetStore() {
                     onChange={(e) => handleQuantityInput(orderItem.id, orderItem._type, e.target.value)}
                     className="w-14 px-1.5 py-1 text-center text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <span className="text-xs text-gray-600">{orderItem.sellUnit}</span>
+                  <span className="text-xs text-gray-600">{getSellUnitLabel(orderItem, orderItem.sellUnit)}</span>
                   <button onClick={() => handleUpdateQuantity(orderItem.id, orderItem._type, step)} className="w-6 h-6 flex items-center justify-center bg-gray-200 hover:bg-gray-300 rounded text-gray-700">
                     <FiPlus className="w-3 h-3" />
                   </button>

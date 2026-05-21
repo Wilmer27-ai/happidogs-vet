@@ -113,6 +113,8 @@ function Reports() {
   const outOfStockItems = allInventory.filter(item => item.stockQuantity === 0).length
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
+  const getPackLabel = (item) => item?.packUnit || (item?.medicineType === 'syrup' ? 'bottle' : item?.medicineType === 'tablet' ? 'box' : item?.itemName && foodCategories.includes(item.category) ? 'sack' : 'pack')
+  const getSubLabel = (item) => item?.subUnit || (item?.medicineType === 'syrup' ? 'ml' : item?.medicineType === 'tablet' ? 'tablet' : item?.itemName && foodCategories.includes(item.category) ? 'kg' : item?.unit || 'unit')
   const calcItemValue = (item) => {
     if (item.medicineType === 'syrup') {
       return (item.bottleCount || 0) * (item.sellingPricePerBottle || 0)
@@ -136,29 +138,29 @@ function Reports() {
   const getStockDisplay = (item) => {
     if (item.medicineType === 'syrup') {
       const parts = []
-      if (item.bottleCount) parts.push(`${item.bottleCount} bot`)
-      if (item.looseMl) parts.push(`${item.looseMl} ml`)
+      if (item.bottleCount) parts.push(`${item.bottleCount} ${getPackLabel(item)}`)
+      if (item.looseMl) parts.push(`${item.looseMl} ${getSubLabel(item)}`)
       return parts.join(' + ') || '0'
     }
     if (item.medicineType === 'tablet') {
       const parts = []
-      if (item.boxCount) parts.push(`${item.boxCount} box`)
-      if (item.looseTablets) parts.push(`${item.looseTablets} tab`)
+      if (item.boxCount) parts.push(`${item.boxCount} ${getPackLabel(item)}`)
+      if (item.looseTablets) parts.push(`${item.looseTablets} ${getSubLabel(item)}`)
       return parts.join(' + ') || '0'
     }
     if (item.itemName && foodCategories.includes(item.category)) {
       const parts = []
-      if (item.sacksCount) parts.push(`${item.sacksCount} sack`)
-      if (item.looseKg) parts.push(`${item.looseKg} kg`)
+      if (item.sacksCount) parts.push(`${item.sacksCount} ${getPackLabel(item)}`)
+      if (item.looseKg) parts.push(`${item.looseKg} ${getSubLabel(item)}`)
       return parts.join(' + ') || '0'
     }
     return `${item.stockQuantity || 0} ${item.unit || ''}`
   }
 
   const getPriceDisplay = (item) => {
-    if (item.medicineType === 'syrup') return item.sellingPricePerBottle ? `₱${item.sellingPricePerBottle.toLocaleString('en-US', { minimumFractionDigits: 2 })}/bot` : '—'
-    if (item.medicineType === 'tablet') return item.sellingPricePerBox ? `₱${item.sellingPricePerBox.toLocaleString('en-US', { minimumFractionDigits: 2 })}/box` : '—'
-    if (item.itemName && foodCategories.includes(item.category)) return item.sellingPricePerSack ? `₱${item.sellingPricePerSack.toLocaleString('en-US', { minimumFractionDigits: 2 })}/sack` : '—'
+    if (item.medicineType === 'syrup') return item.sellingPricePerBottle ? `₱${item.sellingPricePerBottle.toLocaleString('en-US', { minimumFractionDigits: 2 })}/${getPackLabel(item)}` : '—'
+    if (item.medicineType === 'tablet') return item.sellingPricePerBox ? `₱${item.sellingPricePerBox.toLocaleString('en-US', { minimumFractionDigits: 2 })}/${getPackLabel(item)}` : '—'
+    if (item.itemName && foodCategories.includes(item.category)) return item.sellingPricePerSack ? `₱${item.sellingPricePerSack.toLocaleString('en-US', { minimumFractionDigits: 2 })}/${getPackLabel(item)}` : '—'
     return item.sellingPrice ? `₱${item.sellingPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'
   }
 
