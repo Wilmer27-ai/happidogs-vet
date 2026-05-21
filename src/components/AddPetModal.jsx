@@ -6,11 +6,16 @@ import { useState, useEffect, useRef } from 'react'
 // ── Dropdown Component for Species/Breed ──────────────────────────────────────
 function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholder = 'Select or type...' }) {
   const [open, setOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [newItem, setNewItem] = useState('')
   const [lastAddedItem, setLastAddedItem] = useState(null)
   const [savedMessage, setSavedMessage] = useState(false)
   const ref = useRef(null)
   const dropdownRef = useRef(null)
+
+  const filteredItems = items.filter(item =>
+    item.toLowerCase().includes(searchTerm.trim().toLowerCase())
+  )
 
   useEffect(() => {
     const handler = (e) => {
@@ -19,6 +24,7 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
         dropdownRef.current && !dropdownRef.current.contains(e.target)
       ) {
         setOpen(false)
+        setSearchTerm('')
         setNewItem('')
       }
     }
@@ -33,6 +39,7 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
       onChange(trimmed)
       setNewItem('')
       setOpen(false)
+      setSearchTerm(trimmed)
       return
     }
 
@@ -51,6 +58,7 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
       setLastAddedItem(trimmed)
       setSavedMessage(true)
       setNewItem('')
+      setSearchTerm(trimmed)
       setTimeout(() => {
         setOpen(false)
         setLastAddedItem(null)
@@ -87,6 +95,7 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
   const handleSelect = (item) => {
     onChange(item)
     setOpen(false)
+    setSearchTerm(item)
     setNewItem('')
   }
 
@@ -95,12 +104,21 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
       <label className="block text-sm font-medium text-gray-700 mb-1">{label} *</label>
       <button
         type="button"
-        onClick={() => { setOpen(o => !o); setNewItem('') }}
+        onClick={() => { setOpen(o => !o); setNewItem(''); setSearchTerm(value || '') }}
         className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-colors"
       >
-        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
-          {value || placeholder}
-        </span>
+        <input
+          type="text"
+          value={open ? searchTerm : (value || '')}
+          onChange={(e) => {
+            setSearchTerm(e.target.value)
+            if (!open) setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          onClick={(e) => e.stopPropagation()}
+          placeholder={placeholder}
+          className={`w-full bg-transparent outline-none border-0 p-0 text-sm ${value || searchTerm ? 'text-gray-900' : 'text-gray-400'}`}
+        />
         <FiChevronDown className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -127,7 +145,7 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
                 if (e.key === 'Escape') { setOpen(false); setNewItem('') }
               }}
               onClick={(e) => e.stopPropagation()}
-              placeholder={`Type new ${label.toLowerCase()}...`}
+              placeholder={`Add new ${label.toLowerCase()}...`}
               className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
@@ -145,8 +163,10 @@ function ItemDropdown({ label, value, onChange, items, onItemsChange, placeholde
           <div className="max-h-48 overflow-y-auto">
             {items.length === 0 ? (
               <p className="px-3 py-3 text-xs text-gray-400 text-center">No items yet. Add one above.</p>
+            ) : filteredItems.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center">No matching {label.toLowerCase()} found.</p>
             ) : (
-              items.map(item => {
+              filteredItems.map(item => {
                 const isSelected = value === item
                 const isNewlyAdded = item === lastAddedItem
                 return (
