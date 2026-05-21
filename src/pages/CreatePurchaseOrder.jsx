@@ -747,13 +747,35 @@ function CreatePurchaseOrder() {
   }
 
   const calculatePaymentDeadline = (orderDate, paymentTerms) => {
-    const date = new Date(orderDate)
-    if (paymentTerms.toLowerCase() === 'cod') return orderDate
-    const daysMatch = paymentTerms.match(/\d+/)
-    if (daysMatch) {
-      date.setDate(date.getDate() + parseInt(daysMatch[0]))
+    if (!paymentTerms) return orderDate
+
+    // '0' or 'cod' => cash / same-day
+    if (String(paymentTerms).toLowerCase() === '0' || String(paymentTerms).toLowerCase() === 'cod') {
+      return orderDate
+    }
+
+    // If paymentTerms is an ISO date (YYYY-MM-DD), return it as the deadline
+    if (/^\d{4}-\d{2}-\d{2}$/.test(paymentTerms)) {
+      return paymentTerms
+    }
+
+    // If paymentTerms is a simple number of days (e.g., '30' or 30), add days
+    const days = parseInt(paymentTerms, 10)
+    if (!isNaN(days) && days >= 0 && days <= 3650) {
+      const date = new Date(orderDate)
+      date.setDate(date.getDate() + days)
       return date.toISOString().split('T')[0]
     }
+
+    // Fallback: try to extract a small-digit match (avoid matching year like 2026)
+    const daysMatch = String(paymentTerms).match(/\d+/)
+    if (daysMatch && daysMatch[0].length <= 3) {
+      const daysNum = parseInt(daysMatch[0], 10)
+      const date = new Date(orderDate)
+      date.setDate(date.getDate() + daysNum)
+      return date.toISOString().split('T')[0]
+    }
+
     return orderDate
   }
 
@@ -1143,9 +1165,9 @@ function CreatePurchaseOrder() {
                   Cash Payment
                 </div>
               )}
-              {orderFormData.paymentTerms !== '0' && orderFormData.paymentTerms && (
+              {orderFormData.paymentTerms && orderFormData.paymentTerms !== '0' && (
                 <div className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium whitespace-nowrap">
-                  Due: {new Date(orderFormData.paymentTerms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  Due: {new Date(calculatePaymentDeadline(orderFormData.orderDate, orderFormData.paymentTerms)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </div>
               )}
             </div>
@@ -1154,47 +1176,7 @@ function CreatePurchaseOrder() {
           {/* Form Content - Scrollable */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
-            {/* Order Date & Payment Terms */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Order Date *</label>
-                <input type="date" value={orderFormData.orderDate}
-                  onChange={(e) => setOrderFormData({ ...orderFormData, orderDate: e.target.value })}
-                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">Payment Terms *</label>
-                <div className="space-y-2">
-                  <select 
-                    value={orderFormData.paymentTerms === '0' ? 'cash' : 'terms'}
-                    onChange={(e) => {
-                      if (e.target.value === 'cash') {
-                        setOrderFormData({ ...orderFormData, paymentTerms: '0' })
-                      } else {
-                        setOrderFormData({ ...orderFormData, paymentTerms: '' })
-                      }
-                    }}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                    <option value="cash">Cash Payment</option>
-                    <option value="terms">Payment Terms</option>
-                  </select>
-                  {orderFormData.paymentTerms === '0' && (
-                    <p className="text-xs text-gray-500">Expense will be recorded automatically</p>
-                  )}
-                  {orderFormData.paymentTerms !== '0' && (
-                    <div className="flex items-center gap-2">
-                      <FiCalendar className="w-4 h-4 text-gray-400" />
-                      <input type="date" 
-                        value={orderFormData.paymentTerms}
-                        onChange={(e) => setOrderFormData({ ...orderFormData, paymentTerms: e.target.value })}
-                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                        min={orderFormData.orderDate}
-                        autoFocus />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Order Date & Payment Terms moved to footer (per-PO) */}
 
             {/* Item Type */}
             <div>
@@ -1592,15 +1574,64 @@ function CreatePurchaseOrder() {
           </div>
 
           {/* Bottom Actions */}
-          <div className="px-4 md:px-6 py-3 bg-white border-t border-gray-200 flex flex-col sm:flex-row gap-3">
-            <button onClick={() => navigate('/suppliers')}
-              className="w-full sm:w-auto px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium">
-              Cancel
-            </button>
-            <button onClick={handleSubmitPurchaseOrder} disabled={orderItems.length === 0}
-              className="w-full sm:flex-1 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed">
-              Create Purchase Order
-            </button>
+          <div className="px-4 md:px-6 py-3 bg-white border-t border-gray-200">
+            <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="min-w-[160px]">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Payment Terms *</label>
+                  <select
+                    value={orderFormData.paymentTerms === '0' ? 'cash' : 'terms'}
+                    onChange={(e) => {
+                      if (e.target.value === 'cash') {
+                        setOrderFormData({ ...orderFormData, paymentTerms: '0' })
+                      } else {
+                        setOrderFormData({ ...orderFormData, paymentTerms: '' })
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="cash">Cash Payment</option>
+                    <option value="terms">Payment Terms</option>
+                  </select>
+                </div>
+
+                  <div className="min-w-[150px]">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Order Date *</label>
+                  <input
+                    type="date"
+                    value={orderFormData.orderDate}
+                    onChange={(e) => setOrderFormData({ ...orderFormData, orderDate: e.target.value })}
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                {orderFormData.paymentTerms !== '0' && (
+                  <div className="min-w-[150px]">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={orderFormData.paymentTerms || ''}
+                      onChange={(e) => setOrderFormData({ ...orderFormData, paymentTerms: e.target.value })}
+                      min={orderFormData.orderDate}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+
+              
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button onClick={() => navigate('/suppliers')}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium">
+                  Cancel
+                </button>
+                <button onClick={handleSubmitPurchaseOrder} disabled={orderItems.length === 0}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed">
+                  Create Purchase Order
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

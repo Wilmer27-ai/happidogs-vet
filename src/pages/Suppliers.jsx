@@ -30,8 +30,6 @@ function Suppliers() {
     contactPerson: '',
     phoneNumber: '',
     address: '',
-    paymentTerms: '',
-    cashPayment: false
   })
 
   useEffect(() => {
@@ -165,9 +163,7 @@ function Suppliers() {
       supplierName: supplier.supplierName,
       contactPerson: supplier.contactPerson || '',
       phoneNumber: supplier.phoneNumber || '',
-      address: supplier.address || '',
-      paymentTerms: supplier.paymentTerms || '',
-      cashPayment: supplier.cashPayment || false
+      address: supplier.address || ''
     })
     setIsSupplierModalOpen(true)
   }
@@ -197,9 +193,7 @@ function Suppliers() {
       supplierName: '',
       contactPerson: '',
       phoneNumber: '',
-      address: '',
-      paymentTerms: '',
-      cashPayment: false
+      address: ''
     })
   }
 
@@ -354,7 +348,7 @@ function Suppliers() {
                           <th className="px-4 py-2 text-left text-xs">Contact Person</th>
                           <th className="px-4 py-2 text-left text-xs">Phone</th>
                           <th className="px-4 py-2 text-left text-xs">Email</th>
-                          <th className="px-4 py-2 text-left text-xs">Payment Terms</th>
+                          {/* Payment Terms column removed; terms managed per-PO */}
                           <th className="px-4 py-2 text-right text-xs">Actions</th>
                         </tr>
                       </thead>
@@ -367,11 +361,7 @@ function Suppliers() {
                             <td className="px-4 py-3 text-gray-700">{supplier.contactPerson || 'N/A'}</td>
                             <td className="px-4 py-3 text-gray-700">{supplier.phoneNumber || 'N/A'}</td>
                             <td className="px-4 py-3 text-gray-700">{supplier.email || 'N/A'}</td>
-                            <td className="px-4 py-3">
-                              <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                {supplier.paymentTerms === '0' ? 'COD' : `${supplier.paymentTerms} days`}
-                              </span>
-                            </td>
+                            {/* Payment terms removed from supplier row; use PO-level terms */}
                             <td className="px-4 py-3">
                               <div className="flex items-center justify-end gap-2">
                                 <button
@@ -587,43 +577,7 @@ function Suppliers() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Terms
-                  </label>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <input
-                        type="checkbox"
-                        id="cashPayment"
-                        checked={supplierFormData.cashPayment}
-                        onChange={(e) => setSupplierFormData({ ...supplierFormData, cashPayment: e.target.checked, paymentTerms: e.target.checked ? '0' : '' })}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <label htmlFor="cashPayment" className="text-sm font-medium text-gray-700 cursor-pointer">
-                        Cash Payment (COD)
-                      </label>
-                    </div>
-                    
-                    {!supplierFormData.cashPayment && (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Days for Payment *
-                        </label>
-                        <input
-                          type="number"
-                          required={!supplierFormData.cashPayment}
-                          min="1"
-                          value={supplierFormData.paymentTerms}
-                          onChange={(e) => setSupplierFormData({ ...supplierFormData, paymentTerms: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="7, 30, 60, etc."
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Number of days to pay (e.g., Net 30, Net 60)</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Payment terms moved to PO creation; removed from supplier modal */}
               </div>
 
               <div className="flex gap-3 mt-6">
