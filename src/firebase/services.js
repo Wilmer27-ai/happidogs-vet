@@ -385,9 +385,26 @@ export const getAllPetActivities = async () => {
 
 export const updatePetActivity = async (activityId, activityData) => {
   try {
+    const sanitizeForFirestore = (value) => {
+      if (value === undefined) return undefined
+      if (value === null) return null
+      if (Array.isArray(value)) {
+        return value.map(sanitizeForFirestore)
+      }
+      if (typeof value === 'object' && value !== null) {
+        return Object.fromEntries(
+          Object.entries(value)
+            .map(([key, nestedValue]) => [key, sanitizeForFirestore(nestedValue)])
+            .filter(([, nestedValue]) => nestedValue !== undefined)
+        )
+      }
+      return value
+    }
+
     const docRef = doc(db, "petActivities", activityId);
-    await updateDoc(docRef, activityData);
-    return { id: activityId, ...activityData };
+    const safeData = sanitizeForFirestore(activityData);
+    await updateDoc(docRef, safeData);
+    return { id: activityId, ...safeData };
   } catch (error) {
     console.error("Error updating pet activity:", error);
     throw error;
