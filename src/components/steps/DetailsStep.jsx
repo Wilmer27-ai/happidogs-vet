@@ -67,7 +67,7 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-[90] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ height: '80vh', maxHeight: '80vh' }}>
 
         {/* Header */}
@@ -201,12 +201,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const [medicinesLoaded, setMedicinesLoaded] = useState(false)
   const [selectedMedicines, setSelectedMedicines] = useState([])
   const [showMedModal, setShowMedModal] = useState(false)
+  const [medicineModalTarget, setMedicineModalTarget] = useState('new')
   const [perPetMode, setPerPetMode] = useState(false)
   const [petMedicines, setPetMedicines] = useState({})
   const [activeMedPetId, setActiveMedPetId] = useState(null)
   const [isEditConsultationOpen, setIsEditConsultationOpen] = useState(false)
   const [editingConsultation, setEditingConsultation] = useState(null)
   const [editingData, setEditingData] = useState({})
+  const [savingEditConsultation, setSavingEditConsultation] = useState(false)
   const [isFormCollapsed, setIsFormCollapsed] = useState(false)
 
   const getCurrentDate = () => {
@@ -288,6 +290,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       } catch (e) { console.error(e) }
     }
     setActiveMedPetId(null)
+    setMedicineModalTarget('new')
     setShowMedModal(true)
   }
 
@@ -300,6 +303,19 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       } catch (e) { console.error(e) }
     }
     setActiveMedPetId(petId)
+    setMedicineModalTarget('pet')
+    setShowMedModal(true)
+  }
+
+  const handleOpenEditMedicineModal = async () => {
+    if (!medicinesLoaded) {
+      try {
+        const d = await getMedicines()
+        setAllMedicines(d.filter(m => getTotalStock(m) > 0))
+        setMedicinesLoaded(true)
+      } catch (e) { console.error(e) }
+    }
+    setMedicineModalTarget('edit')
     setShowMedModal(true)
   }
 
@@ -320,6 +336,19 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     if (med.medicineType === 'tablet') return 'tablet'
     return med.unit ?? 'unit'
   }
+
+  const normalizeMedicineEntry = (med) => ({
+    ...med,
+    id: med.id || med.medicineId || '',
+    medicineId: med.medicineId || med.id || '',
+    medicineName: med.medicineName || med.name || med.itemName || '',
+    medicineType: med.medicineType || med.type || '',
+    unit: med.unit || med.sellUnit || getDefaultUnit(med),
+    sellUnit: med.sellUnit || med.unit || getDefaultUnit(med),
+    quantity: Number(med.quantity ?? 0),
+    pricePerUnit: Number(med.pricePerUnit ?? med.price ?? 0),
+    subtotal: Number(med.subtotal ?? (Number(med.pricePerUnit ?? med.price ?? 0) * Number(med.quantity ?? 0))),
+  })
 
   const toggleActivityType = (type) => {
     setFormData(prev => {
@@ -350,7 +379,13 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const handleMedicineModalConfirm = (newMeds) => {
-    if (perPetMode && activeMedPetId) {
+    if (medicineModalTarget === 'edit') {
+      const toAdd = newMeds.filter(med => !(editingData.medicines || []).some(m => m.id === med.id)).map(buildMedEntry)
+      setEditingData(prev => ({
+        ...prev,
+        medicines: [...(prev.medicines || []), ...toAdd]
+      }))
+    } else if (perPetMode && activeMedPetId) {
       setPetMedicines(prev => {
         const existing = prev[activeMedPetId] || []
         const toAdd = newMeds.filter(med => !existing.some(m => m.id === med.id)).map(buildMedEntry)
@@ -362,6 +397,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     }
     setShowMedModal(false)
     setActiveMedPetId(null)
+    setMedicineModalTarget('new')
   }
 
   const handleRemoveMedicine = (id) =>
@@ -599,20 +635,39 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   const handleOpenEditConsultation = (activity) => {
     setEditingConsultation(activity)
     const actTypes = activity.activityTypes || (activity.activityType ? activity.activityType.split(', ').filter(Boolean) : [])
+    const activityMedicines = Array.isArray(activity.medicines)
+      ? activity.medicines
+      : Array.isArray(activity.medicine)
+        ? activity.medicine
+        : Array.isArray(activity.medicinesData)
+          ? activity.medicinesData
+          : []
     setEditingData({
       activityTypes: actTypes,
       diagnosis: activity.diagnosis || '',
       treatment: activity.treatment || '',
       note: activity.note || '',
-      medicines: (activity.medicines || []).map(m => ({ ...m })),
+      medicines: activityMedicines.map(normalizeMedicineEntry),
       followUpDate: activity.followUpDate || '',
       followUpNote: activity.followUpNote || '',
     })
+    if (!medicinesLoaded) {
+      void (async () => {
+        try {
+          const d = await getMedicines()
+          setAllMedicines(d.filter(m => getTotalStock(m) > 0))
+          setMedicinesLoaded(true)
+        } catch (error) {
+          console.error('Error loading medicines for edit modal:', error)
+        }
+      })()
+    }
     setIsEditConsultationOpen(true)
   }
 
   const handleSaveEditConsultation = async () => {
     if (!editingConsultation) return
+    setSavingEditConsultation(true)
     try {
       // Construct update data with combined activityType string
       const updateData = {
@@ -633,9 +688,11 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       setIsEditConsultationOpen(false)
       setEditingConsultation(null)
       setEditingData({})
+      setSavingEditConsultation(false)
       alert('✅ Consultation updated successfully!')
     } catch (e) {
       console.error('Error updating activity:', e)
+      setSavingEditConsultation(false)
       alert('❌ Failed to update consultation')
     }
   }
@@ -673,7 +730,8 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
 
       <div className="flex-1 flex overflow-hidden">
 
-        {/* ── LEFT PANEL — Form (Collapsible) ── */}
+        {/* 
+        ── LEFT PANEL — Form (Collapsible) ── */}
         <div className={`${showForm ? 'flex' : 'hidden'} lg:flex ${isFormCollapsed ? 'lg:w-12' : 'w-full lg:w-[420px] xl:w-[460px]'} border-r border-gray-200 bg-white flex-col flex-shrink-0 transition-all duration-300`}>
           <div className="px-3 sm:px-4 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-5">
             {!isFormCollapsed && (
@@ -1558,14 +1616,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                       <span className="text-xs font-semibold bg-gray-800 text-white px-1.5 py-0.5 rounded-full leading-none">{(editingData.medicines || []).length}</span>
                     )}
                   </div>
-                  <button type="button" onClick={() => {
-                    if (allMedicines.length > 0) {
-                      setEditingData(prev => ({
-                        ...prev,
-                        medicines: [...(prev.medicines || []), buildMedEntry(allMedicines[0])]
-                      }))
-                    }
-                  }}
+                  <button type="button" onClick={handleOpenEditMedicineModal}
                     className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors">
                     <FiPlus className="w-3 h-3" /> Add
                   </button>
@@ -1625,7 +1676,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
                                 <FiPlus className="w-2.5 h-2.5" />
                               </button>
-                              <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>\
+                              <span className="text-xs text-gray-400 min-w-[28px]">{med.sellUnit ?? med.unit}</span>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {med.editingPrice ? (
@@ -1730,8 +1781,9 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
               </button>
               <button
                 onClick={handleSaveEditConsultation}
+                disabled={savingEditConsultation}
                 className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium">
-                Save Changes
+                {savingEditConsultation ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
