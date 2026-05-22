@@ -7,6 +7,27 @@ import React from 'react'
 
 const DISPLAY_STEP = 20
 
+const getMedicinePackUnitLabel = (med) => med.packUnit || (med.medicineType === 'syrup' ? 'bottle' : med.medicineType === 'tablet' ? 'box' : med.unit || 'unit')
+
+const getMedicineSubUnitLabel = (med) => med.subUnit || (med.medicineType === 'syrup' ? 'ml' : med.medicineType === 'tablet' ? 'tablet' : med.unit || 'unit')
+
+const getMedicineUnitOptions = (med) => {
+  if (med.medicineType === 'syrup' || med.medicineType === 'tablet') {
+    return [
+      { value: getMedicineSubUnitLabel(med), label: getMedicineSubUnitLabel(med) },
+      { value: getMedicinePackUnitLabel(med), label: getMedicinePackUnitLabel(med) },
+    ]
+  }
+  return []
+}
+
+const getMedicineQtyStep = (med) => {
+  if (med.medicineType === 'syrup' || med.medicineType === 'tablet') {
+    return med.sellUnit === getMedicineSubUnitLabel(med) ? 0.5 : 1
+  }
+  return 1
+}
+
 // ── Medicine Picker Modal ─────────────────────────────────────────────────────
 function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
   const [search, setSearch] = useState('')
@@ -18,8 +39,8 @@ function MedicinePickerModal({ isOpen, onClose, onConfirm, allMedicines }) {
   const categories = ['All', 'Antibiotic', 'Vaccine', 'Vitamin / Supplement', 'Pain Reliever', 'Dewormer', 'Flea & Tick Control', 'Wound Care']
 
   const getStockLabel = (med) => {
-    if (med.medicineType === 'syrup') return `${med.bottleCount ?? 0} btl · ${med.looseMl ?? 0} ml`
-    if (med.medicineType === 'tablet') return `${med.boxCount ?? 0} box · ${med.looseTablets ?? 0} tabs`
+    if (med.medicineType === 'syrup') return `${med.bottleCount ?? 0} ${getMedicinePackUnitLabel(med)} · ${med.looseMl ?? 0} ${getMedicineSubUnitLabel(med)}`
+    if (med.medicineType === 'tablet') return `${med.boxCount ?? 0} ${getMedicinePackUnitLabel(med)} · ${med.looseTablets ?? 0} ${getMedicineSubUnitLabel(med)}`
     return `${med.stockQuantity ?? 0} ${med.unit ?? ''}`
   }
 
@@ -326,14 +347,13 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
   }
 
   const getPricePerUnit = (med, unit) => {
-    if (med.medicineType === 'syrup') return unit === 'bottle' ? (med.sellingPricePerBottle ?? 0) : (med.sellingPricePerMl ?? 0)
-    if (med.medicineType === 'tablet') return unit === 'box' ? (med.sellingPricePerBox ?? 0) : (med.sellingPricePerTablet ?? 0)
+    if (med.medicineType === 'syrup') return unit === getMedicinePackUnitLabel(med) ? (med.sellingPricePerBottle ?? 0) : (med.sellingPricePerMl ?? 0)
+    if (med.medicineType === 'tablet') return unit === getMedicinePackUnitLabel(med) ? (med.sellingPricePerBox ?? 0) : (med.sellingPricePerTablet ?? 0)
     return med.sellingPrice ?? 0
   }
 
   const getDefaultUnit = (med) => {
-    if (med.medicineType === 'syrup') return 'ml'
-    if (med.medicineType === 'tablet') return 'tablet'
+    if (med.medicineType === 'syrup' || med.medicineType === 'tablet') return getMedicineSubUnitLabel(med)
     return med.unit ?? 'unit'
   }
 
@@ -367,7 +387,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     const defaultUnit = getDefaultUnit(med)
     const pricePerUnit = getPricePerUnit(med, defaultUnit)
     return {
-      ...med, quantity: 1, sellUnit: defaultUnit, pricePerUnit,
+      ...med, quantity: 1, unit: defaultUnit, sellUnit: defaultUnit, pricePerUnit,
       subtotal: pricePerUnit,
       mlPerBottle: med.mlPerBottle ?? null,
       tabletsPerBox: med.tabletsPerBox ?? null,
@@ -400,13 +420,27 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     setMedicineModalTarget('new')
   }
 
+  const handleEditMedicineUnitChange = (id, newUnit) => {
+    const src = allMedicines.find(m => m.id === id)
+    if (!src) return
+    const newPrice = getPricePerUnit(src, newUnit)
+    setEditingData(prev => ({
+      ...prev,
+      medicines: (prev.medicines || []).map(m =>
+        m.id === id
+          ? { ...m, unit: newUnit, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice, finalPrice: undefined }
+          : m
+      )
+    }))
+  }
+
   const handleRemoveMedicine = (id) =>
     setSelectedMedicines(prev => prev.filter(m => m.id !== id))
 
   const handleMedQty = (id, delta) => {
     setSelectedMedicines(prev => prev.map(m => {
       if (m.id !== id) return m
-      const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
+      const step = getMedicineQtyStep(m)
       const currentQty = parseFloat(m.quantity)
       const safeQty = Number.isFinite(currentQty) ? currentQty : step
       const newQty = Math.max(step, parseFloat((safeQty + delta * step).toFixed(2)))
@@ -433,7 +467,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     if (!src) return
     const newPrice = getPricePerUnit(src, newUnit)
     setSelectedMedicines(prev => prev.map(m =>
-      m.id === id ? { ...m, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice } : m
+      m.id === id ? { ...m, unit: newUnit, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice, finalPrice: undefined } : m
     ))
   }
 
@@ -445,7 +479,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
       ...prev,
       [petId]: (prev[petId] || []).map(m => {
         if (m.id !== id) return m
-        const step = (m.sellUnit === 'ml' || m.sellUnit === 'kg' || m.sellUnit === 'tablet') ? 0.5 : 1
+        const step = getMedicineQtyStep(m)
         const currentQty = parseFloat(m.quantity)
         const safeQty = Number.isFinite(currentQty) ? currentQty : step
         const newQty = Math.max(step, parseFloat((safeQty + delta * step).toFixed(2)))
@@ -481,7 +515,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     setPetMedicines(prev => ({
       ...prev,
       [petId]: (prev[petId] || []).map(m =>
-        m.id === id ? { ...m, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice } : m
+        m.id === id ? { ...m, unit: newUnit, sellUnit: newUnit, pricePerUnit: newPrice, quantity: 1, subtotal: newPrice, finalPrice: undefined } : m
       )
     }))
   }
@@ -669,9 +703,15 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     if (!editingConsultation) return
     setSavingEditConsultation(true)
     try {
+      const normalizedMedicines = (editingData.medicines || []).map(med => ({
+        ...med,
+        unit: med.sellUnit || med.unit || getDefaultUnit(med),
+        sellUnit: med.sellUnit || med.unit || getDefaultUnit(med),
+      }))
       // Construct update data with combined activityType string
       const updateData = {
         ...editingData,
+        medicines: normalizedMedicines,
         activityType: (editingData.activityTypes || []).join(', '),
       }
       
@@ -1023,7 +1063,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                     ) : (
                       <div>
                         {selectedMedicines.map((med, idx) => {
-                          const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
+                          const step = getMedicineQtyStep(med)
                           const subtotal = (med.pricePerUnit ?? 0) * med.quantity
                           return (
                             <div key={med.id} className={`px-3 py-2 ${idx < selectedMedicines.length - 1 ? 'border-b border-gray-100' : ''}`}>
@@ -1102,24 +1142,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                   </button>
                                 </div>
                               </div>
-                              {/* Unit toggle for syrup/tablet */}
-                              {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                              {getMedicineUnitOptions(med).length > 0 && (
                                 <div className="flex gap-2 mt-2">
-                                  {med.medicineType === 'syrup' ? (
-                                    <>
-                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'ml')}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'ml' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>ml</button>
-                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'bottle')}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>bottle</button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'tablet')}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>tablet</button>
-                                      <button type="button" onClick={() => handleMedUnitChange(med.id, 'box')}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'box' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>box</button>
-                                    </>
-                                  )}
+                                  {getMedicineUnitOptions(med).map(option => (
+                                    <button type="button" key={option.value} onClick={() => handleMedUnitChange(med.id, option.value)}
+                                      className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === option.value ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>
+                                      {option.label}
+                                    </button>
+                                  ))}
                                 </div>
                               )}
                             </div>
@@ -1175,7 +1205,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                             ) : (
                               <div>
                                 {meds.map((med, medIdx) => {
-                                  const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
+                                  const step = getMedicineQtyStep(med)
                                   const subtotal = (med.pricePerUnit ?? 0) * med.quantity
                                   return (
                                     <div key={med.id} className={`px-3 py-2 ${medIdx < meds.length - 1 ? 'border-b border-gray-100' : ''}`}>
@@ -1247,23 +1277,14 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                           </button>
                                         </div>
                                       </div>
-                                      {(med.medicineType === 'syrup' || med.medicineType === 'tablet') && (
+                                      {getMedicineUnitOptions(med).length > 0 && (
                                         <div className="flex gap-2 mt-2">
-                                          {med.medicineType === 'syrup' ? (
-                                            <>
-                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'ml')}
-                                                className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'ml' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>ml</button>
-                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'bottle')}
-                                                className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'bottle' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>bottle</button>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'tablet')}
-                                                className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'tablet' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>tablet</button>
-                                              <button type="button" onClick={() => handlePetMedUnitChange(pet.id, med.id, 'box')}
-                                                className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === 'box' ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>box</button>
-                                            </>
-                                          )}
+                                          {getMedicineUnitOptions(med).map(option => (
+                                            <button type="button" key={option.value} onClick={() => handlePetMedUnitChange(pet.id, med.id, option.value)}
+                                              className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === option.value ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>
+                                              {option.label}
+                                            </button>
+                                          ))}
                                         </div>
                                       )}
                                     </div>
@@ -1628,7 +1649,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                 ) : (
                   <div>
                     {(editingData.medicines || []).map((med, idx) => {
-                      const step = (med.sellUnit === 'ml' || med.sellUnit === 'kg' || med.sellUnit === 'tablet') ? 0.5 : 1
+                      const step = getMedicineQtyStep(med)
                       const subtotal = (med.pricePerUnit ?? 0) * (med.quantity || 0)
                       return (
                         <div key={med.id || idx} className={`px-3 py-2 ${idx < (editingData.medicines || []).length - 1 ? 'border-b border-gray-100' : ''}`}>
@@ -1734,6 +1755,16 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                               </button>
                             </div>
                           </div>
+                          {getMedicineUnitOptions(med).length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                              {getMedicineUnitOptions(med).map(option => (
+                                <button type="button" key={option.value} onClick={() => handleEditMedicineUnitChange(med.id || idx, option.value)}
+                                  className={`px-3 py-1.5 text-xs font-bold rounded-md border-2 transition-all ${med.sellUnit === option.value ? 'bg-gray-900 text-white border-gray-900 shadow-md' : 'border-gray-300 text-gray-700 hover:border-gray-400'}`}>
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
