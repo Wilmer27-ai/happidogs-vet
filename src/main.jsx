@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createHashRouter, RouterProvider } from 'react-router-dom'
+import { Navigate, createHashRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import Layout from './layout.jsx'
 import { AuthProvider } from './pages/AuthContext'
@@ -30,7 +30,7 @@ import StockEditHistory from './pages/StockEditHistory.jsx'
 const router = createHashRouter([
   {
     path: '/access-invite/:token',
-    element: <AccountManagement />
+    element: <Navigate to="/account-management" replace />
   },
   {
     path: '/login',

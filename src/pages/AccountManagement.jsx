@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { FiAlertCircle, FiCheck, FiCopy, FiExternalLink, FiLink, FiRefreshCw, FiShield, FiUsers } from 'react-icons/fi'
-import { auth } from '../firebase/config'
+import { useNavigate } from 'react-router-dom'
+import { createUserWithEmailAndPassword, getAuth, signOut } from 'firebase/auth'
+import { getApps, initializeApp } from 'firebase/app'
+import { FiAlertCircle, FiCheck, FiRefreshCw, FiShield, FiUsers } from 'react-icons/fi'
+import firebaseApp from '../firebase/config'
 import { useAuth } from './AuthContext'
-import {
-  createAccessInvite,
-  getAccessInviteByToken,
-  getAccessInvites,
-  getAppUsers,
-  setAppUserProfile,
-  updateAccessInvite,
-  updateAppUserProfile,
-} from '../firebase/services'
+import { getAppUsers, setAppUserProfile, updateAppUserProfile } from '../firebase/services'
 
+const SECONDARY_APP_NAME = 'account-management-creator'
 const LIMITED_ROUTES = ['/pet-store', '/medicines-stocks', '/expenses']
 const ROUTE_LABELS = {
   '/pet-store': 'POS',
@@ -21,78 +15,68 @@ const ROUTE_LABELS = {
   '/expenses': 'Expenses',
 }
 
-const initialInviteForm = {
-  displayName: '',
-  email: '',
-  shopName: 'Second Shop',
-}
-
-const initialSetupForm = {
+const initialCreateForm = {
   displayName: '',
   email: '',
   password: '',
   confirmPassword: '',
+  shopName: 'Second Shop',
 }
 
 function formatDate(value) {
   if (!value) return 'N/A'
   const date = value?.toDate ? value.toDate() : new Date(value)
   if (Number.isNaN(date.getTime())) return 'N/A'
-  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
-function makeToken() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID().replace(/-/g, '')
-  }
-
-  return `${Date.now()}${Math.random().toString(36).slice(2)}`
+function getSecondaryAuth() {
+  const existingApp = getApps().find((app) => app.name === SECONDARY_APP_NAME)
+  const secondaryApp = existingApp || initializeApp(firebaseApp.options, SECONDARY_APP_NAME)
+  return getAuth(secondaryApp)
 }
+
+const secondaryAuth = getSecondaryAuth()
 
 function AccountManagement() {
-  const { token } = useParams()
   const navigate = useNavigate()
-  const { currentUser, userProfile, role } = useAuth()
-  const isInviteMode = Boolean(token)
+  const { currentUser, role } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [inviteForm, setInviteForm] = useState(initialInviteForm)
-  const [setupForm, setSetupForm] = useState(initialSetupForm)
-  const [invite, setInvite] = useState(null)
-  const [invites, setInvites] = useState([])
+  const [form, setForm] = useState(initialCreateForm)
   const [accounts, setAccounts] = useState([])
-  const [generatedLink, setGeneratedLink] = useState('')
-  const [copiedLink, setCopiedLink] = useState(false)
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const isAdmin = !currentUser || role === 'admin'
-  const inviteLinkBase = useMemo(() => {
-    if (typeof window === 'undefined') return ''
-    return `${window.location.origin}/#/access-invite`
-  }, [])
+
+  const allowedRouteLabels = useMemo(
+    () => LIMITED_ROUTES.map((path) => ROUTE_LABELS[path]).filter(Boolean),
+    []
+  )
 
   useEffect(() => {
-    if (isInviteMode) {
-      loadInvite()
+    if (isAdmin) {
+      loadAdminData()
       return
     }
 
-    if (isAdmin) {
-      loadAdminData()
-    } else {
-      setLoading(false)
-    }
-  }, [isInviteMode, isAdmin, token])
+    setLoading(false)
+  }, [isAdmin])
 
   const loadAdminData = async () => {
     setLoading(true)
     setError('')
     try {
-      const [inviteData, accountData] = await Promise.all([getAccessInvites(), getAppUsers()])
-      setInvites(inviteData)
+      const accountData = await getAppUsers()
       setAccounts(accountData)
     } catch (err) {
       setError('Failed to load access accounts.')
@@ -102,85 +86,79 @@ function AccountManagement() {
     }
   }
 
-  const loadInvite = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const inviteData = await getAccessInviteByToken(token)
-      setInvite(inviteData)
-      if (inviteData) {
-        setSetupForm((current) => ({
-          ...current,
-          displayName: inviteData.displayName || '',
-          email: inviteData.email || '',
-        }))
-      }
-    } catch (err) {
-      setError('Invalid or expired access link.')
-      console.error('Error loading invite:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGenerateInvite = async (event) => {
+  const handleCreateAccount = async (event) => {
     event.preventDefault()
     setSaving(true)
     setError('')
     setSuccess('')
 
     try {
-      const tokenValue = makeToken()
-      const inviteData = {
-        token: tokenValue,
-        displayName: inviteForm.displayName.trim(),
-        email: inviteForm.email.trim().toLowerCase(),
-        shopName: inviteForm.shopName.trim(),
-        role: 'limited',
-        allowedRoutes: LIMITED_ROUTES,
-        createdByUid: currentUser?.uid || null,
-        createdByEmail: currentUser?.email || null,
+      const email = form.email.trim().toLowerCase()
+      const displayName = form.displayName.trim()
+      const shopName = form.shopName.trim() || 'Second Shop'
+
+      if (!displayName) {
+        throw new Error('Display name is required')
       }
 
-      await createAccessInvite(inviteData)
-      const link = `${inviteLinkBase}/${tokenValue}`
-      setGeneratedLink(link)
-      setSuccess('Invite link generated.')
-      setInviteForm(initialInviteForm)
-      setIsInviteModalOpen(false)
+      if (!email) {
+        throw new Error('Email is required')
+      }
+
+      if (form.password.length < 6) {
+        throw new Error('Password must be at least 6 characters long')
+      }
+
+      if (form.password !== form.confirmPassword) {
+        throw new Error('Passwords do not match')
+      }
+
+      const credentials = await createUserWithEmailAndPassword(secondaryAuth, email, form.password)
+
+      await setAppUserProfile(credentials.user.uid, {
+        uid: credentials.user.uid,
+        email: credentials.user.email,
+        displayName: displayName || credentials.user.email,
+        role: 'limited',
+        allowedRoutes: LIMITED_ROUTES,
+        shopName,
+        active: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+
+      try {
+        await signOut(secondaryAuth)
+      } catch {
+        // Ignore cleanup errors for the secondary auth instance.
+      }
+
+      setSuccess('Account created successfully. Use the login page to sign in.')
+      setForm(initialCreateForm)
+      setIsCreateModalOpen(false)
       await loadAdminData()
     } catch (err) {
-      setError('Failed to generate invite link.')
-      console.error('Error creating invite:', err)
+      const message = err?.code === 'auth/email-already-in-use'
+        ? 'That email already has a Firebase account.'
+        : err?.message || 'Failed to create account.'
+      setError(message)
+      console.error('Error creating account:', err)
+      try {
+        await signOut(secondaryAuth)
+      } catch {
+        // Ignore cleanup errors.
+      }
     } finally {
       setSaving(false)
     }
   }
 
-  const copyLink = async () => {
-    if (!generatedLink) return
-    try {
-      await navigator.clipboard.writeText(generatedLink)
-      setCopiedLink(true)
-      setTimeout(() => setCopiedLink(false), 1600)
-    } catch (err) {
-      console.error('Copy failed:', err)
-    }
-  }
-
-  const toggleInviteStatus = async (inviteItem) => {
-    try {
-      await updateAccessInvite(inviteItem.id, { active: !inviteItem.active, updatedAt: new Date().toISOString() })
-      await loadAdminData()
-    } catch (err) {
-      setError('Failed to update invite status.')
-      console.error('Error updating invite status:', err)
-    }
-  }
-
   const toggleAccountStatus = async (account) => {
     try {
-      await updateAppUserProfile(account.id, { active: !account.active, updatedAt: new Date().toISOString() })
+      await updateAppUserProfile(account.id, {
+        active: account.active === false,
+        updatedAt: new Date().toISOString(),
+      })
       await loadAdminData()
     } catch (err) {
       setError('Failed to update account status.')
@@ -188,118 +166,10 @@ function AccountManagement() {
     }
   }
 
-  const handleSetupSubmit = async (event) => {
-    event.preventDefault()
-    setSaving(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      if (!invite) {
-        throw new Error('Invite not found')
-      }
-
-      if (!invite.active || invite.used) {
-        throw new Error('This access link is no longer available')
-      }
-
-      if (invite.email && invite.email.toLowerCase() !== setupForm.email.trim().toLowerCase()) {
-        throw new Error('Please use the invited email address')
-      }
-
-      if (setupForm.password.length < 6) {
-        throw new Error('Password must be at least 6 characters long')
-      }
-
-      if (setupForm.password !== setupForm.confirmPassword) {
-        throw new Error('Passwords do not match')
-      }
-
-      const credentials = await createUserWithEmailAndPassword(
-        auth,
-        setupForm.email.trim().toLowerCase(),
-        setupForm.password,
-      )
-
-      await setAppUserProfile(credentials.user.uid, {
-        uid: credentials.user.uid,
-        email: credentials.user.email,
-        displayName: setupForm.displayName.trim() || invite.displayName || credentials.user.email,
-        role: 'limited',
-        allowedRoutes: invite.allowedRoutes || LIMITED_ROUTES,
-        shopName: invite.shopName || 'Second Shop',
-        active: true,
-        inviteId: invite.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
-
-      await updateAccessInvite(invite.id, {
-        used: true,
-        active: false,
-        usedAt: new Date().toISOString(),
-        usedByUid: credentials.user.uid,
-      })
-
-      setSuccess('Account created successfully.')
-      navigate('/pet-store', { replace: true })
-    } catch (err) {
-      setError(err.message || 'Failed to complete account setup.')
-      console.error('Error completing invite setup:', err)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const allowedRouteLabels = LIMITED_ROUTES.map((path) => ROUTE_LABELS[path]).filter(Boolean)
-  // Merge accounts and invites by email into a single compact row to save space.
-  const mergedByEmail = {}
-
-  accounts.forEach((account) => {
-    const key = (account.email || '').toLowerCase() || `account-${account.id}`
-    mergedByEmail[key] = { account, invites: [] }
-  })
-
-  invites.forEach((inv) => {
-    const key = (inv.email || '').toLowerCase() || `invite-${inv.id}`
-    if (mergedByEmail[key]) {
-      mergedByEmail[key].invites.push(inv)
-    } else {
-      mergedByEmail[key] = { account: null, invites: [inv] }
-    }
-  })
-
-  const combinedAccessItems = Object.entries(mergedByEmail).map(([key, { account, invites }]) => {
-    const inviteItem = invites && invites.length > 0 ? invites[0] : null
-    const accountStatus = account ? (account.active === false ? 'Disabled' : 'Active') : null
-    const inviteStatus = inviteItem ? (inviteItem.used ? 'Used' : inviteItem.active ? 'Pending' : 'Disabled') : null
-    const status = account ? (inviteItem ? `${accountStatus} • Invite: ${inviteStatus}` : accountStatus) : inviteStatus
-
-    const actionLabel = account
-      ? (account.active === false ? 'Enable' : 'Disable')
-      : (inviteItem && inviteItem.active ? 'Disable' : 'Enable')
-
-    const onAction = account ? () => toggleAccountStatus(account) : () => toggleInviteStatus(inviteItem)
-
-    const extraAction = inviteItem
-      ? () => {
-          const link = `${inviteLinkBase}/${inviteItem.token}`
-          navigator.clipboard.writeText(link)
-        }
-      : null
-
-    return {
-      id: `combined-${key}`,
-      kind: account ? 'Account' : 'Invite',
-      name: account?.displayName || inviteItem?.displayName || account?.email || inviteItem?.email || key,
-      email: account?.email || inviteItem?.email || 'No email',
-      shop: account?.shopName || inviteItem?.shopName || 'Second Shop',
-      status,
-      actionLabel,
-      onAction,
-      extraAction,
-      extraActionLabel: inviteItem ? 'Copy link' : null,
-    }
+  const managedAccounts = [...accounts].sort((a, b) => {
+    const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime()
+    const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime()
+    return bTime - aTime
   })
 
   if (loading) {
@@ -307,124 +177,6 @@ function AccountManagement() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-900">
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-4 text-sm font-medium shadow-sm">
           Loading access manager...
-        </div>
-      </div>
-    )
-  }
-
-  if (isInviteMode) {
-    if (!invite) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 text-gray-900">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-            <div className="flex items-center gap-3 text-red-600 mb-4">
-              <FiAlertCircle className="h-6 w-6" />
-              <h1 className="text-2xl font-semibold">Access link unavailable</h1>
-            </div>
-            <p className="text-sm text-gray-500">This invite is invalid, revoked, or already used.</p>
-          </div>
-        </div>
-      )
-    }
-
-    return (
-      <div className="min-h-screen bg-gray-50 px-4 py-6 text-gray-900 lg:px-6">
-        <div className="mx-auto max-w-6xl space-y-6">
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-600">
-                <FiShield className="h-4 w-4" />
-                Restricted Access Setup
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900 lg:text-3xl">Finish the branch account setup</h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500">
-                This account will only be able to open {allowedRouteLabels.join(', ')}. Fill in the details below to activate the access link.
-              </p>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                {allowedRouteLabels.map((label) => (
-                  <div key={label} className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Allowed</p>
-                    <p className="mt-1 text-sm font-semibold text-gray-900">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
-                <p className="font-medium text-gray-900">Invite details</p>
-                <p className="mt-2">Name: {invite.displayName || 'Not set'}</p>
-                <p>Email: {invite.email || 'Not set'}</p>
-                <p>Shop: {invite.shopName || 'Second Shop'}</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 text-gray-900 shadow-sm lg:p-8">
-              <h2 className="text-xl font-semibold tracking-tight">Create account</h2>
-              <p className="mt-2 text-sm text-gray-500">Set a password to activate your restricted account.</p>
-
-              {error && (
-                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  {success}
-                </div>
-              )}
-
-              <form className="mt-6 space-y-4" onSubmit={handleSetupSubmit}>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Full name</label>
-                  <input
-                    type="text"
-                    value={setupForm.displayName}
-                    onChange={(event) => setSetupForm((current) => ({ ...current, displayName: event.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Branch staff name"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
-                    value={setupForm.email}
-                    onChange={(event) => setSetupForm((current) => ({ ...current, email: event.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="name@company.com"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
-                  <input
-                    type="password"
-                    value={setupForm.password}
-                    onChange={(event) => setSetupForm((current) => ({ ...current, password: event.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="At least 6 characters"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm password</label>
-                  <input
-                    type="password"
-                    value={setupForm.confirmPassword}
-                    onChange={(event) => setSetupForm((current) => ({ ...current, confirmPassword: event.target.value }))}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    placeholder="Repeat password"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {saving ? <FiRefreshCw className="h-4 w-4 animate-spin" /> : <FiCheck className="h-4 w-4" />}
-                  Activate account
-                </button>
-              </form>
-            </div>
-          </div>
         </div>
       </div>
     )
@@ -454,26 +206,26 @@ function AccountManagement() {
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-gray-50 px-4 py-6 text-gray-900 lg:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm lg:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-gray-600">
                 <FiUsers className="h-4 w-4" />
                 Account Management
               </p>
-              <h1 className="mt-4 text-2xl font-bold tracking-tight lg:text-3xl">Branch access and invite links</h1>
+              <h1 className="mt-3 text-2xl font-bold tracking-tight lg:text-3xl">Access accounts</h1>
+              <p className="mt-1 text-sm text-gray-500">
+                Create login accounts for POS, expenses, and medicines & stocks.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-           
-              <button
-                type="button"
-                onClick={() => setIsInviteModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-              >
-                <FiLink className="h-4 w-4" />
-                Generate invite link
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              <FiCheck className="h-4 w-4" />
+              New account
+            </button>
           </div>
         </div>
 
@@ -486,8 +238,8 @@ function AccountManagement() {
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Access accounts and invites</h2>
-              <p className="mt-1 text-sm text-gray-500">One table for both created accounts and pending invite links.</p>
+              <h2 className="text-lg font-semibold text-gray-900">Created accounts</h2>
+              <p className="mt-1 text-sm text-gray-500">All direct login accounts for POS and back-office access.</p>
             </div>
             <button
               type="button"
@@ -507,46 +259,50 @@ function AccountManagement() {
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Email</th>
                     <th className="px-4 py-3">Shop</th>
+                    <th className="px-4 py-3">Role</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Created</th>
                     <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {combinedAccessItems.length === 0 ? (
+                  {managedAccounts.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-4 py-6 text-center text-sm text-gray-500">
-                        No accounts or invites yet.
+                      <td colSpan="7" className="px-4 py-6 text-center text-sm text-gray-500">
+                        No accounts yet.
                       </td>
                     </tr>
                   ) : (
-                    combinedAccessItems.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3 font-medium text-gray-900">{item.name}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.email}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.shop}</td>
-                        <td className="px-4 py-3 text-gray-600">{item.status}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-2">
+                    managedAccounts.map((account) => {
+                      const isActive = account.active !== false
+                      const roleLabel = account.role === 'limited' ? 'Limited' : (account.role || 'Admin')
+                      const modulesLabel = account.role === 'limited'
+                        ? LIMITED_ROUTES.map((path) => ROUTE_LABELS[path]).join(', ')
+                        : 'All modules'
+
+                      return (
+                        <tr key={account.id}>
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            <div>{account.displayName || 'Unnamed account'}</div>
+                            <div className="text-xs text-gray-400">{modulesLabel}</div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{account.email}</td>
+                          <td className="px-4 py-3 text-gray-600">{account.shopName || 'Second Shop'}</td>
+                          <td className="px-4 py-3 text-gray-600">{roleLabel}</td>
+                          <td className="px-4 py-3 text-gray-600">{isActive ? 'Active' : 'Disabled'}</td>
+                          <td className="px-4 py-3 text-gray-600">{formatDate(account.createdAt)}</td>
+                          <td className="px-4 py-3 text-right">
                             <button
                               type="button"
-                              onClick={item.onAction}
+                              onClick={() => toggleAccountStatus(account)}
                               className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
                             >
-                              {item.actionLabel}
+                              {isActive ? 'Disable' : 'Enable'}
                             </button>
-                            {item.extraAction && (
-                              <button
-                                type="button"
-                                onClick={item.extraAction}
-                                className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                              >
-                                {item.extraActionLabel}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
@@ -555,30 +311,30 @@ function AccountManagement() {
         </div>
       </div>
 
-      {isInviteModalOpen && (
+      {isCreateModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-4 py-6">
           <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Generate invite link</h2>
-                <p className="mt-1 text-sm text-gray-500">Create a restricted access link for the second shop.</p>
+                <h2 className="text-lg font-semibold text-gray-900">Create account</h2>
+                <p className="mt-1 text-sm text-gray-500">Add a direct login account for POS, expenses, or stocks access.</p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsInviteModalOpen(false)}
+                onClick={() => setIsCreateModalOpen(false)}
                 className="rounded-md px-2 py-1 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               >
                 Close
               </button>
             </div>
 
-            <form className="mt-6 space-y-4" onSubmit={handleGenerateInvite}>
+            <form className="mt-6 space-y-4" onSubmit={handleCreateAccount}>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Display name</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Full name</label>
                 <input
                   type="text"
-                  value={inviteForm.displayName}
-                  onChange={(event) => setInviteForm((current) => ({ ...current, displayName: event.target.value }))}
+                  value={form.displayName}
+                  onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))}
                   className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="Branch staff name"
                 />
@@ -587,18 +343,38 @@ function AccountManagement() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
                 <input
                   type="email"
-                  value={inviteForm.email}
-                  onChange={(event) => setInviteForm((current) => ({ ...current, email: event.target.value }))}
+                  value={form.email}
+                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
                   className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="name@company.com"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="At least 6 characters"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm password</label>
+                <input
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  placeholder="Repeat password"
                 />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Shop name</label>
                 <input
                   type="text"
-                  value={inviteForm.shopName}
-                  onChange={(event) => setInviteForm((current) => ({ ...current, shopName: event.target.value }))}
+                  value={form.shopName}
+                  onChange={(event) => setForm((current) => ({ ...current, shopName: event.target.value }))}
                   className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   placeholder="Second Shop"
                 />
@@ -615,52 +391,14 @@ function AccountManagement() {
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsInviteModalOpen(false)}
-                  className="flex-1 rounded-md border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {saving ? 'Generating...' : 'Generate'}
-                </button>
-              </div>
-
-              {generatedLink && (
-                <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-sm font-medium text-blue-900">Generated link</p>
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                    <input
-                      type="text"
-                      readOnly
-                      value={generatedLink}
-                      className="min-w-0 flex-1 rounded-md border border-blue-200 bg-white px-3 py-2.5 text-sm text-gray-700"
-                    />
-                    <button
-                      type="button"
-                      onClick={copyLink}
-                      className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                    >
-                      {copiedLink ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
-                      {copiedLink ? 'Copied' : 'Copy'}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => window.open(generatedLink, '_blank', 'noopener,noreferrer')}
-                    className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-900"
-                  >
-                    <FiExternalLink className="h-4 w-4" />
-                    Open invite
-                  </button>
-                </div>
-              )}
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {saving ? <FiRefreshCw className="h-4 w-4 animate-spin" /> : <FiCheck className="h-4 w-4" />}
+                Create account
+              </button>
             </form>
           </div>
         </div>
