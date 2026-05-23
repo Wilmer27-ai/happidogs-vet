@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { FiPrinter, FiArrowLeft, FiCheckCircle, FiEdit2 } from 'react-icons/fi'
 import { deductMedicineStock, saveSalesRecord, getMedicines, getMasterData, MASTER_DATA_DEFAULTS } from '../../firebase/services'
+import { useAuth } from '../../pages/AuthContext'
 import { addDoc, collection } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useNavigate } from 'react-router-dom'
@@ -13,6 +14,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [savedGroup, setSavedGroup] = useState(null)
+  const { userProfile, currentUser } = useAuth()
 
   const uniquePetIds = [...new Set((consultationData || []).map(a => a.petId))]
   const uniquePetCount = uniquePetIds.length
@@ -286,6 +288,10 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         activityTypes: [...new Set(snapshotActivities.flatMap(a => a.activityTypes || []))],
 
         items: saleItems,
+        // metadata to indicate which shop/account created this sales record
+        shopName: userProfile?.shopName || 'Main Clinic',
+        createdByUid: currentUser?.uid ?? null,
+        createdByName: userProfile?.displayName || userProfile?.email || null,
         createdAt: new Date().toISOString(),
       }
 

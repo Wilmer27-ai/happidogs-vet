@@ -66,6 +66,10 @@ export function AuthProvider({ children }) {
       : null
 
   const canAccessPath = (pathname) => {
+    // Always allow access to Sales History for all accounts so shared POS users
+    // can view their own shop's history without requiring a DB migration.
+    if (pathname === '/sales-history') return true
+
     if (!allowedRoutes || allowedRoutes.length === 0) {
       return true
     }

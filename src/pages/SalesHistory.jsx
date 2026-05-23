@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiShoppingBag, FiTrash2, FiArrowLeft } from 'react-icons/fi'
-import { getSales, voidSale } from '../firebase/services'
+import { getSalesPage, voidSale } from '../firebase/services'
 import PasswordVerificationModal from '../components/PasswordVerificationModal'
+import { useAuth } from './AuthContext'
 
 function SalesHistory() {
   const navigate = useNavigate()
@@ -12,7 +13,11 @@ function SalesHistory() {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [displayCount, setDisplayCount] = useState(20)
+  const [shopFilter, setShopFilter] = useState('all')
+  const [lastDoc, setLastDoc] = useState(null)
+  const [pageSize] = useState(50)
+  const [fetchingMore, setFetchingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const observerTarget = useRef(null)
   
   // Void/Password modal states
@@ -22,11 +27,57 @@ function SalesHistory() {
 
   useEffect(() => { loadSales() }, [])
 
+  const { role, userProfile, currentUser } = useAuth()
+
+  // If a limited user, default the shop filter to their shop so they only see their own sales
+  useEffect(() => {
+    if (role === 'limited') {
+      const shop = userProfile?.shopName || ''
+      setShopFilter(shop || 'all')
+    }
+  }, [role, userProfile])
+
   const loadSales = async () => {
     setLoading(true)
     try {
-      const data = await getSales()
-      setSales(data)
+      setSales([])
+      setLastDoc(null)
+      setHasMore(true)
+      if (role === 'limited') {
+        const shopName = (userProfile?.shopName || '').trim()
+        const uid = currentUser?.uid || null
+
+        // Fetch recent sales (last 30 days) and user-created sales to handle cases where shopName was missing or inconsistent
+        const cutoff = new Date()
+        cutoff.setDate(cutoff.getDate() - 30)
+        const dateFrom = cutoff
+
+        const resRecent = await getSalesPage({ limit: pageSize, startAfterDoc: null, dateFrom })
+        const resUser = uid ? await getSalesPage({ limit: pageSize, startAfterDoc: null, createdByUid: uid }) : { docs: [], lastDoc: null }
+
+        // Client-side filter: include sales that match shopName case-insensitively OR createdByUid === uid
+        const norm = (s) => (s || '').trim().toLowerCase()
+        const map = new Map()
+        ;[...resRecent.docs, ...resUser.docs].forEach(d => {
+          const sname = norm(d.shopName)
+          if (sname === norm(shopName) || (uid && d.createdByUid === uid)) {
+            map.set(d.id, d)
+          }
+        })
+        const getTime = (s) => {
+          const v = s.createdAt || s.saleDate || s.date || 0
+          return v && v.toDate ? v.toDate().getTime() : new Date(v).getTime()
+        }
+        const merged = Array.from(map.values()).sort((a, b) => getTime(b) - getTime(a))
+        setSales(merged)
+        setLastDoc(resRecent.lastDoc || resUser.lastDoc)
+        setHasMore((resRecent.docs.length === pageSize) || (resUser.docs.length === pageSize))
+      } else {
+        const res = await getSalesPage({ limit: pageSize, startAfterDoc: null, shopName: null })
+        setSales(res.docs)
+        setLastDoc(res.lastDoc)
+        setHasMore(res.docs.length === pageSize)
+      }
     } catch (error) {
       console.error('Error loading sales:', error)
     } finally {
@@ -66,6 +117,7 @@ function SalesHistory() {
         ...sale,
         displayType: 'Consultation',
         displayName: sale.clientName || 'Unknown Client',
+        shopName: sale.shopName || 'Main Clinic',
         displayItems: (sale.items || []).map(i => ({
           name: i.medicineName || i.itemName || '',
           qty: i.quantity || 0,
@@ -83,6 +135,7 @@ function SalesHistory() {
       ...sale,
       displayType: sale.itemType === 'medicine' ? 'Medicine Sale' : 'Store Sale',
       displayName: sale.itemName || 'Unknown Item',
+      shopName: sale.shopName || 'Main Clinic',
       displayItems: [{
         name: sale.itemName || '',
         qty: sale.quantity || 0,
@@ -112,23 +165,70 @@ function SalesHistory() {
         (typeFilter === 'consultation' && sale.type === 'consultation') ||
         (typeFilter === 'store' && sale.type !== 'consultation')
 
-      return matchesSearch && matchesDate && matchesType
+      // If limited user, restrict to their shop only. Admins see all (or can filter).
+      const matchesShop = role === 'limited'
+        ? (((sale.shopName || '') === (userProfile?.shopName || '')) || (sale.createdByUid && sale.createdByUid === currentUser?.uid))
+        : (shopFilter === 'all' || (sale.shopName || '').toLowerCase() === shopFilter.toLowerCase())
+
+      return matchesSearch && matchesDate && matchesType && matchesShop
     })
     .sort((a, b) => new Date(b.date) - new Date(a.date))
 
-  const displayedSales = filteredSales.slice(0, displayCount)
-  const hasMore = displayCount < filteredSales.length
+  const displayedSales = filteredSales
 
+  // Load next page when sentinel becomes visible
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting && hasMore) setDisplayCount(prev => prev + 20) },
-      { threshold: 0.1 }
-    )
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !fetchingMore && !loading) {
+        // fetch next page
+        (async () => {
+          try {
+            setFetchingMore(true)
+            if (role === 'limited') {
+                const shopName = (userProfile?.shopName || '').trim()
+                const uid = currentUser?.uid || null
+                const cutoff = new Date()
+                cutoff.setDate(cutoff.getDate() - 30)
+                const dateFrom = cutoff
+                // Load next recent page
+                const resRecent = await getSalesPage({ limit: pageSize, startAfterDoc: lastDoc, dateFrom })
+                // Also load user-created sales (first page)
+                const resUser = uid ? await getSalesPage({ limit: pageSize, startAfterDoc: null, createdByUid: uid }) : { docs: [], lastDoc: null }
+                const norm = (s) => (s || '').trim().toLowerCase()
+                const map = new Map()
+                ;[...sales, ...resRecent.docs, ...resUser.docs].forEach(d => {
+                  const sname = norm(d.shopName)
+                  if (sname === norm(shopName) || (uid && d.createdByUid === uid)) {
+                    map.set(d.id, d)
+                  }
+                })
+                const getTime = (s) => {
+                  const v = s.createdAt || s.saleDate || s.date || 0
+                  return v && v.toDate ? v.toDate().getTime() : new Date(v).getTime()
+                }
+                const merged = Array.from(map.values()).sort((a, b) => getTime(b) - getTime(a))
+                setSales(merged)
+                setLastDoc(resRecent.lastDoc || resUser.lastDoc)
+                setHasMore((resRecent.docs.length === pageSize) || (resUser.docs.length === pageSize))
+            } else {
+              const res = await getSalesPage({ limit: pageSize, startAfterDoc: lastDoc, shopName: null })
+              setSales(prev => [...prev, ...res.docs])
+              setLastDoc(res.lastDoc)
+              setHasMore(res.docs.length === pageSize)
+            }
+          } catch (err) {
+            console.error('Error loading next sales page:', err)
+            setHasMore(false)
+          } finally {
+            setFetchingMore(false)
+          }
+        })()
+      }
+    }, { threshold: 0.1 })
+
     if (observerTarget.current) observer.observe(observerTarget.current)
     return () => observer.disconnect()
-  }, [hasMore])
-
-  useEffect(() => { setDisplayCount(20) }, [searchQuery, dateFilter, typeFilter])
+  }, [lastDoc, hasMore, fetchingMore, loading, role, userProfile, pageSize, sales, currentUser])
 
   const totalRevenue = filteredSales.filter(s => !s.isVoided).reduce((sum, s) => sum + (s.totalAmount ?? 0), 0)
 
@@ -151,9 +251,8 @@ function SalesHistory() {
       await voidSale(saleToVoid, 'Manual void by user')
       alert('✅ Sale voided successfully. Stock has been restored.')
       
-      // Reload sales
-      const updated = await getSales()
-      setSales(updated)
+      // Reload sales (refresh pages)
+      await loadSales()
       
       // Close modal
       setIsPasswordModalOpen(false)
@@ -193,7 +292,7 @@ function SalesHistory() {
           </button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input type="text" placeholder="Search by client, item, or type..."
@@ -213,6 +312,19 @@ function SalesHistory() {
             <option value="consultation">Consultations</option>
             <option value="store">Store Sales</option>
           </select>
+          {role === 'limited' ? (
+            <div className="w-full md:w-auto px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-700">
+              {userProfile?.shopName || 'Your Shop'}
+            </div>
+          ) : (
+            <select value={shopFilter} onChange={(e) => setShopFilter(e.target.value)}
+              className="w-full md:w-auto px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+              <option value="all">All Shops</option>
+              {[...new Set(sales.map(s => s.shopName).filter(Boolean))].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -243,6 +355,7 @@ function SalesHistory() {
                 <tr>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Date</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Type</th>
+                  <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Source</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Client / Item</th>
                   <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide border border-gray-600">Items Sold</th>
                   <th className="px-3 py-2.5 text-right font-semibold uppercase tracking-wide border border-gray-600">Total</th>
@@ -267,6 +380,9 @@ function SalesHistory() {
                       }`}>
                         {sale.displayType}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 border border-gray-200 text-gray-700 whitespace-nowrap">
+                      <span className="text-xs font-medium text-gray-700">{sale.shopName || 'Main Clinic'}</span>
                     </td>
                     <td className="px-3 py-2.5 border border-gray-200 font-medium text-gray-900">
                       {sale.displayName}
@@ -322,14 +438,9 @@ function SalesHistory() {
               </table>
             </div>
 
-            {/* Lazy Loading Indicator */}
+            {/* Sentinel for intersection observer to trigger next page load (invisible) */}
             {hasMore && (
-              <div ref={observerTarget} className="w-full py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                  <p className="text-xs text-gray-500 font-medium">Loading more sales...</p>
-                </div>
-              </div>
+              <div ref={observerTarget} className="w-full h-2" />
             )}
           </div>
         )}

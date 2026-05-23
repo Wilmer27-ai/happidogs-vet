@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle, FiPlus, FiChevronDown } from 'react-icons/fi'
 import { getMedicines, getStoreItems, addMedicine, addStoreItem, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { useAuth } from './AuthContext'
 
 // ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
 function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
@@ -1116,6 +1117,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const { role } = useAuth()
 
   const foodCategories = ['Dog Food', 'Cat Food', 'Bird Food']
   const medicineCategories = propMedCategories ?? MASTER_DATA_DEFAULTS.medicineCategories
@@ -1186,6 +1188,10 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
   }
 
   const handleSave = async () => {
+    if (role === 'limited') {
+      alert('You do not have permission to edit items.')
+      return
+    }
     setSaving(true)
     try {
       // ── Build a diff of what changed ──
@@ -1234,6 +1240,10 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
   }
 
   const handleDelete = async () => {
+    if (role === 'limited') {
+      alert('You do not have permission to delete items.')
+      return
+    }
     if (!confirmDelete) { setConfirmDelete(true); return }
     setDeleting(true)
     try {
@@ -1656,11 +1666,12 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
             {/* Delete button — left side */}
             <button
               onClick={handleDelete}
-              disabled={deleting}
+              disabled={deleting || role === 'limited'}
+              title={role === 'limited' ? 'Limited accounts cannot delete items' : ''}
               className={`flex items-center gap-1.5 px-4 py-2 text-sm rounded-md font-medium transition-colors disabled:cursor-not-allowed
                 ${confirmDelete
-                  ? 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300'
-                  : 'border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50'
+                  ? (role === 'limited' ? 'bg-gray-200 text-gray-500' : 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300')
+                  : (role === 'limited' ? 'border border-gray-200 text-gray-400' : 'border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50')
                 }`}
             >
               <FiTrash2 className="w-3.5 h-3.5" />
@@ -1674,8 +1685,9 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
               className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 font-medium">
               Cancel
             </button>
-            <button onClick={handleSave} disabled={saving}
-              className="flex items-center justify-center gap-2 px-6 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed">
+            <button onClick={handleSave} disabled={saving || role === 'limited'}
+              title={role === 'limited' ? 'Limited accounts cannot edit items' : ''}
+              className={`flex items-center justify-center gap-2 px-6 py-2 text-sm rounded-md font-medium ${role === 'limited' ? 'bg-gray-300 text-gray-600' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:bg-gray-300 disabled:cursor-not-allowed`}>
               <FiSave className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -1690,6 +1702,7 @@ function EditStockModal({ item, isOpen, onClose, onSave, onDelete, medicineCateg
 // ── Main Component ────────────────────────────────────────────────────────────
 function MedicinesStocks() {
   const navigate = useNavigate()   // ← add this
+  const { role } = useAuth()
   const [medicines, setMedicines] = useState([])
   const [storeItems, setStoreItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1978,14 +1991,16 @@ function MedicinesStocks() {
               Add Stock
             </button>
 
-            {/* ── Edit History Button ── */}
-            <button
-              onClick={() => navigate('/stock-edit-history')}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-            >
-              <FiClock className="w-4 h-4" />
-              Edit History
-            </button>
+            {/* ── Edit History Button (admins only) ── */}
+            {role !== 'limited' && (
+              <button
+                onClick={() => navigate('/stock-edit-history')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                <FiClock className="w-4 h-4" />
+                Edit History
+              </button>
+            )}
 
             {/* ── Stat Badges ── */}
             <div className="flex items-center gap-2">
@@ -2120,12 +2135,22 @@ function MedicinesStocks() {
 
                           {/* ── Edit Button ── */}
                           <td className="px-3 py-1.5 text-center">
-                            <button
-                              onClick={() => setEditItem(item)}
-                              className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
-                            >
-                              Edit
-                            </button>
+                            {role === 'limited' ? (
+                              <button
+                                disabled
+                                title="Limited accounts cannot edit items"
+                                className="px-3 py-1.5 text-xs font-semibold text-white bg-gray-400 rounded opacity-70 cursor-not-allowed"
+                              >
+                                Edit
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setEditItem(item)}
+                                className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                              >
+                                Edit
+                              </button>
+                            )}
                           </td>
                         </tr>
                       )

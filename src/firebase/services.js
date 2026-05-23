@@ -9,6 +9,8 @@ import {
   deleteDoc,
   setDoc,
   query,
+  limit,
+  startAfter,
   where,
   orderBy,
   Timestamp,
@@ -493,6 +495,29 @@ export const getSales = async () => {
     throw error;
   }
 };
+
+// Paginated sales fetch to avoid reading the entire collection at once.
+// Returns an object { docs: Array, lastDoc: QueryDocumentSnapshot|null }
+export const getSalesPage = async ({ limit: pageLimit = 50, startAfterDoc = null, shopName = null, createdByUid = null, dateFrom = null } = {}) => {
+  try {
+    const coll = collection(db, 'sales')
+    const clauses = []
+    if (shopName) clauses.push(where('shopName', '==', shopName))
+    if (createdByUid) clauses.push(where('createdByUid', '==', createdByUid))
+    if (dateFrom) clauses.push(where('createdAt', '>=', dateFrom))
+    clauses.push(orderBy('createdAt', 'desc'))
+    clauses.push(limit(pageLimit))
+    const q = startAfterDoc ? query(coll, ...clauses, startAfter(startAfterDoc)) : query(coll, ...clauses)
+
+    const snapshot = await getDocs(q)
+    const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+    const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null
+    return { docs, lastDoc }
+  } catch (error) {
+    console.error('Error getting sales page:', error)
+    throw error
+  }
+}
 
 export const deleteSale = async (saleId) => {
   try {

@@ -8,11 +8,12 @@ import { useAuth } from './AuthContext'
 import { getAppUsers, setAppUserProfile, updateAppUserProfile } from '../firebase/services'
 
 const SECONDARY_APP_NAME = 'account-management-creator'
-const LIMITED_ROUTES = ['/pet-store', '/medicines-stocks', '/expenses']
+const LIMITED_ROUTES = ['/pet-store', '/medicines-stocks', '/expenses', '/sales-history']
 const ROUTE_LABELS = {
   '/pet-store': 'POS',
   '/medicines-stocks': 'Medicines & Stocks',
   '/expenses': 'Expenses',
+  '/sales-history': 'Sales History',
 }
 
 const initialCreateForm = {
@@ -241,14 +242,16 @@ function AccountManagement() {
               <h2 className="text-lg font-semibold text-gray-900">Created accounts</h2>
               <p className="mt-1 text-sm text-gray-500">All direct login accounts for POS and back-office access.</p>
             </div>
-            <button
-              type="button"
-              onClick={loadAdminData}
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <FiRefreshCw className="h-4 w-4" />
-              Refresh
-            </button>
+              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={loadAdminData}
+                className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <FiRefreshCw className="h-4 w-4" />
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 overflow-hidden rounded-xl border border-gray-200">

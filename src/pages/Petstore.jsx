@@ -6,7 +6,7 @@ import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale }
 
 function PetStore() {
   const navigate = useNavigate()
-  const { canAccessPath } = useAuth()
+  const { canAccessPath, userProfile, currentUser } = useAuth()
   const [storeItems, setStoreItems] = useState([])
   const [medicines, setMedicines] = useState([])
   const [loading, setLoading] = useState(true)
@@ -335,7 +335,11 @@ function PetStore() {
           sellingPrice: effectivePricePerUnit,              // ← effective per-unit price
           totalAmount,
           profit: totalAmount - ((orderItem.purchasePrice ?? 0) * qty),
-          saleDate: new Date().toISOString()
+          saleDate: new Date().toISOString(),
+          // metadata: identify which shop/account created this sale
+          shopName: userProfile?.shopName || 'Main Clinic',
+          createdByUid: currentUser?.uid ?? null,
+          createdByName: userProfile?.displayName || userProfile?.email || null,
         }
         await addSale(saleData)
 
