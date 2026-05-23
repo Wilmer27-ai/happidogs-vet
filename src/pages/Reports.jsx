@@ -4,6 +4,7 @@ import {
   FiPrinter
 } from 'react-icons/fi'
 import { getSales, getExpenses, getAllPetActivities, getMedicines, getStoreItems, getClients, getPets, getStockEditHistory } from '../firebase/services'
+import { useAuth } from './AuthContext'
 
 function Reports() {
   const [loading, setLoading] = useState(true)
@@ -25,10 +26,23 @@ function Reports() {
     pets: [],
     stockHistory: []
   })
+  const [shopFilter, setShopFilter] = useState('all')
+
+  const { role, userProfile, currentUser } = useAuth()
 
   useEffect(() => {
     loadAllData()
   }, [])
+
+  // Default shop filter for limited users
+  useEffect(() => {
+    if (role === 'limited') {
+      const shop = userProfile?.shopName || 'all'
+      setShopFilter(shop || 'all')
+    } else {
+      setShopFilter('all')
+    }
+  }, [role, userProfile])
 
   const loadAllData = async () => {
     setLoading(true)
@@ -89,8 +103,23 @@ function Reports() {
   // filteredSales: handle both consultation sales ('date' field) and POS sales ('saleDate' field)
   const filteredSales = (() => {
     const rangeStart = getDateRangeFilter()
-    const activeSales = data.sales.filter(s => s.status !== 'void')
+
+    // helper: whether a sale should be visible based on role/shop
+    const isSaleVisible = (s) => {
+      if (role === 'limited') {
+        const shopName = s.shopName || ''
+        return (shopName && shopName === (userProfile?.shopName || '')) || (s.createdByUid && s.createdByUid === currentUser?.uid)
+      }
+      if (shopFilter && shopFilter !== 'all') {
+        return (s.shopName || '').toLowerCase() === shopFilter.toLowerCase()
+      }
+      return true
+    }
+
+    const activeSales = data.sales.filter(s => s.status !== 'void' && isSaleVisible(s))
+
     if (!rangeStart) return activeSales
+
     return activeSales.filter(s => {
       const d = s.type === 'consultation'
         ? new Date((s.date || '') + 'T00:00:00')
@@ -352,25 +381,35 @@ function Reports() {
     // ── SALES ──
     sections.push('SALES')
     sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Status']))
-    filteredSales
-      .filter(s => s.status !== 'void')  // Exclude voided sales from main section
-      .forEach(s => {
-        const d = s.type === 'consultation'
-          ? fmtDate((s.date || '') + 'T00:00:00')
-          : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
-        const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
-        const client = s.clientName || ''
-        const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
-        const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
-        sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount), 'Active']))
-      })
+    filteredSales.forEach(s => {
+      const d = s.type === 'consultation'
+        ? fmtDate((s.date || '') + 'T00:00:00')
+        : fmtDate(s.saleDate?.toDate ? s.saleDate.toDate() : s.saleDate)
+      const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
+      const client = s.clientName || ''
+      const pets = s.petNames?.length ? s.petNames.join('; ') : (s.items?.length ? s.items.map(i => i.itemName || i.name).join('; ') : '')
+      const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
+      sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount), 'Active']))
+    })
     sections.push('')
 
     // ── VOIDED SALES ──
     sections.push('VOIDED SALES')
     sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Voided Date']))
+    // Only include voided sales that are visible to the current user (respect shop filter / limited users)
+    const isSaleVisibleForExport = (s) => {
+      if (role === 'limited') {
+        const shopName = s.shopName || ''
+        return (shopName && shopName === (userProfile?.shopName || '')) || (s.createdByUid && s.createdByUid === currentUser?.uid)
+      }
+      if (shopFilter && shopFilter !== 'all') {
+        return (s.shopName || '').toLowerCase() === shopFilter.toLowerCase()
+      }
+      return true
+    }
+
     data.sales
-      .filter(s => s.status === 'void')  // Only show voided sales
+      .filter(s => s.status === 'void' && isSaleVisibleForExport(s))  // Only show voided sales visible to the user
       .forEach(s => {
         const d = s.type === 'consultation'
           ? fmtDate((s.date || '') + 'T00:00:00')
@@ -378,7 +417,7 @@ function Reports() {
         const voidDate = s.voidedAt?.toDate ? s.voidedAt.toDate() : new Date(s.voidedAt || '')
         const type = s.type === 'consultation' ? 'Consultation' : 'POS Sale'
         const client = s.clientName || ''
-        const pets = s.petNames?.join('; ') || (s.items?.map(i => i.itemName || i.name).join('; ') || '')
+        const pets = s.petNames?.length ? s.petNames.join('; ') : (s.items?.length ? s.items.map(i => i.itemName || i.name).join('; ') : '')
         const items = s.items?.length ? s.items.map(i => `${i.quantity}x ${i.itemName || i.name}`).join('; ') : ''
         sections.push(row([d, type, client, pets, items, fmtAmt(s.totalAmount), fmtDate(voidDate)]))
       })
@@ -472,6 +511,22 @@ function Reports() {
               <option value="year">Last Year</option>
               <option value="all">All Time</option>
             </select>
+            {role === 'limited' ? (
+              <div className="w-full sm:w-auto px-3 py-1.5 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-700">
+                {userProfile?.shopName || 'Your Shop'}
+              </div>
+            ) : (
+              <select
+                value={shopFilter}
+                onChange={(e) => setShopFilter(e.target.value)}
+                className="w-full sm:w-auto px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-sm"
+              >
+                <option value="all">All Shops</option>
+                {[...new Set(data.sales.map(s => s.shopName).filter(Boolean))].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            )}
             
             <button
               onClick={handleExportCSV}
