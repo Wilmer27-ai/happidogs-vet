@@ -28,8 +28,8 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   )
   const medicinesTotal = allMeds.reduce((sum, m) => sum + ((m.pricePerUnit ?? 0) * (m.quantity || 0)), 0)
 
-  const [consultationFee, setConsultationFee] = useState(MASTER_DATA_DEFAULTS.consultationFee * uniquePetCount)
-  const [feeInput, setFeeInput] = useState(MASTER_DATA_DEFAULTS.consultationFee * uniquePetCount)
+  const [consultationFee, setConsultationFee] = useState(MASTER_DATA_DEFAULTS.consultationFee)
+  const [feeInput, setFeeInput] = useState(MASTER_DATA_DEFAULTS.consultationFee)
 
   const [clinicName, setClinicName] = useState(MASTER_DATA_DEFAULTS.clinicName)
   const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
@@ -39,7 +39,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
   // Load default fee and clinic info from masterData
   useEffect(() => {
     getMasterData().then(data => {
-      const fee = (data?.consultationFee ?? MASTER_DATA_DEFAULTS.consultationFee) * uniquePetCount
+      const fee = data?.consultationFee ?? MASTER_DATA_DEFAULTS.consultationFee
       setConsultationFee(fee)
       setFeeInput(fee)
       if (data?.clinicName) setClinicName(data.clinicName)
@@ -515,7 +515,6 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
                   <div className="flex justify-between items-center px-3 py-1.5 text-xs print:text-[9px] bg-gray-50 border-b border-gray-200">
                     <span className="text-gray-600">
                       Professional Fee
-                      <span className="text-gray-400 ml-1 print:text-[8px]">(₱300 × {uniquePetCount} {uniquePetCount > 1 ? 'pets' : 'pet'})</span>
                     </span>
                     <div className="flex items-center gap-1 print:hidden">
                       {editingFee ? (
@@ -626,10 +625,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
             </div>
 
             {/* Footer */}
-            <div className="summary-print-footer pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
-              <p className="text-xs print:text-[8px] text-gray-400 italic">This is a computer-generated document.</p>
-              <p className="text-xs print:text-[8px] font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
-            </div>
+          
           </div>
 
         </div>

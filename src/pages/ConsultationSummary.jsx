@@ -307,7 +307,6 @@ function ConsultationSummary() {
                   <div className="flex justify-between items-center px-3 py-1.5 text-xs print:text-[9px] bg-gray-50 border-b border-gray-200">
                     <span className="text-gray-600">
                       Professional Fee
-                      <span className="text-gray-400 ml-1 print:text-[8px]">(₱300 × {uniquePetCount} {uniquePetCount > 1 ? 'pets' : 'pet'})</span>
                     </span>
                     <span className="font-semibold text-gray-900">
                       ₱{consultationFee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -354,10 +353,7 @@ function ConsultationSummary() {
             </div>
 
             {/* ── Footer ── */}
-            <div className="summary-print-footer pt-2 print:pt-0.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center gap-2 print:gap-0.5 sm:justify-between text-xs print:text-[8px] leading-none print:leading-tight">
-              <p className="text-xs print:text-[8px] text-gray-400 italic">This is a computer-generated document.</p>
-              <p className="text-xs print:text-[8px] font-semibold text-gray-500">Thank you for trusting Happi Dogs Veterinary Clinic 🐾</p>
-            </div>
+          
 
           </div>
 

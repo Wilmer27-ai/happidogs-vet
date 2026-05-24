@@ -325,7 +325,7 @@ function MasterData() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Consultation Fee <span className="text-gray-400 font-normal">(₱ per pet)</span>
+                  Consultation Fee <span className="text-gray-400 font-normal">(₱ per transaction)</span>
                 </label>
                 <input
                   type="number"
