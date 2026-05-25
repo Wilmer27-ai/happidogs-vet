@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiCalendar, FiTrash2 } from 'react-icons/fi'
+import { FiSearch, FiCalendar, FiTrash2, FiPrinter } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { getConsultations, getClients, deleteConsultation } from '../firebase/services'
 
@@ -91,6 +91,10 @@ function ConsultationHistory() {
   const handleViewConsultation = (group) => {
     // Pass the snapshot directly — no re-fetching needed
     navigate('/consultation-summary', { state: { group } })
+  }
+
+  const handlePrintConsultation = (group) => {
+    navigate('/consultation-summary', { state: { group, autoPrint: true } })
   }
 
   const handleDeleteConsultation = async (group) => {
@@ -190,6 +194,12 @@ function ConsultationHistory() {
                           <button onClick={() => handleViewConsultation(group)}
                             className="px-2.5 py-1 text-xs font-medium text-white bg-gray-800 hover:bg-gray-700 rounded transition-colors">
                             View
+                          </button>
+                          <button onClick={() => handlePrintConsultation(group)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded transition-colors"
+                            title="Print this consultation">
+                            <FiPrinter className="w-3.5 h-3.5" />
+                            Print
                           </button>
                           <button onClick={() => handleDeleteConsultation(group)}
                             className="text-gray-300 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-red-50"

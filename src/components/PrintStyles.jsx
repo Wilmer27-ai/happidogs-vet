@@ -61,7 +61,7 @@ function PrintStyles() {
         .summary-print-page {
           width: 210mm !important;
           max-width: none !important;
-          min-height: 297mm !important;
+          min-height: 148.5mm !important;
           transform-origin: top center !important;
           transform: scale(clamp(0.42, calc((100vw - 24px) / 794), 1)) !important;
         }
@@ -150,11 +150,12 @@ function PrintStyles() {
           box-sizing: border-box !important;
           margin: 0 !important;
           padding: 8mm !important;
-          min-height: 297mm !important;
-          height: 297mm !important;
+          min-height: 148.5mm !important;
+          height: 148.5mm !important;
           max-height: none !important;
           flex: none !important;
           page-break-inside: auto !important;
+          box-shadow: none !important;
         }
 
         /* Content expands to fill available space */
