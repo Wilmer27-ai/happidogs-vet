@@ -1490,7 +1490,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                 <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden lg:table-cell max-w-[180px]">
                                   {activity.diagnosis && <div className="truncate" title={activity.diagnosis}>{activity.diagnosis}</div>}
                                   {activity.treatment && <div className="truncate text-gray-500" title={activity.treatment}>{activity.treatment}</div>}
-                                  {activity.note && <div className="truncate text-gray-500 italic" title={activity.note}>Note: {activity.note}</div>}
+                                  {activity.note && <div className="truncate text-gray-500 italic" title={activity.note}> {activity.note}</div>}
                                   {!activity.diagnosis && !activity.treatment && !activity.note && <span className="text-gray-400">—</span>}
                                 </td>
                                 <td className="px-3 py-2.5 border border-gray-200 text-gray-600 hidden xl:table-cell">
