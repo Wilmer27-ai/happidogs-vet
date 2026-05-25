@@ -1500,8 +1500,7 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                         <span className="font-medium text-gray-800">{med.medicineName}</span>
                                         <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
                                         <div className="text-gray-400">
-                                          <span className="mr-2">₱{(med.pricePerUnit ?? med.price ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}/unit</span>
-                                          <span>₱{((med.subtotal ?? ((med.pricePerUnit ?? med.price ?? 0) * (med.quantity || 0))) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                          <span>= ₱{((med.subtotal ?? ((med.pricePerUnit ?? med.price ?? 0) * (med.quantity || 0))) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                                         </div>
                                       </div>
                                     ))
