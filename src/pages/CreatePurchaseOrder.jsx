@@ -828,9 +828,6 @@ function CreatePurchaseOrder() {
     if (!currentItem.itemName)      { alert('Item Name is required'); return }
     if (!currentItem.quantity)      { alert('Quantity ordered is required'); return }
     if (!currentItem.purchasePrice) { alert('Purchase Price is required'); return }
-    if (currentItem.itemType === 'medicine' && !currentItem.expirationDate) {
-      alert('Expiration date is required for medicines'); return
-    }
     if (hasDualStock()) {
       if (!currentItem.unitsPerPack)       { alert('Units per pack is required'); return }
       if (!currentItem.sellingPricePerUnit){ alert('Selling price per unit is required'); return }
@@ -1180,7 +1177,7 @@ function CreatePurchaseOrder() {
 
             {/* Item Type */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Type *</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
               <select value={currentItem.itemType} onChange={(e) => handleCurrentItemChange('itemType', e.target.value)}
                 className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                 <option value="medicine">Medicine</option>
@@ -1191,7 +1188,7 @@ function CreatePurchaseOrder() {
             {/* Medicine Form */}
             {currentItem.itemType === 'medicine' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Medicine Form *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Medicine Form</label>
                 <select value={currentItem.medicineType} onChange={(e) => handleCurrentItemChange('medicineType', e.target.value)}
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
                   {Object.entries(medicineForms).map(([key, label]) => (
@@ -1203,7 +1200,7 @@ function CreatePurchaseOrder() {
 
             {/* Item Name */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Item Name *</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Item Name <span className="text-red-500">*</span></label>
               <input type="text" value={currentItem.itemName}
                 onChange={(e) => handleCurrentItemChange('itemName', e.target.value)}
                 placeholder={currentItem.itemType === 'medicine' ? 'e.g. Amoxicillin' : 'e.g. Champion Dog Food'}
@@ -1225,7 +1222,7 @@ function CreatePurchaseOrder() {
             {/* Category */}
             <div>
               <CategoryDropdown
-                label="Category *"
+                label="Category"
                 value={currentItem.category}
                 onChange={(v) => handleCurrentItemChange('category', v)}
                 categories={currentItem.itemType === 'medicine' ? medicineCategories : storeCategories}
@@ -1238,7 +1235,7 @@ function CreatePurchaseOrder() {
             {/* Expiry Date (medicine only) */}
             {currentItem.itemType === 'medicine' && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date</label>
                 <input type="date" value={currentItem.expirationDate}
                   onChange={(e) => handleCurrentItemChange('expirationDate', e.target.value)}
                   className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
@@ -1252,7 +1249,7 @@ function CreatePurchaseOrder() {
                 {currentItem.itemType === 'medicine' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <UnitDropdown
-                      label="Pack Called *"
+                      label="Pack Called"
                       value={currentItem.packUnit}
                       onChange={(v) => handleCurrentItemChange('packUnit', v)}
                       units={packUnits}
@@ -1260,7 +1257,7 @@ function CreatePurchaseOrder() {
                       placeholder="e.g. bottle"
                     />
                     <UnitDropdown
-                      label="Unit Inside *"
+                      label="Unit Inside"
                       value={currentItem.subUnit}
                       onChange={(v) => handleCurrentItemChange('subUnit', v)}
                       units={subUnits}
@@ -1274,7 +1271,7 @@ function CreatePurchaseOrder() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      No. of {capFirst(currentItem.packUnit) || 'Pack'}s *
+                      No. of {capFirst(currentItem.packUnit) || 'Pack'}s
                     </label>
                     <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
@@ -1284,8 +1281,8 @@ function CreatePurchaseOrder() {
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       {currentItem.subUnit
-                        ? `${capFirst(currentItem.subUnit)} per ${currentItem.packUnit || 'Pack'} *`
-                        : 'Units per Pack *'}
+                        ? `${capFirst(currentItem.subUnit)} per ${currentItem.packUnit || 'Pack'}`
+                        : 'Units per Pack'}
                     </label>
                     <input type="text" inputMode="decimal" min="1" step="0.01" value={currentItem.unitsPerPack}
                       onChange={(e) => handleCurrentItemChange('unitsPerPack', e.target.value)}
@@ -1316,7 +1313,7 @@ function CreatePurchaseOrder() {
                   <p className="text-xs font-semibold text-gray-800">Pricing</p>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Purchase Price (per {currentItem.packUnit || 'pack'}) *
+                      Purchase Price (per {currentItem.packUnit || 'pack'}) <span className="text-red-500">*</span>
                     </label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
@@ -1325,7 +1322,7 @@ function CreatePurchaseOrder() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Selling Price per {currentItem.subUnit || 'unit'} *
+                      Selling Price per {currentItem.subUnit || 'unit'} <span className="text-red-500">*</span>
                     </label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPricePerUnit}
                       onChange={(e) => handleCurrentItemChange('sellingPricePerUnit', e.target.value)}
@@ -1334,7 +1331,7 @@ function CreatePurchaseOrder() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Selling Price per {currentItem.packUnit || 'pack'} *
+                      Selling Price per {currentItem.packUnit || 'pack'} <span className="text-red-500">*</span>
                     </label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPricePerPack}
                       onChange={(e) => handleCurrentItemChange('sellingPricePerPack', e.target.value)}
@@ -1350,7 +1347,7 @@ function CreatePurchaseOrder() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <UnitDropdown
-                    label="Pack Called *"
+                    label="Pack Called"
                     value={currentItem.packUnit}
                     onChange={(v) => handleCurrentItemChange('packUnit', v)}
                     units={packUnits}
@@ -1358,7 +1355,7 @@ function CreatePurchaseOrder() {
                     placeholder="e.g. vial"
                   />
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered <span className="text-red-500">*</span></label>
                     <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
                       placeholder="e.g. 20"
@@ -1367,14 +1364,14 @@ function CreatePurchaseOrder() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price <span className="text-red-500">*</span></label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price <span className="text-red-500">*</span></label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPrice}
                       onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
                       placeholder="₱"
@@ -1389,7 +1386,7 @@ function CreatePurchaseOrder() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <UnitDropdown
-                    label="Pack Called *"
+                    label="Pack Called"
                     value={currentItem.packUnit}
                     onChange={(v) => handleCurrentItemChange('packUnit', v)}
                     units={packUnits}
@@ -1397,7 +1394,7 @@ function CreatePurchaseOrder() {
                     placeholder="e.g. bag"
                   />
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Qty Ordered <span className="text-red-500">*</span></label>
                     <input type="text" inputMode="decimal" min="1" value={currentItem.quantity}
                       onChange={(e) => handleCurrentItemChange('quantity', e.target.value)}
                       placeholder="e.g. 12"
@@ -1413,14 +1410,14 @@ function CreatePurchaseOrder() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Purchase Price</label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.purchasePrice}
                       onChange={(e) => handleCurrentItemChange('purchasePrice', e.target.value)}
                       placeholder="₱"
                       className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price *</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Selling Price</label>
                     <input type="text" inputMode="decimal" min="0" step="0.01" value={currentItem.sellingPrice}
                       onChange={(e) => handleCurrentItemChange('sellingPrice', e.target.value)}
                       placeholder="₱"

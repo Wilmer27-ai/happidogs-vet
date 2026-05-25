@@ -5,6 +5,12 @@ import { FiSearch, FiX, FiTrash2, FiSave, FiClock, FiPackage, FiAlertCircle, FiP
 import { getMedicines, getStoreItems, addMedicine, addStoreItem, updateMedicine, updateStoreItem, deleteMedicine, deleteStoreItem, logStockEdit, getMasterData, saveMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 import { useAuth } from './AuthContext'
 
+const displayText = (value, fallback = 'N/A') => {
+  if (value === null || value === undefined) return fallback
+  const text = String(value).trim()
+  return text ? text : <span className="text-gray-400">{fallback}</span>
+}
+
 // ── Reusable Unit Dropdown with Add / Delete ──────────────────────────────────
 function UnitDropdown({ label, value, onChange, units, onUnitsChange, placeholder = 'Select or type...' }) {
   const [open, setOpen] = useState(false)
@@ -679,12 +685,11 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
   }
 
   const handleAddToList = () => {
-    if (!form.itemName)      { alert('Item Name is required'); return }
-    if (!form.quantity)      { alert('Quantity is required'); return }
     if (!form.purchasePrice) { alert('Purchase Price is required'); return }
-    if (isMedicine && !form.expirationDate) { alert('Expiration date is required for medicines'); return }
+    const quantity = Number(form.quantity || 1)
+    const unitsPerPack = Number(form.unitsPerPack || 1)
+    const naText = (value) => value && String(value).trim() ? String(value).trim() : 'N/A'
     if (isDual) {
-      if (!form.unitsPerPack)        { alert('Units per pack is required'); return }
       if (!form.sellingPricePerUnit) { alert('Selling price per unit is required'); return }
       if (!form.sellingPricePerPack) { alert('Selling price per pack is required'); return }
     } else {
@@ -692,8 +697,10 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
     }
     setStagedItems(prev => [...prev, {
       ...form,
-      quantity:            Number(form.quantity),
-      unitsPerPack:        form.unitsPerPack   ? Number(form.unitsPerPack)   : null,
+      itemName:            naText(form.itemName),
+      brand:               naText(form.brand),
+      quantity,
+      unitsPerPack,
       packageSize:         form.packageSize    ? Number(form.packageSize)    : null,
       purchasePrice:       Number(form.purchasePrice),
       sellingPricePerUnit: form.sellingPricePerUnit ? Number(form.sellingPricePerUnit) : null,
@@ -708,32 +715,34 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
     setSaving(true)
     try {
       for (const item of stagedItems) {
-        const base = { brand: item.brand || '', purchasePrice: item.purchasePrice, supplierName: item.supplierName || '', createdAt: new Date().toISOString() }
+        const quantity = Number(item.quantity || 1)
+        const unitsPerPack = Number(item.unitsPerPack || 1)
+        const base = { brand: item.brand || 'N/A', purchasePrice: item.purchasePrice, supplierName: item.supplierName || 'N/A', createdAt: new Date().toISOString() }
         if (item.itemType === 'medicine') {
           if (isItemSyrup(item)) {
             await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: 'syrup',
-              bottleCount: item.quantity - 1, looseMl: item.unitsPerPack, mlPerBottle: item.unitsPerPack,
-              stockQuantity: item.quantity * item.unitsPerPack, unit: item.packUnit,
+              bottleCount: Math.max(quantity - 1, 0), looseMl: unitsPerPack, mlPerBottle: unitsPerPack,
+              stockQuantity: quantity * unitsPerPack, unit: item.packUnit,
               sellingPricePerMl: item.sellingPricePerUnit, sellingPricePerBottle: item.sellingPricePerPack,
               expirationDate: item.expirationDate })
           } else if (isItemTablet(item)) {
             await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: 'tablet',
-              boxCount: item.quantity - 1, looseTablets: item.unitsPerPack, tabletsPerBox: item.unitsPerPack,
-              stockQuantity: item.quantity * item.unitsPerPack, unit: item.packUnit,
+              boxCount: Math.max(quantity - 1, 0), looseTablets: unitsPerPack, tabletsPerBox: unitsPerPack,
+              stockQuantity: quantity * unitsPerPack, unit: item.packUnit,
               sellingPricePerTablet: item.sellingPricePerUnit, sellingPricePerBox: item.sellingPricePerPack,
               expirationDate: item.expirationDate })
           } else {
             await addMedicine({ ...base, medicineName: item.itemName, category: item.category, medicineType: item.medicineType || 'other',
-              stockQuantity: item.quantity, unit: item.packUnit, sellingPrice: item.sellingPrice, expirationDate: item.expirationDate })
+              stockQuantity: quantity, unit: item.packUnit, sellingPrice: item.sellingPrice, expirationDate: item.expirationDate })
           }
         } else {
           if (isItemFoodCat(item)) {
             await addStoreItem({ ...base, itemName: item.itemName, category: item.category,
-              stockQuantity: item.quantity * item.unitsPerPack, sacksCount: item.quantity - 1,
-              looseKg: item.unitsPerPack, kgPerSack: item.unitsPerPack, unit: item.packUnit,
+              stockQuantity: quantity * unitsPerPack, sacksCount: Math.max(quantity - 1, 0),
+              looseKg: unitsPerPack, kgPerSack: unitsPerPack, unit: item.packUnit,
               sellingPricePerKg: item.sellingPricePerUnit, sellingPricePerSack: item.sellingPricePerPack })
           } else {
-            const totalStock = item.packageSize ? item.quantity * item.packageSize : item.quantity
+            const totalStock = item.packageSize ? quantity * Number(item.packageSize) : quantity
             await addStoreItem({ ...base, itemName: item.itemName, category: item.category,
               stockQuantity: totalStock, unit: item.packageSize ? (item.packageUnit || 'pcs') : item.packUnit,
               packageUnit: item.packUnit, packageSize: item.packageSize || null, sellingPrice: item.sellingPrice })
@@ -787,7 +796,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
               {/* Type + Medicine Form */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
-                  <label className={labelClass}>Type *</label>
+                  <label className={labelClass}>Type</label>
                   <select value={form.itemType} onChange={(e) => set('itemType', e.target.value)} className={`${inputClass} bg-white`}>
                     <option value="medicine">Medicine</option>
                     <option value="store">Store</option>
@@ -795,7 +804,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                 </div>
                 {isMedicine && (
                   <div>
-                    <label className={labelClass}>Medicine Form *</label>
+                    <label className={labelClass}>Medicine Form</label>
                     <select value={form.medicineType} onChange={(e) => set('medicineType', e.target.value)} className={`${inputClass} bg-white`}>
                       {Object.entries(medicineForms).map(([key, label]) => (
                         <option key={key} value={key}>{label}</option>
@@ -807,7 +816,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
 
               {/* Name + Brand */}
               <div>
-                <label className={labelClass}>Item Name *</label>
+                <label className={labelClass}>Item Name</label>
                 <input type="text" value={form.itemName} onChange={(e) => set('itemName', e.target.value)}
                   placeholder={isMedicine ? 'e.g. Amoxicillin' : 'e.g. Champion Dog Food'} className={inputClass} />
               </div>
@@ -824,7 +833,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                 </div>
                 <div>
                   <CategoryDropdown
-                    label="Category *"
+                    label="Category"
                     value={form.category}
                     onChange={(v) => set('category', v)}
                     categories={isMedicine ? medicineCategories : storeCategories}
@@ -837,7 +846,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
 
               {isMedicine && (
                 <div>
-                  <label className={labelClass}>Expiry Date *</label>
+                  <label className={labelClass}>Expiry Date</label>
                   <input type="date" value={form.expirationDate} onChange={(e) => set('expirationDate', e.target.value)} className={inputClass} />
                 </div>
               )}
@@ -847,7 +856,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <UnitDropdown
-                      label="Pack Called *"
+                      label="Pack Called"
                       value={form.packUnit}
                       onChange={(v) => set('packUnit', v)}
                       units={packUnits}
@@ -855,7 +864,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                       placeholder="e.g. bottle"
                     />
                     <UnitDropdown
-                      label="Unit Inside *"
+                      label="Unit Inside"
                       value={form.subUnit}
                       onChange={(v) => set('subUnit', v)}
                       units={subUnits}
@@ -865,11 +874,11 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <label className={labelClass}>No. of {capFirst(form.packUnit) || 'Pack'}s *</label>
+                      <label className={labelClass}>No. of {capFirst(form.packUnit) || 'Pack'}s</label>
                       <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 10" className={inputClass} />
                     </div>
                     <div>
-                      <label className={labelClass}>{capFirst(form.subUnit) || 'Units'} per {form.packUnit || 'Pack'} *</label>
+                      <label className={labelClass}>{capFirst(form.subUnit) || 'Units'} per {form.packUnit || 'Pack'}</label>
                       <input type="text" inputMode="decimal" min="1" step="0.01" value={form.unitsPerPack} onChange={(e) => set('unitsPerPack', e.target.value)} placeholder="e.g. 60" className={inputClass} />
                     </div>
                   </div>
@@ -912,7 +921,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                       placeholder="e.g. vial"
                     />
                     <div>
-                      <label className={labelClass}>Qty *</label>
+                      <label className={labelClass}>Qty</label>
                       <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 20" className={inputClass} />
                     </div>
                   </div>
@@ -942,7 +951,7 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                       placeholder="e.g. bag"
                     />
                     <div>
-                      <label className={labelClass}>Qty Ordered *</label>
+                      <label className={labelClass}>Qty Ordered</label>
                       <input type="text" inputMode="decimal" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} placeholder="e.g. 12" className={inputClass} />
                     </div>
                   </div>
@@ -1015,10 +1024,10 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                                 <tr key={index} className="hover:bg-gray-50">
                                   <td className="px-2 py-2 font-medium text-gray-900 capitalize">{item.medicineType || (item.itemType === 'store' ? 'food' : 'other')}</td>
                                   <td className="px-2 py-2">
-                                    <span className="font-medium text-gray-900">{item.itemName}</span>
-                                    {item.brand && <span className="text-gray-400 ml-1">({item.brand})</span>}
+                                    <span className="font-medium text-gray-900">{displayText(item.itemName)}</span>
+                                    <span className="text-gray-400 ml-1">({displayText(item.brand)})</span>
                                   </td>
-                                  <td className="px-2 py-2 text-gray-700">{item.category}</td>
+                                  <td className="px-2 py-2 text-gray-700">{displayText(item.category)}</td>
                                   <td className="px-2 py-2 text-gray-700 whitespace-nowrap">
                                     {item.quantity} {item.packUnit}s × {item.unitsPerPack} {item.subUnit}
                                   </td>
@@ -1046,10 +1055,10 @@ function AddStockModal({ isOpen, onClose, onSave, medicineCategories: propMedCat
                               <tr key={index} className="hover:bg-gray-50">
                                 <td className="px-2 py-2 font-medium text-gray-900 capitalize">{item.itemType === 'medicine' ? item.medicineType : 'Store'}</td>
                                 <td className="px-2 py-2">
-                                  <span className="font-medium text-gray-900">{item.itemName}</span>
-                                  {item.brand && <span className="text-gray-400 ml-1">({item.brand})</span>}
+                                    <span className="font-medium text-gray-900">{displayText(item.itemName)}</span>
+                                    <span className="text-gray-400 ml-1">({displayText(item.brand)})</span>
                                 </td>
-                                <td className="px-2 py-2 text-gray-700">{item.category}</td>
+                                <td className="px-2 py-2 text-gray-700">{displayText(item.category)}</td>
                                 <td className="px-2 py-2 text-gray-700 whitespace-nowrap">{item.quantity} {item.packUnit}{item.packageSize ? ` × ${item.packageSize} pcs` : ''}</td>
                                 <td className="px-2 py-2 font-semibold text-gray-900 whitespace-nowrap">{totalStock} {item.packUnit}</td>
                                 <td className="px-2 py-2 text-right text-gray-700 whitespace-nowrap">₱{item.purchasePrice.toLocaleString()}/{item.packUnit}</td>
@@ -2107,20 +2116,20 @@ function MedicinesStocks() {
                         <tr key={`${item._type}-${item.id}`} className="hover:bg-gray-50 transition-colors">
                           <td className="px-3 py-1.5">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-medium text-gray-900">{item.itemName || 'N/A'}</span>
+                              <span className="font-medium text-gray-900">{displayText(item.itemName)}</span>
                               {isExpiringSoon && <FiAlertCircle className="w-3 h-3 text-orange-500 flex-shrink-0" title="Expiring Soon" />}
                             </div>
                           </td>
-                          <td className="px-3 py-1.5 text-gray-900">{item.brand || <span className="text-gray-400 italic">—</span>}</td>
+                          <td className="px-3 py-1.5 text-gray-900">{displayText(item.brand)}</td>
                           <td className="px-3 py-1.5 text-gray-900 whitespace-nowrap">{getTypeLabel(item)}</td>
-                          <td className="px-3 py-1.5 text-gray-900">{item.category || 'N/A'}</td>
+                          <td className="px-3 py-1.5 text-gray-900">{displayText(item.category)}</td>
                           <td className="px-3 py-1.5">
                             <div className="flex items-center gap-1">
                               {(out || low) && <FiAlertCircle className={`w-3 h-3 flex-shrink-0 ${out ? 'text-red-500' : 'text-yellow-500'}`} />}
                               <div className={out ? 'text-red-600' : low ? 'text-yellow-600' : ''}>{getStockDisplay(item)}</div>
                             </div>
                           </td>
-                          <td className="px-3 py-1.5 text-gray-900">{item.supplierName || <span className="text-gray-400 italic">N/A</span>}</td>
+                          <td className="px-3 py-1.5 text-gray-900">{displayText(item.supplierName)}</td>
                           <td className="px-3 py-1.5 text-right text-gray-900">
                             ₱{item.purchasePrice?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
                           </td>
