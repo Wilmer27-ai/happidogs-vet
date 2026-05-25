@@ -639,8 +639,75 @@ export const voidSale = async (sale, reason = "Manual void") => {
     const itemId = sale.itemId;
     const quantity = sale.quantity ?? 0;
     const unit = sale.unit || '';
+    const restoreGroupedSaleItems = async (saleItems) => {
+      for (const saleItem of saleItems) {
+        const itemId = saleItem.itemId || saleItem.id
+        const itemType = saleItem.itemType || saleItem._type
+        const medicineType = saleItem.medicineType || ''
+        const quantityToRestore = saleItem.quantity ?? 0
+        const saleUnit = saleItem.unit || saleItem.sellUnit || ''
+
+        if (!itemId || !itemType) {
+          continue
+        }
+
+        const collectionName = itemType === 'medicine' ? 'medicines' : 'storeItems'
+        const itemRef = doc(db, collectionName, itemId)
+        const itemSnap = await getDoc(itemRef)
+
+        if (!itemSnap.exists()) {
+          continue
+        }
+
+        const item = itemSnap.data()
+
+        if (collectionName === 'medicines') {
+          if (medicineType === 'syrup' || item.medicineType === 'syrup') {
+            let mlToRestore = saleUnit === 'bottle' ? quantityToRestore * (item.mlPerBottle ?? 0) : quantityToRestore
+            let looseMl = item.looseMl ?? 0
+            let bottleCount = item.bottleCount ?? 0
+
+            looseMl += mlToRestore
+            const bottlesFromLoose = Math.floor(looseMl / (item.mlPerBottle ?? 1))
+            bottleCount += bottlesFromLoose
+            looseMl = looseMl % (item.mlPerBottle ?? 1)
+
+            await updateDoc(itemRef, {
+              bottleCount,
+              looseMl,
+              stockQuantity: (bottleCount * (item.mlPerBottle ?? 0)) + looseMl,
+            })
+          } else if (medicineType === 'tablet' || item.medicineType === 'tablet') {
+            let tabletsToRestore = saleUnit === 'box' ? quantityToRestore * (item.tabletsPerBox ?? 0) : quantityToRestore
+            let looseTablets = item.looseTablets ?? 0
+            let boxCount = item.boxCount ?? 0
+
+            looseTablets += tabletsToRestore
+            const boxesFromLoose = Math.floor(looseTablets / (item.tabletsPerBox ?? 1))
+            boxCount += boxesFromLoose
+            looseTablets = looseTablets % (item.tabletsPerBox ?? 1)
+
+            await updateDoc(itemRef, {
+              boxCount,
+              looseTablets,
+              stockQuantity: (boxCount * (item.tabletsPerBox ?? 0)) + looseTablets,
+            })
+          } else {
+            await updateDoc(itemRef, {
+              stockQuantity: (item.stockQuantity ?? 0) + quantityToRestore,
+            })
+          }
+        } else {
+          await updateDoc(itemRef, {
+            stockQuantity: (item.stockQuantity ?? 0) + quantityToRestore,
+          })
+        }
+      }
+    }
     
-    if (type === 'consultation') {
+    if (items && items.length > 0 && type !== 'consultation') {
+      await restoreGroupedSaleItems(items)
+    } else if (type === 'consultation') {
       // For consultation sales, restore medicine stocks
       if (items && items.length > 0) {
         for (const item of items) {

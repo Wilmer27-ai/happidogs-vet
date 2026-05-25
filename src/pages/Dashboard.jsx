@@ -277,13 +277,16 @@ function Dashboard() {
         ...sales
           .filter(s => s.status !== 'void')
           .map(s => ({
+            saleItems: Array.isArray(s.items) ? s.items : [],
             date: s.type === 'consultation'
               ? new Date((s.date || '') + 'T00:00:00')
               : new Date(s.saleDate || s.createdAt || Date.now()),
             type: s.type === 'consultation' ? 'Consultation' : 'POS Sale',
             label: s.type === 'consultation'
               ? `${s.clientName || 'Client'}${s.petNames?.length ? ' — ' + s.petNames.join(', ') : ''}`
-              : `${s.itemName || 'Sale'} × ${s.quantity || 1}`,
+              : (Array.isArray(s.items) && s.items.length > 0
+                ? `${s.items[0]?.itemName || 'Sale'}${s.items.length > 1 ? ` +${s.items.length - 1} more` : ''}`
+                : `${s.itemName || 'Sale'} × ${s.quantity || 1}`),
             amount: s.totalAmount || 0,
             positive: true
           })),

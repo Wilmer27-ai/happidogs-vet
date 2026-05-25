@@ -1,10 +1,11 @@
 // src/pages/SalesHistory.jsx
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiSearch, FiShoppingBag, FiTrash2, FiArrowLeft } from 'react-icons/fi'
+import { FiSearch, FiShoppingBag, FiTrash2, FiArrowLeft, FiPrinter } from 'react-icons/fi'
 import { getSalesPage, voidSale } from '../firebase/services'
 import PasswordVerificationModal from '../components/PasswordVerificationModal'
 import { useAuth } from './AuthContext'
+import logo from '../assets/myLogo.png'
 
 function SalesHistory() {
   const navigate = useNavigate()
@@ -24,6 +25,7 @@ function SalesHistory() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [saleToVoid, setSaleToVoid] = useState(null)
   const [voidLoading, setVoidLoading] = useState(false)
+  const [saleToPrint, setSaleToPrint] = useState(null)
 
   useEffect(() => { loadSales() }, [])
 
@@ -36,6 +38,19 @@ function SalesHistory() {
       setShopFilter(shop || 'all')
     }
   }, [role, userProfile])
+
+  useEffect(() => {
+    if (!saleToPrint) return
+
+    const timer = window.setTimeout(() => window.print(), 50)
+    return () => window.clearTimeout(timer)
+  }, [saleToPrint])
+
+  useEffect(() => {
+    const handleAfterPrint = () => setSaleToPrint(null)
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [])
 
   const loadSales = async () => {
     setLoading(true)
@@ -130,7 +145,31 @@ function SalesHistory() {
       }
     }
 
+    const saleItems = Array.isArray(sale.items) ? sale.items : []
+
     // Petstore sale (saved by handleCheckout in Petstore.jsx via addSale)
+    if (saleItems.length > 0) {
+      return {
+        ...sale,
+        displayType: sale.saleKind === 'pos' || sale.type === 'store' ? 'POS Sale' : 'Store Sale',
+        displayName:
+          saleItems.length === 1
+            ? (saleItems[0].itemName || 'Unknown Item')
+            : `${saleItems[0]?.itemName || 'Multiple Items'} +${saleItems.length - 1} more`,
+        shopName: sale.shopName || 'Main Clinic',
+        displayItems: saleItems.map(i => ({
+          name: i.itemName || '',
+          qty: i.quantity || 0,
+          unit: i.unit || i.sellUnit || '',
+          amount: i.totalAmount ?? ((i.pricePerUnit ?? i.sellingPrice ?? 0) * (i.quantity || 0))
+        })),
+        totalAmount: sale.totalAmount ?? saleItems.reduce((sum, item) => sum + (item.totalAmount ?? 0), 0),
+        date: sale.saleDate || sale.date || sale.createdAt || '',
+        isVoided: sale.status === 'void',
+      }
+    }
+
+    // Legacy Petstore sale (one document per item)
     return {
       ...sale,
       displayType: sale.itemType === 'medicine' ? 'Medicine Sale' : 'Store Sale',
@@ -237,6 +276,10 @@ function SalesHistory() {
     setIsPasswordModalOpen(true)
   }
 
+  const handlePrintClick = (sale) => {
+    setSaleToPrint(sale)
+  }
+
   const handlePasswordConfirm = async (password) => {
     // Simple password check - you can configure this password
     // For security, consider using environment variables or a more robust verification
@@ -272,6 +315,98 @@ function SalesHistory() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .sale-print-area,
+          .sale-print-area * {
+            visibility: visible !important;
+          }
+          .sale-print-area {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 74mm !important;
+            padding: 6mm !important;
+            color: #000 !important;
+            background: #fff !important;
+            font-size: 11px !important;
+          }
+          .sale-print-area table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          .sale-print-area th,
+          .sale-print-area td {
+            padding: 2px 0 !important;
+            border: none !important;
+          }
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      <div className="sale-print-area hidden">
+        {saleToPrint && (
+          <div>
+            <div className="text-center border-b-2 border-gray-900 pb-2 mb-2">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <img src={logo} alt="HappiDogs" className="w-10 h-10 object-contain" />
+                <div className="text-left leading-tight">
+                  <p className="font-black text-[12px] uppercase tracking-wide">HappiDogs</p>
+                  <p className="text-[10px] text-gray-600">Veterinary Services</p>
+                </div>
+              </div>
+              <p className="text-[10px] font-medium text-gray-700">{saleToPrint.displayType}</p>
+              <p className="text-[10px] text-gray-500">{formatDate(saleToPrint.date)}</p>
+              <p className="text-[10px] text-gray-500">{new Date(saleToPrint.date).toLocaleTimeString()}</p>
+            </div>
+
+            <div className="mb-2 text-[10px] text-gray-700 space-y-0.5">
+              <div className="flex justify-between gap-2">
+                <span className="font-medium">Store</span>
+                <span className="text-right">{saleToPrint.shopName || 'Main Clinic'}</span>
+              </div>
+    
+              {saleToPrint.type === 'consultation' && (
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium">Client</span>
+                  <span className="text-right">{saleToPrint.displayName}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-2 border-t border-dashed border-gray-400 pt-2">
+              {(saleToPrint.displayItems || []).map((item, index) => (
+                <div key={`${item.name}-${index}`} className="mb-2 pb-2 border-b border-dotted border-gray-300 last:border-b-0 last:pb-0 last:mb-0">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-semibold text-[11px] leading-tight">{item.name}</span>
+                    <span className="font-semibold text-[11px]">₱{Number(item.amount || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-700 flex justify-between gap-2 mt-0.5">
+                    <span>{item.qty} {item.unit}</span>
+                    <span>₱{Number(item.amount || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t-2 border-gray-900 pt-2">
+              <div className="flex justify-between font-bold text-[12px]">
+                <span>Total</span>
+                <span>₱{Number(saleToPrint.totalAmount || 0).toLocaleString()}</span>
+              </div>
+              <p className="text-center text-[10px] text-gray-500 mt-2">Thank you for your purchase</p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4">
         <div className="flex items-center justify-between mb-4">
@@ -422,15 +557,25 @@ function SalesHistory() {
                       ₱{(sale.totalAmount ?? 0).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5 border border-gray-200 text-center">
-                      <button
-                        onClick={() => handleVoidClick(sale)}
-                        disabled={voidLoading || sale.isVoided}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={sale.isVoided ? 'This sale has been voided' : 'Void this sale and restore stock'}
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                        {sale.isVoided ? 'Voided' : 'Void'}
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handlePrintClick(sale)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                          title="Print this transaction"
+                        >
+                          <FiPrinter className="w-4 h-4" />
+                          Print
+                        </button>
+                        <button
+                          onClick={() => handleVoidClick(sale)}
+                          disabled={voidLoading || sale.isVoided}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={sale.isVoided ? 'This sale has been voided' : 'Void this sale and restore stock'}
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                          {sale.isVoided ? 'Voided' : 'Void'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

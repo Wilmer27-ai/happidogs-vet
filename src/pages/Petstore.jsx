@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart, FiArrowLeft } from 'react-icons/fi'
+import { FiSearch, FiShoppingBag, FiMinus, FiPlus, FiX, FiClock, FiShoppingCart, FiArrowLeft, FiPrinter } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import logo from '../assets/myLogo.png'
 import { getStoreItems, updateStoreItem, getMedicines, updateMedicine, addSale } from '../firebase/services'
 
 function PetStore() {
@@ -314,6 +315,10 @@ function PetStore() {
     
     setCheckoutLoading(true)
     try {
+      const saleItems = []
+      let totalAmount = 0
+      let totalProfit = 0
+
       for (const orderItem of order) {
         const qty = parseFloat(orderItem.quantity)
         if (!Number.isFinite(qty) || qty <= 0) {
@@ -321,27 +326,27 @@ function PetStore() {
           return
         }
         const unit = orderItem.sellUnit
-        const totalAmount = calculateItemTotal(orderItem)   // ← uses finalPrice if set
-        const effectivePricePerUnit = totalAmount / qty     // ← back-calculated for sale record
+        const itemTotal = calculateItemTotal(orderItem)   // ← uses finalPrice if set
+        const effectivePricePerUnit = itemTotal / qty     // ← back-calculated for sale record
 
-        const saleData = {
+        saleItems.push({
           itemId: orderItem.id,
           itemName: orderItem.itemName,
           itemType: orderItem._type,
+          medicineType: orderItem.medicineType || null,
           category: orderItem.category,
           brand: orderItem.brand || '',
           quantity: qty,
           unit: getSellUnitLabel(orderItem, unit),
-          sellingPrice: effectivePricePerUnit,              // ← effective per-unit price
-          totalAmount,
-          profit: totalAmount - ((orderItem.purchasePrice ?? 0) * qty),
-          saleDate: new Date().toISOString(),
-          // metadata: identify which shop/account created this sale
-          shopName: userProfile?.shopName || 'Main Clinic',
-          createdByUid: currentUser?.uid ?? null,
-          createdByName: userProfile?.displayName || userProfile?.email || null,
-        }
-        await addSale(saleData)
+          sellUnit: unit,
+          pricePerUnit: effectivePricePerUnit,
+          sellingPrice: effectivePricePerUnit,
+          totalAmount: itemTotal,
+          profit: itemTotal - ((orderItem.purchasePrice ?? 0) * qty),
+        })
+
+        totalAmount += itemTotal
+        totalProfit += itemTotal - ((orderItem.purchasePrice ?? 0) * qty)
 
         if (orderItem._type === 'medicine') {
           if (orderItem.medicineType === 'syrup') {
@@ -392,6 +397,19 @@ function PetStore() {
           }
         }
       }
+
+      await addSale({
+        type: 'store',
+        saleKind: 'pos',
+        saleDate: new Date().toISOString(),
+        items: saleItems,
+        totalAmount,
+        profit: totalProfit,
+        shopName: userProfile?.shopName || 'Main Clinic',
+        createdByUid: currentUser?.uid ?? null,
+        createdByName: userProfile?.displayName || userProfile?.email || null,
+      })
+
       alert('Sale completed successfully!')
       setShowCheckoutModal(false)
       setOrder([])
@@ -405,6 +423,14 @@ function PetStore() {
     }
   }
 
+  const handlePrintCart = () => {
+    if (order.length === 0) {
+      alert('Cart is empty!')
+      return
+    }
+    window.print()
+  }
+
   const renderCartPanel = () => (
     <>
       <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
@@ -413,6 +439,15 @@ function PetStore() {
           <p className="text-xs text-gray-600">{order.length} items</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrintCart}
+            disabled={order.length === 0}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Print receipt"
+          >
+            <FiPrinter className="w-3.5 h-3.5" />
+            Print
+          </button>
           <FiShoppingBag className="w-5 h-5 text-gray-400" />
           <button onClick={() => setShowCart(false)} className="md:hidden text-gray-500 hover:text-gray-700">
             <FiX className="w-5 h-5" />
@@ -527,6 +562,86 @@ function PetStore() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          .pos-print-area,
+          .pos-print-area * {
+            visibility: visible !important;
+          }
+          .pos-print-area {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 74mm !important;
+            padding: 6mm !important;
+            color: #000 !important;
+            background: #fff !important;
+            font-size: 11px !important;
+          }
+          .pos-print-area table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          .pos-print-area th,
+          .pos-print-area td {
+            padding: 2px 0 !important;
+            border: none !important;
+          }
+          @page {
+            size: A4;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      <div className="pos-print-area hidden">
+        <div className="text-center border-b-2 border-gray-900 pb-2 mb-2">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <img src={logo} alt="HappiDogs" className="w-10 h-10 object-contain" />
+            <div className="text-left leading-tight">
+              <p className="font-black text-[12px] uppercase tracking-wide">HappiDogs</p>
+              <p className="text-[10px] text-gray-600">Veterinary Clinic</p>
+            </div>
+          </div>
+
+          <p className="text-[10px] text-gray-500">{new Date().toLocaleString()}</p>
+        </div>
+
+        <div className="mb-2 text-[10px] text-gray-700 space-y-0.5">
+          <div className="flex justify-between gap-2">
+            <span className="font-medium">Store</span>
+            <span className="text-right">{userProfile?.shopName || 'Main Clinic'}</span>
+          </div>
+        </div>
+
+        <div className="mb-2 border-t border-dashed border-gray-400 pt-2">
+          {order.map((item, index) => (
+            <div key={`print-${item._type}-${item.id}-${index}`} className="mb-2 pb-2 border-b border-dotted border-gray-300 last:border-b-0 last:pb-0 last:mb-0">
+              <div className="flex justify-between gap-2">
+                <span className="font-semibold text-[11px] leading-tight">{item.itemName}</span>
+                <span className="font-semibold text-[11px]">₱{calculateItemTotal(item).toLocaleString()}</span>
+              </div>
+              <div className="text-[10px] text-gray-700 flex justify-between gap-2 mt-0.5">
+                <span>{item.quantity} {getSellUnitLabel(item, item.sellUnit)} = ₱{Number(item.pricePerUnit || 0).toLocaleString()}</span>
+                <span>{item.category}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t-2 border-gray-900 pt-2">
+          <div className="flex justify-between font-bold text-[12px]">
+            <span>Total</span>
+            <span>₱{getTotalAmount().toLocaleString()}</span>
+          </div>
+          <p className="text-center text-[10px] text-gray-500 mt-2">Thank you for your purchase</p>
+        </div>
+      </div>
+
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-3 md:py-4 flex-shrink-0">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pet Store</h1>
