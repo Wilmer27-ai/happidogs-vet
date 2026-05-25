@@ -703,11 +703,27 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
     if (!editingConsultation) return
     setSavingEditConsultation(true)
     try {
-      const normalizedMedicines = (editingData.medicines || []).map(med => ({
-        ...med,
-        unit: med.sellUnit || med.unit || getDefaultUnit(med),
-        sellUnit: med.sellUnit || med.unit || getDefaultUnit(med),
-      }))
+      const normalizedMedicines = (editingData.medicines || []).map(med => {
+        const unit = med.sellUnit || med.unit || getDefaultUnit(med)
+        const quantity = Number(med.quantity ?? 0)
+        const overridePrice = med.finalPrice !== undefined && med.finalPrice !== ''
+          ? Number(med.finalPrice)
+          : null
+        const pricePerUnit = overridePrice !== null && Number.isFinite(overridePrice)
+          ? (quantity > 0 ? overridePrice / quantity : overridePrice)
+          : Number(med.pricePerUnit ?? 0)
+
+        return {
+          ...med,
+          unit,
+          sellUnit: unit,
+          quantity,
+          pricePerUnit,
+          subtotal: overridePrice !== null && Number.isFinite(overridePrice)
+            ? overridePrice
+            : pricePerUnit * quantity,
+        }
+      })
       // Construct update data with combined activityType string
       const updateData = {
         ...editingData,
@@ -1483,6 +1499,10 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                       <div key={idx}>
                                         <span className="font-medium text-gray-800">{med.medicineName}</span>
                                         <span className="text-gray-500"> × {med.quantity} {med.unit}</span>
+                                        <div className="text-gray-400">
+                                          <span className="mr-2">₱{(med.pricePerUnit ?? med.price ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}/unit</span>
+                                          <span>₱{((med.subtotal ?? ((med.pricePerUnit ?? med.price ?? 0) * (med.quantity || 0))) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                                        </div>
                                       </div>
                                     ))
                                     : <span className="text-gray-400">—</span>}
@@ -1722,9 +1742,20 @@ function DetailsStep({ selectedClient, selectedPets: propSelectedPets, onSelectC
                                     onClick={() => {
                                       setEditingData(prev => ({
                                         ...prev,
-                                        medicines: (prev.medicines || []).map((m, i) =>
-                                          i === idx ? { ...m, editingPrice: false } : m
-                                        )
+                                        medicines: (prev.medicines || []).map((m, i) => {
+                                          if (i !== idx) return m
+                                          const quantity = Number(m.quantity ?? 0)
+                                          const finalPrice = m.finalPrice !== undefined && m.finalPrice !== ''
+                                            ? Number(m.finalPrice)
+                                            : (m.pricePerUnit ?? 0) * quantity
+                                          return {
+                                            ...m,
+                                            finalPrice,
+                                            pricePerUnit: quantity > 0 ? finalPrice / quantity : finalPrice,
+                                            subtotal: finalPrice,
+                                            editingPrice: false,
+                                          }
+                                        })
                                       }))
                                     }}
                                     className="px-1.5 py-0.5 text-xs font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">Save</button>
