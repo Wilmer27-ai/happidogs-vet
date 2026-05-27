@@ -391,13 +391,12 @@ function SalesHistory() {
             <div className="mb-2 border-t border-dashed border-gray-400 pt-2">
               {(saleToPrint.displayItems || []).map((item, index) => (
                 <div key={`${item.name}-${index}`} className="mb-2 pb-2 border-b border-dotted border-gray-300 last:border-b-0 last:pb-0 last:mb-0">
-                  <div className="flex justify-between gap-2">
-                    <span className="font-semibold text-[11px] leading-tight">{item.name}</span>
-                    <span className="font-semibold text-[11px]">₱{Number(item.amount || 0).toLocaleString()}</span>
-                  </div>
-                  <div className="text-[10px] text-gray-700 flex justify-between gap-2 mt-0.5">
-                    <span>{item.qty} {item.unit}</span>
-                    <span>₱{Number(item.amount || 0).toLocaleString()}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-[11px] leading-tight truncate">{item.name}</span>
+                    </div>
+                    <div className="text-[10px] text-gray-700 mx-2 text-center">{item.qty} {item.unit}</div>
+                    <div className="font-semibold text-[11px]">₱{Number(item.amount || 0).toLocaleString()}</div>
                   </div>
                 </div>
               ))}

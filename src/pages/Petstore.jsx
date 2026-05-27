@@ -627,12 +627,12 @@ function PetStore() {
         <div className="mb-2 border-t border-dashed border-gray-400 pt-2">
           {order.map((item, index) => (
             <div key={`print-${item._type}-${item.id}-${index}`} className="mb-2 pb-2 border-b border-dotted border-gray-300 last:border-b-0 last:pb-0 last:mb-0">
-              <div className="flex justify-between gap-2">
-                <span className="font-semibold text-[11px] leading-tight">{item.itemName}</span>
-                <span className="font-semibold text-[11px]">₱{calculateItemTotal(item).toLocaleString()}</span>
-              </div>
-              <div className="text-[10px] text-gray-700 mt-0.5">
-                <span>{item.quantity} {getSellUnitLabel(item, item.sellUnit)} = ₱{Number(item.pricePerUnit || 0).toLocaleString()}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <span className="font-semibold text-[11px] leading-tight truncate">{item.itemName}</span>
+                </div>
+                <div className="text-[10px] text-gray-700 mx-2 text-center">{item.quantity} {getSellUnitLabel(item, item.sellUnit)}</div>
+                <div className="font-semibold text-[11px]">₱{calculateItemTotal(item).toLocaleString()}</div>
               </div>
             </div>
           ))}
