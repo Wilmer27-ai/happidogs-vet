@@ -468,6 +468,7 @@ function Dashboard() {
   const maxConsultations = Math.max(...stats.weeklyTrend.map(d => d.count), 1)
   const todayProfit = (stats.todayRevenue + stats.todaySales) - stats.todayExpenses - (stats.todayBankDeposits || 0)
   const maxMonthlySales = Math.max(...stats.monthlySalesTrend.map(item => item.value), 1)
+  const cashOnHandMonth = (Number(stats.monthRevenue || 0) + Number(stats.monthSales || 0)) - (Number(stats.monthExpenses || 0) + Number(stats.monthBankDeposits || 0))
   const maxProductTotal = Math.max(...stats.monthlyProductSales.map(item => item.total), 1)
   const chartMax = 100000
   const monthlyAxisTicks = [100000, 50000, 20000, 0]
@@ -491,7 +492,7 @@ function Dashboard() {
       <div className="flex-1 overflow-hidden p-4 flex flex-col gap-3 min-h-0">
 
         {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 flex-shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 flex-shrink-0">
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate('/clients-pets')}>
             <p className="text-xs text-gray-500">Total Clients</p>
             <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
@@ -501,16 +502,16 @@ function Dashboard() {
             <p className="text-2xl font-bold text-gray-900">₱{(stats.todayRevenue + stats.todaySales).toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 min-w-0">
               <div>
                 <p className="text-xs text-gray-500">Monthly Sales</p>
                 <p className="text-2xl font-bold text-gray-900">₱{(typeof stats.selectedMonthTotal === 'number' ? stats.selectedMonthTotal : (stats.monthRevenue + stats.monthSales)).toLocaleString()}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <select
                   value={salesMonth}
                   onChange={(e) => setSalesMonth(parseInt(e.target.value, 10))}
-                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 w-28 flex-shrink-0 relative z-10"
                 >
                   {monthOptions.map((label, idx) => (
                     <option key={label} value={idx}>{label}</option>
@@ -518,7 +519,11 @@ function Dashboard() {
                 </select>
               </div>
             </div>
-            <p className="text-xs font-semibold text-gray-700 mt-0.5">Cash on hand: ₱{((stats.monthRevenue + stats.monthSales) - (stats.monthBankDeposits || 0)).toLocaleString()}</p>
+          </div>
+          
+          <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500">Cash on Hand</p>
+            <p className="text-2xl font-bold text-gray-900">₱{Number(cashOnHandMonth).toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg px-4 py-2.5 border border-gray-200 shadow-sm">
             <p className="text-xs text-gray-500">Daily Expenses</p>
@@ -724,17 +729,17 @@ function Dashboard() {
                 <h3 className="text-sm font-semibold text-gray-900">Monthly Sales</h3>
                 <p className="text-xs text-gray-500">Jan-Dec totals</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
                 <select
                   value={salesYear}
                   onChange={(e) => setSalesYear(parseInt(e.target.value, 10))}
-                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
+                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 w-28 flex-shrink-0 relative z-10"
                 >
                   {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((year) => (
                     <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
-                <p className="text-sm font-bold text-gray-900">
+                <p className="text-sm font-bold text-gray-900 truncate max-w-xs">
                   ₱{(stats.monthRevenue + stats.monthSales).toLocaleString()}
                 </p>
               </div>
