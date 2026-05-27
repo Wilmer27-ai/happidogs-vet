@@ -175,11 +175,13 @@ function ConsultationReceiptPrint({
                     <div className="flex items-center gap-1">
                       <span className="text-gray-500 text-xs">₱</span>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.]?[0-9]*"
                         min="0"
                         step="50"
                         value={feeInput}
-                        onChange={(e) => onFeeInputChange?.(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => onFeeInputChange?.(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         className="w-20 px-1 py-0.5 text-xs text-right border border-blue-400 rounded focus:outline-none [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden"
                         style={{ appearance: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
@@ -220,11 +222,13 @@ function ConsultationReceiptPrint({
                     <div className="flex items-center gap-1">
                       <span className="text-gray-400 text-xs">₱</span>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.]?[0-9]*"
                         min="0"
                         step="50"
                         value={totalInput}
-                        onChange={(e) => onTotalInputChange?.(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => onTotalInputChange?.(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         className="w-24 px-1 py-0.5 text-xs text-right border border-blue-400 rounded bg-gray-800 text-white focus:outline-none [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden"
                         style={{ appearance: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}

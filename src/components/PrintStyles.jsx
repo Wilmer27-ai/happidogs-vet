@@ -207,8 +207,7 @@ function PrintStyles() {
         button[class*="Edit"],
         svg[class*="Edit"],
         div[class*="edit"],
-        span[class*="Edit"],
-        .flex.items-center.gap-1:not(.flex-1) {
+        span[class*="Edit"] {
           display: none !important;
         }
 

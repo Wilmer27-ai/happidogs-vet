@@ -51,7 +51,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
 
   const [editingFee, setEditingFee] = useState(false)
   const [editingTotal, setEditingTotal] = useState(false)
-  const [totalInput, setTotalInput] = useState(null)
+  const [totalInput, setTotalInput] = useState('')
   const [customTotal, setCustomTotal] = useState(null)
 
   const computedTotal = consultationFee + medicinesTotal
@@ -382,13 +382,13 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         editingFee={editingFee}
         feeInput={feeInput}
         onFeeInputChange={setFeeInput}
-        onToggleFeeEdit={() => { setFeeInput(consultationFee); setEditingFee(true) }}
-        onSaveFee={() => { setConsultationFee(feeInput); setEditingFee(false) }}
+        onToggleFeeEdit={() => { setFeeInput(String(consultationFee ?? 0)); setEditingFee(true) }}
+        onSaveFee={() => { setConsultationFee(Number.parseFloat(feeInput) || 0); setEditingFee(false) }}
         editingTotal={editingTotal}
-        totalInput={totalInput ?? computedTotal}
+        totalInput={totalInput}
         onTotalInputChange={setTotalInput}
-        onToggleTotalEdit={() => { setTotalInput(totalAmount); setEditingTotal(true) }}
-        onSaveTotal={() => { setCustomTotal(totalInput ?? computedTotal); setEditingTotal(false) }}
+        onToggleTotalEdit={() => { setTotalInput(String(totalAmount ?? computedTotal)); setEditingTotal(true) }}
+        onSaveTotal={() => { setCustomTotal(Number.parseFloat(totalInput) || 0); setEditingTotal(false) }}
         customTotal={customTotal}
       />
 
