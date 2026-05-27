@@ -100,18 +100,26 @@ function Reports() {
     })
   }
 
+  const normalizeShopName = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+  const isMainClinicShop = (value) => {
+    const normalized = normalizeShopName(value)
+    return normalized === 'main clinic' || normalized === 'mainclinic'
+  }
+
   // filteredSales: handle both consultation sales ('date' field) and POS sales ('saleDate' field)
   const filteredSales = (() => {
     const rangeStart = getDateRangeFilter()
 
     // helper: whether a sale should be visible based on role/shop
     const isSaleVisible = (s) => {
+      const saleShopName = normalizeShopName(s.shopName)
       if (role === 'limited') {
-        const shopName = s.shopName || ''
-        return (shopName && shopName === (userProfile?.shopName || '')) || (s.createdByUid && s.createdByUid === currentUser?.uid)
+        const userShopName = normalizeShopName(userProfile?.shopName)
+        return saleShopName === userShopName || (!saleShopName && isMainClinicShop(userProfile?.shopName)) || (s.createdByUid && s.createdByUid === currentUser?.uid)
       }
       if (shopFilter && shopFilter !== 'all') {
-        return (s.shopName || '').toLowerCase() === shopFilter.toLowerCase()
+        const selectedShopName = normalizeShopName(shopFilter)
+        return saleShopName === selectedShopName || (!saleShopName && isMainClinicShop(shopFilter))
       }
       return true
     }
@@ -398,12 +406,14 @@ function Reports() {
     sections.push(row(['Date', 'Type', 'Client', 'Pets', 'Items', 'Total Amount', 'Voided Date']))
     // Only include voided sales that are visible to the current user (respect shop filter / limited users)
     const isSaleVisibleForExport = (s) => {
+      const saleShopName = normalizeShopName(s.shopName)
       if (role === 'limited') {
-        const shopName = s.shopName || ''
-        return (shopName && shopName === (userProfile?.shopName || '')) || (s.createdByUid && s.createdByUid === currentUser?.uid)
+        const userShopName = normalizeShopName(userProfile?.shopName)
+        return saleShopName === userShopName || (!saleShopName && isMainClinicShop(userProfile?.shopName)) || (s.createdByUid && s.createdByUid === currentUser?.uid)
       }
       if (shopFilter && shopFilter !== 'all') {
-        return (s.shopName || '').toLowerCase() === shopFilter.toLowerCase()
+        const selectedShopName = normalizeShopName(shopFilter)
+        return saleShopName === selectedShopName || (!saleShopName && isMainClinicShop(shopFilter))
       }
       return true
     }
