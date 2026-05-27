@@ -170,7 +170,7 @@ function PrintStyles() {
 
         /* Footer stays at bottom of receipt content */
         .summary-print-footer {
-          margin-top: auto !important;
+          margin-top: 6mm !important;
         }
 
         /* Clean print look: remove box fills/outlines from info containers */
