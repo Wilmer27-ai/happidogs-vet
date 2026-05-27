@@ -564,37 +564,43 @@ function PetStore() {
     <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          .pos-print-area,
-          .pos-print-area * {
-            visibility: visible !important;
-          }
+          body * { visibility: hidden !important; }
+          .pos-print-area, .pos-print-area * { visibility: visible !important; }
           .pos-print-area {
             display: block !important;
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 74mm !important;
-            padding: 6mm !important;
+            width: 210mm !important;
+            max-width: 100% !important;
+            padding: 8mm 12mm !important;
             color: #000 !important;
             background: #fff !important;
             font-size: 11px !important;
+            box-shadow: none !important;
           }
-          .pos-print-area table {
-            width: 100% !important;
-            border-collapse: collapse !important;
+          .pos-print-area .text-center { text-align: center !important; }
+          .pos-print-area .text-left.leading-tight { text-align: center !important; }
+          .pos-print-area .border-b-2 { border-bottom-width: 2px !important; }
+          .pos-print-area .border-dashed { border-style: dashed !important; }
+          .pos-print-area .border-dotted { border-style: dotted !important; }
+          .pos-print-area table { width: 100% !important; border-collapse: collapse !important; }
+          .pos-print-area th, .pos-print-area td { padding: 2px 0 !important; border: none !important; }
+          .pos-print-area .font-semibold { font-weight: 700 !important; }
+          .pos-print-area .text-[10px] { font-size: 10px !important; }
+          .pos-print-area .mb-2 { margin-bottom: 6px !important; }
+          .pos-print-area .border-t-2 { margin-top: 2mm !important; }
+          .pos-print-area .receipt-footer-line {
+            border-top: 1px solid #000 !important;
+            margin-top: 2mm !important;
+            padding-top: 2mm !important;
           }
-          .pos-print-area th,
-          .pos-print-area td {
-            padding: 2px 0 !important;
-            border: none !important;
+          .pos-print-area .receipt-cut-line {
+            border-top: 1px dashed rgba(0, 0, 0, 0.35) !important;
+            margin-top: 4mm !important;
+            padding-top: 2mm !important;
           }
-          @page {
-            size: A4;
-            margin: 10mm;
-          }
+          @page { size: A4; margin: 0mm; }
         }
       `}</style>
 
@@ -625,20 +631,20 @@ function PetStore() {
                 <span className="font-semibold text-[11px] leading-tight">{item.itemName}</span>
                 <span className="font-semibold text-[11px]">₱{calculateItemTotal(item).toLocaleString()}</span>
               </div>
-              <div className="text-[10px] text-gray-700 flex justify-between gap-2 mt-0.5">
+              <div className="text-[10px] text-gray-700 mt-0.5">
                 <span>{item.quantity} {getSellUnitLabel(item, item.sellUnit)} = ₱{Number(item.pricePerUnit || 0).toLocaleString()}</span>
-                <span>{item.category}</span>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="border-t-2 border-gray-900 pt-2">
+        <div className="border-t-2 border-gray-900 pt-0 receipt-footer-line">
           <div className="flex justify-between font-bold text-[12px]">
             <span>Total</span>
             <span>₱{getTotalAmount().toLocaleString()}</span>
           </div>
           <p className="text-center text-[10px] text-gray-500 mt-2">Thank you for your purchase</p>
+          <div className="receipt-cut-line" />
         </div>
       </div>
 

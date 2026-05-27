@@ -317,37 +317,44 @@ function SalesHistory() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <style>{`
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          .sale-print-area,
-          .sale-print-area * {
-            visibility: visible !important;
-          }
+          body * { visibility: hidden !important; }
+          .sale-print-area, .sale-print-area * { visibility: visible !important; }
           .sale-print-area {
             display: block !important;
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 74mm !important;
-            padding: 6mm !important;
+            width: 210mm !important;
+            max-width: 100% !important;
+            padding: 8mm 12mm !important;
             color: #000 !important;
             background: #fff !important;
             font-size: 11px !important;
+            box-shadow: none !important;
           }
-          .sale-print-area table {
-            width: 100% !important;
-            border-collapse: collapse !important;
+          .sale-print-area .text-center { text-align: center !important; }
+          .sale-print-area .text-center img { width: 40px !important; height: 40px !important; object-fit: contain !important; }
+          .sale-print-area .border-b-2 { border-bottom-width: 2px !important; }
+          .sale-print-area .border-dashed { border-style: dashed !important; }
+          .sale-print-area .border-dotted { border-style: dotted !important; }
+          .sale-print-area table { width: 100% !important; border-collapse: collapse !important; }
+          .sale-print-area th, .sale-print-area td { padding: 2px 0 !important; border: none !important; }
+          .sale-print-area .mb-2 { margin-bottom: 6px !important; }
+          .sale-print-area .font-semibold { font-weight: 700 !important; }
+          .sale-print-area .text-[10px] { font-size: 10px !important; }
+          /* Pin footer visual spacing near bottom of printed area */
+          .sale-print-area .border-t-2 { margin-top: 2mm !important; }
+          .sale-print-area .receipt-footer-line {
+            border-top: 1px solid #000 !important;
+            margin-top: 2mm !important;
+            padding-top: 2mm !important;
           }
-          .sale-print-area th,
-          .sale-print-area td {
-            padding: 2px 0 !important;
-            border: none !important;
+          .sale-print-area .receipt-cut-line {
+            border-top: 1px dashed rgba(0, 0, 0, 0.35) !important;
+            margin-top: 4mm !important;
+            padding-top: 2mm !important;
           }
-          @page {
-            size: A4;
-            margin: 10mm;
-          }
+          @page { size: A4; margin: 0mm; }
         }
       `}</style>
 
@@ -396,12 +403,13 @@ function SalesHistory() {
               ))}
             </div>
 
-            <div className="border-t-2 border-gray-900 pt-2">
+            <div className="border-t-2 border-gray-900 pt-2 receipt-footer-line">
               <div className="flex justify-between font-bold text-[12px]">
                 <span>Total</span>
                 <span>₱{Number(saleToPrint.totalAmount || 0).toLocaleString()}</span>
               </div>
               <p className="text-center text-[10px] text-gray-500 mt-2">Thank you for your purchase</p>
+              <div className="receipt-cut-line" />
             </div>
           </div>
         )}
