@@ -365,7 +365,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
         groupedByPet={groupedByPet}
         buildRows={buildRows}
         formatDate={formatDate}
-        receiptNo={receiptNo}
+        receiptNo={'Happidogs Veterinary Clinic'}
         receiptDateLabel={formatDate(now.toLocaleDateString('en-CA'))}
         clinicName={clinicName}
         clinicAddress={clinicAddress}

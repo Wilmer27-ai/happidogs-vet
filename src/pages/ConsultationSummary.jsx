@@ -169,7 +169,7 @@ function ConsultationSummary() {
         groupedByPet={groupedByPet}
         buildRows={buildRows}
         formatDate={formatDate}
-        receiptNo={receiptNo}
+        receiptNo={'Happidogs Veterinary Clinic'}
         receiptDateLabel={formatDate(date)}
         clinicName={clinicName}
         clinicAddress={clinicAddress}

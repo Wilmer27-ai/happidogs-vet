@@ -55,7 +55,10 @@ function ConsultationReceiptPrint({
                 <p className="text-xs print:text-[9px] font-black uppercase tracking-widest text-gray-900 leading-none">{headerTitle}</p>
               </div>
               <div className="text-xs print:text-[9px] text-gray-500 space-y-0 print:space-y-0">
-                <p><span className="font-semibold text-gray-700">Receipt No:</span> {receiptNo}</p>
+                <p>
+                  <span className="font-semibold text-gray-700">Facebook page:</span>
+                  <span className="font-bold text-gray-900 ml-1">{receiptNo}</span>
+                </p>
                 <p><span className="font-semibold text-gray-700">Date:</span> {receiptDateLabel}</p>
               </div>
             </div>
