@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FiAlertCircle, FiCopy, FiCheck } from 'react-icons/fi'
+import { FiChevronDown } from 'react-icons/fi'
 import { getAllPetActivities, getClients, getPets, getMedicines, getStoreItems, getExpenses, getMasterData, getSales, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function Dashboard() {
@@ -507,16 +508,22 @@ function Dashboard() {
                 <p className="text-xs text-gray-500">Monthly Sales</p>
                 <p className="text-2xl font-bold text-gray-900">₱{(typeof stats.selectedMonthTotal === 'number' ? stats.selectedMonthTotal : (stats.monthRevenue + stats.monthSales)).toLocaleString()}</p>
               </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={salesMonth}
-                  onChange={(e) => setSalesMonth(parseInt(e.target.value, 10))}
-                  className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700"
-                >
-                  {monthOptions.map((label, idx) => (
-                    <option key={label} value={idx}>{label}</option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="relative">
+                  <select
+                    value={salesMonth}
+                    onChange={(e) => setSalesMonth(parseInt(e.target.value, 10))}
+                    aria-label="Select month"
+                    title="Select month"
+                    className="appearance-none text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 w-9 flex-shrink-0 relative z-10 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    style={{ color: 'transparent' }}
+                  >
+                    {monthOptions.map((label, idx) => (
+                      <option key={label} value={idx} style={{ color: '#374151' }}>{label}</option>
+                    ))}
+                  </select>
+                  <FiChevronDown className="pointer-events-none absolute right-2 top-1/2 z-20 h-3.5 w-3.5 -translate-y-1/2 text-gray-900" />
+                </div>
               </div>
             </div>
           </div>
