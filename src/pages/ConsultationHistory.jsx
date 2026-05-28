@@ -88,13 +88,41 @@ function ConsultationHistory() {
 
   useEffect(() => { setDisplayCount(20) }, [searchQuery, dateFilter])
 
+  const resolveContactNumber = (group) => {
+    if (group?.contactNumber) return group.contactNumber
+
+    const client = clients.find((item) => {
+      if (group?.clientId && item.id === group.clientId) return true
+      const groupName = String(group?.clientName || '').trim().toLowerCase()
+      const clientName = String(`${item.firstName || ''} ${item.lastName || ''}`).trim().toLowerCase()
+      return groupName !== '' && groupName === clientName
+    })
+
+    return client?.contactNumber || client?.phoneNumber || ''
+  }
+
   const handleViewConsultation = (group) => {
     // Pass the snapshot directly — no re-fetching needed
-    navigate('/consultation-summary', { state: { group } })
+    navigate('/consultation-summary', {
+      state: {
+        group: {
+          ...group,
+          contactNumber: resolveContactNumber(group),
+        },
+      },
+    })
   }
 
   const handlePrintConsultation = (group) => {
-    navigate('/consultation-summary', { state: { group, autoPrint: true } })
+    navigate('/consultation-summary', {
+      state: {
+        group: {
+          ...group,
+          contactNumber: resolveContactNumber(group),
+        },
+        autoPrint: true,
+      },
+    })
   }
 
   const handleDeleteConsultation = async (group) => {

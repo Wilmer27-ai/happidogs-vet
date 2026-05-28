@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { FiPrinter, FiArrowLeft } from 'react-icons/fi'
 import ConsultationReceiptPrint from '../components/ConsultationReceiptPrint'
 import PrintStyles from '../components/PrintStyles'
-import { getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
+import { getClient, getMasterData, MASTER_DATA_DEFAULTS } from '../firebase/services'
 
 function ConsultationSummary() {
   const location = useLocation()
@@ -14,6 +14,8 @@ function ConsultationSummary() {
   const [clinicAddress, setClinicAddress] = useState(MASTER_DATA_DEFAULTS.clinicAddress)
   const [clinicPhone, setClinicPhone] = useState(MASTER_DATA_DEFAULTS.clinicPhone)
   const [attendingVeterinarian, setAttendingVeterinarian] = useState(MASTER_DATA_DEFAULTS.attendingVeterinarian)
+  const [contactNumber, setContactNumber] = useState(group?.contactNumber || '')
+  const [contactLookupComplete, setContactLookupComplete] = useState(Boolean(group?.contactNumber || !group?.clientId))
 
   useEffect(() => {
     getMasterData().then((data) => {
@@ -25,10 +27,36 @@ function ConsultationSummary() {
   }, [])
 
   useEffect(() => {
-    if (!autoPrint) return
+    if (group?.contactNumber) {
+      setContactNumber(group.contactNumber)
+      setContactLookupComplete(true)
+      return
+    }
+
+    if (!group?.clientId) {
+      setContactLookupComplete(true)
+      return
+    }
+
+    setContactLookupComplete(false)
+
+    let cancelled = false
+    getClient(group.clientId).then((client) => {
+      if (cancelled) return
+      setContactNumber(client?.contactNumber || client?.phoneNumber || '')
+      setContactLookupComplete(true)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [group])
+
+  useEffect(() => {
+    if (!autoPrint || !contactLookupComplete) return
     const timer = window.setTimeout(() => window.print(), 100)
     return () => window.clearTimeout(timer)
-  }, [autoPrint])
+  }, [autoPrint, contactLookupComplete])
 
   if (!group) {
     return (
@@ -175,7 +203,7 @@ function ConsultationSummary() {
         clinicAddress={clinicAddress}
         clinicPhone={clinicPhone}
         clientName={clientName}
-        contactNumber="N/A"
+        contactNumber={contactNumber || 'N/A'}
         uniquePetCount={uniquePetCount}
         consultationFee={consultationFee}
         medicinesTotal={medicinesTotal}

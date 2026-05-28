@@ -126,6 +126,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
       const now = new Date()
       const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       const clientName = `${selectedClient?.firstName} ${selectedClient?.lastName}`
+      const contactNumber = selectedClient?.contactNumber || selectedClient?.phoneNumber || ''
 
       const snapshotActivities = (consultationData || []).map(activity => ({
         petActivityId: activity.id,
@@ -222,6 +223,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
           consultationId,
           clientId: selectedClient?.id,
           clientName,
+          contactNumber,
           date,
           activities: snapshotActivities,
           consultationFee,
@@ -248,6 +250,7 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
           consultationId,
           clientId: selectedClient?.id,
           clientName,
+          contactNumber,
           date,
           activities: snapshotActivities,
           consultationFee,
@@ -299,7 +302,9 @@ function SummaryStep({ selectedClient, selectedPets, consultationData, medicines
 
       const group = {
         consultationId,
+        clientId: selectedClient?.id,
         clientName,
+        contactNumber,
         date,
         activities: snapshotActivities,
         consultationFee,
